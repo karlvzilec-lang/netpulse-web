@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetPulse Web — Live Dashboard</title>
+
+  <!-- MapLibre GL JS 4.x — vendor-neutral map (same tile stack as the Android app) -->
+  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Supabase JS v2 UMD — exposes window.supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --border:   #30363d;
+      --primary:  #1f6feb;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --green:    #3fb950;
+      --yellow:   #d29922;
+      --orange:   #db6d28;
+      --red:      #f85149;
+      --purple:   #a371f7;
+      --blue:     #58a6ff;
+      --cyan:     #39d353;
+
+      /* RSRP bands — validated from NetPulse Android engineering spec */
+      --rsrp-excellent: #00e676;   /* ≥ −80  dBm */
+      --rsrp-good:      #00bcd4;   /* −80 to −90  */
+      --rsrp-fair:      #ffc107;   /* −90 to −100 */
+      --rsrp-poor:      #ff9800;   /* −100 to −110 */
+      --rsrp-critical:  #f44336;   /* < −110 */
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Navbar ──────────────────────────────────────────────────── */
+    .navbar {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo svg { width: 30px; height: 30px; flex-shrink: 0; }
+    .logo-text { font-size: 17px; font-weight: 700; color: var(--text); }
+    .logo-sub  { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+    .spacer { flex: 1; }
+    .update-ts { font-size: 11px; color: var(--muted); }
+
+    .conn-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border);
+      font-size: 12px; color: var(--muted);
+    }
+    .conn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); transition: background .3s;
+    }
+    .conn-dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
+    .conn-dot.error { background: var(--red); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Tabs ────────────────────────────────────────────────────── */
+    .tabs {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      gap: 2px;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      background: none; border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted); cursor: pointer;
+      font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 7px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover  { color: var(--text); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Page layout ─────────────────────────────────────────────── */
+    .page { padding: 24px; max-width: 1480px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── KPI grid ────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+    .kpi-value { font-size: 30px; font-weight: 700; line-height: 1.1; }
+    .kpi-unit  { font-size: 11px; color: var(--muted); }
+
+    /* ── Grid helpers ────────────────────────────────────────────── */
+    .grid { display: grid; gap: 16px; margin-bottom: 16px; }
+    .col-2   { grid-template-columns: 1fr 1fr; }
+    .col-3   { grid-template-columns: 2fr 1fr 1fr; }
+    .col-map { grid-template-columns: 1fr 320px; }
+    @media(max-width: 960px) { .col-2,.col-3,.col-map { grid-template-columns: 1fr; } }
+
+    /* ── Card ────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+    }
+    .card-head {
+      padding: 13px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-title    { font-size: 13px; font-weight: 600; }
+    .card-subtitle { font-size: 11px; color: var(--muted); }
+    .card-body     { padding: 16px; }
+
+    /* ── Chart wrapper ───────────────────────────────────────────── */
+    .chart-box { position: relative; }
+    .chart-box canvas { display: block; }
+
+    /* ── MapLibre ────────────────────────────────────────────────── */
+    #drive-map { width: 100%; height: 500px; }
+
+    /* popup light styling */
+    .maplibregl-popup-content {
+      background: var(--surface2) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 6px !important;
+      padding: 10px 12px !important;
+      font-size: 12px !important;
+      line-height: 1.6 !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5) !important;
+    }
+    .maplibregl-popup-tip { border-top-color: var(--surface2) !important; }
+
+    /* ── Map legend ──────────────────────────────────────────────── */
+    .map-legend {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+    }
+    .leg-item  { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .leg-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .leg-label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-right: 4px; }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; }
+    table   { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th      { padding: 8px 12px; text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 11px; }
+    td      { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── Badges ──────────────────────────────────────────────────── */
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .b5g  { background: rgba(63,185,80,.18); color: #3fb950; }
+    .b4g  { background: rgba(31,111,235,.18); color: #58a6ff; }
+    .b3g  { background: rgba(210,153,34,.18); color: #d29922; }
+    .bunk { background: var(--surface2); color: var(--muted); }
+
+    .rsrp-pill {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 12px; font-size: 11px; font-weight: 600;
+    }
+
+    .live-tag {
+      display: inline-block; padding: 1px 6px;
+      background: rgba(63,185,80,.15); color: var(--green);
+      border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px;
+    }
+
+    /* ── Session sidebar ─────────────────────────────────────────── */
+    .session-list { height: 500px; overflow-y: auto; }
+    .session-item {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background .1s;
+    }
+    .session-item:hover, .session-item.sel { background: var(--surface2); }
+    .session-dev  { font-size: 12px; font-weight: 600; }
+    .session-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .session-row  { display: flex; gap: 10px; margin-top: 6px; }
+    .session-stat { font-size: 11px; }
+
+    /* ── Empty state ─────────────────────────────────────────────── */
+    .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Mono util ───────────────────────────────────────────────── */
+    .mono { font-family: 'Consolas', 'Menlo', monospace; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<nav class="navbar">
+  <a class="logo" href="#">
+    <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="30" height="30" rx="7" fill="#1f6feb"/>
+      <polyline points="3,22 8,13 13,17 18,8 23,15 27,10"
+        stroke="white" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <span class="logo-text">NetPulse<span class="logo-sub">Web</span></span>
+  </a>
+  <div class="spacer"></div>
+  <span class="update-ts" id="ts">—</span>
+  <div class="conn-pill">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span id="conn-lbl">Connecting…</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════ TABS ═════════════════════════════ -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>
+    Dashboard
+  </button>
+  <button class="tab-btn" data-tab="network">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 11l3-4 2 2 4-6 3 4 2-3v6H1v1z"/></svg>
+    Network
+  </button>
+  <button class="tab-btn" data-tab="cx">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.9 3.8L14 5.7l-3 2.9.7 4.1L8 10.5l-3.7 2.2.7-4.1L2 5.7l4.1-.9L8 1z"/></svg>
+    CX Experience
+  </button>
+  <button class="tab-btn" data-tab="drive">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a5 5 0 100 10A5 5 0 008 1zm0 1.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM8 5a1 1 0 100 2A1 1 0 008 5z"/><path d="M8 10v5"/></svg>
+    Drive Test
+  </button>
+</div>
+
+<!-- ═══════════════════════════ PAGE ══════════════════════════════ -->
+<div class="page">
+
+<!-- ────────────────── DASHBOARD ────────────────── -->
+<div class="tab-panel active" id="tab-dashboard">
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Tests</div>
+      <div class="kpi-value" id="k-total">—</div>
+      <div class="kpi-unit">all time</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Download</div>
+      <div class="kpi-value" style="color:var(--blue)" id="k-dl">—</div>
+      <div class="kpi-unit">Mbps</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Upload</div>
+      <div class="kpi-value" style="color:var(--green)" id="k-ul">—</div>
+      <div class="kpi-unit">Mbps</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Latency</div>
+      <div class="kpi-value" style="color:var(--yellow)" id="k-ping">—</div>
+      <div class="kpi-unit">ms</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg RSRP</div>
+      <div class="kpi-value" id="k-rsrp">—</div>
+      <div class="kpi-unit">dBm</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Drive Sessions</div>
+      <div class="kpi-value" style="color:var(--purple)" id="k-sessions">—</div>
+      <div class="kpi-unit">recorded</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Active Devices</div>
+      <div class="kpi-value" style="color:var(--cyan)" id="k-devices">—</div>
+      <div class="kpi-unit">last 24 h</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">CX Records</div>
+      <div class="kpi-value" style="color:var(--orange)" id="k-cx">—</div>
+      <div class="kpi-unit">logged</div>
+    </div>
+  </div>
+
+  <div class="grid col-2">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Speed Test Trend</span>
+        <span class="card-subtitle">Last 60 tests — Download &amp; Upload</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:200px"><canvas id="ch-speed"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">RSRP Signal Distribution</span>
+        <span class="card-subtitle">Sample count by quality band</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:200px"><canvas id="ch-rsrp-dist"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Recent Speed Tests</span>
+      <span class="live-tag">LIVE</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Time</th><th>Device</th><th>RAT</th>
+          <th>↓ DL (Mbps)</th><th>↑ UL (Mbps)</th><th>Ping (ms)</th>
+          <th>RSRP</th><th>SINR</th>
+        </tr></thead>
+        <tbody id="tb-recent"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────── NETWORK ────────────────── -->
+<div class="tab-panel" id="tab-network">
+  <div class="grid col-2">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Throughput &amp; Latency Over Time</span>
+        <span class="card-subtitle">Last 100 tests</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:240px"><canvas id="ch-net-ts"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Tests by Radio Access Technology</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:240px"><canvas id="ch-rat"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Full Speed-Test Log</span>
+      <span class="live-tag">LIVE</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Timestamp</th><th>Device</th><th>RAT</th>
+          <th>↓ DL</th><th>↑ UL</th><th>Ping</th>
+          <th>RSRP</th><th>RSRQ</th><th>SINR</th>
+          <th>PCI</th><th>Cell ID</th><th>TAC/LAC</th>
+        </tr></thead>
+        <tbody id="tb-net"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────── CX EXPERIENCE ────────────────── -->
+<div class="tab-panel" id="tab-cx">
+  <div class="grid col-2">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">CX Score Trend</span>
+        <span class="card-subtitle">Last 60 records</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:240px"><canvas id="ch-cx-trend"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">OpenSignal Score Components</span>
+        <span class="card-subtitle">Average across all devices</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:240px"><canvas id="ch-os-radar"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid col-2">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">CX Experience Log</span>
+        <span class="live-tag">LIVE</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Time</th><th>Device</th><th>Operator</th>
+            <th>Score</th><th>PCI</th><th>Cell ID</th><th>TAC</th>
+          </tr></thead>
+          <tbody id="tb-cx"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">OpenSignal Scores</span>
+        <span class="live-tag">LIVE</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Time</th><th>Device</th>
+            <th>↓ DL</th><th>↑ UL</th><th>Latency</th><th>Signal</th>
+          </tr></thead>
+          <tbody id="tb-os"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────── DRIVE TEST ────────────────── -->
+<div class="tab-panel" id="tab-drive">
+  <div class="grid col-map">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Drive Route Map</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="card-subtitle" id="map-lbl">← select a session</span>
+          <span class="live-tag">LIVE</span>
+        </div>
+      </div>
+      <div id="drive-map"></div>
+      <div class="map-legend">
+        <span class="leg-label">RSRP</span>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-excellent)"></div>≥ −80 Excellent</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-good)"></div>−80…−90 Good</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-fair)"></div>−90…−100 Fair</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-poor)"></div>−100…−110 Poor</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-critical)"></div>&lt;−110 Critical</div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+      <div class="card-head">
+        <span class="card-title">Sessions</span>
+        <span class="card-subtitle" id="sess-count">0</span>
+      </div>
+      <div class="session-list" id="sess-list">
+        <div class="empty">Loading sessions…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Drive Samples</span>
+      <span class="card-subtitle" id="samp-count">—</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Sampled At</th><th>Lat</th><th>Lng</th>
+          <th>RAT</th><th>RSRP</th><th>RSRQ</th><th>SINR</th>
+        </tr></thead>
+        <tbody id="tb-samples"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<!-- ═══════════════════════════ SCRIPT ════════════════════════════ -->
+<script>
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  NetPulse Web — Live Dashboard                           ║
+// ║  Supabase project: bauiffaqfboqlqnmxffc                  ║
+// ║  Replace ANON_KEY with your project's anon/public key.   ║
+// ╚═══════════════════════════════════════════════════════════╝
+
+const SUPABASE_URL     = 'https://bauiffaqfboqlqnmxffc.supabase.co'
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE'   // ← paste anon key here
+
+// Column aliases — update if your schema differs
+const C = {
+  // networkxp_data
+  nx: {
+    id:'id', dev:'device_id', at:'tested_at',
+    dl:'download_mbps', ul:'upload_mbps', ping:'ping_ms',
+    rsrp:'rsrp', rsrq:'rsrq', sinr:'sinr', rat:'rat',
+    pci:'pci', cell:'cell_id', lac:'lac',
+  },
+  // cx_experience_log
+  cx: {
+    at:'tested_at', dev:'device_id', op:'operator',
+    score:'score', pci:'pci', cell:'cell_id', tac:'tac',
+  },
+  // opensignal_scores
+  os: {
+    at:'tested_at', dev:'device_id',
+    dl:'download_score', ul:'upload_score',
+    lat:'latency_score', sig:'signal_score',
+  },
+  // drive_sessions
+  ds: {
+    id:'id', dev:'device_id', sid:'local_session_id',
+    start:'started_at', end:'ended_at', cnt:'sample_count',
+  },
+  // drive_samples
+  samp: {
+    sid:'local_session_id', dev:'device_id', at:'sampled_at',
+    lat:'lat', lng:'lng',
+    rsrp:'rsrp', rsrq:'rsrq', sinr:'sinr', rat:'rat',
+  },
+}
+
+// ── RSRP helpers (3GPP-derived bands validated in NetPulse Android) ──
+function rsrpColor(v) {
+  if (v == null) return '#8b949e'
+  if (v >= -80)  return '#00e676'
+  if (v >= -90)  return '#00bcd4'
+  if (v >= -100) return '#ffc107'
+  if (v >= -110) return '#ff9800'
+  return '#f44336'
+}
+
+function rsrpPill(v) {
+  if (v == null) return '<span style="color:var(--muted)">—</span>'
+  const c = rsrpColor(v)
+  return `<span class="rsrp-pill" style="background:${c}22;color:${c}">${v} dBm</span>`
+}
+
+function ratBadge(rat) {
+  if (!rat) return '<span style="color:var(--muted)">—</span>'
+  const r = String(rat).toUpperCase()
+  if (r.includes('NR') || r.includes('5G'))        return '<span class="badge b5g">5G/NR</span>'
+  if (r.includes('LTE') || r.includes('4G'))       return '<span class="badge b4g">4G LTE</span>'
+  if (r.includes('WCDMA') || r.includes('3G') || r.includes('UMTS')) return '<span class="badge b3g">3G</span>'
+  return `<span class="badge bunk">${rat}</span>`
+}
+
+function n(v, d = 1) { return v == null ? '—' : (+v).toFixed(d) }
+function ts(v)  { return v ? new Date(v).toLocaleString() : '—' }
+function hms(v) { return v ? new Date(v).toLocaleTimeString() : '—' }
+function sid(v) { return v ? String(v).slice(-8).toUpperCase() : '—' }
+
+// ── Supabase client ───────────────────────────────────────────────
+const { createClient } = supabase
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// ── App state ─────────────────────────────────────────────────────
+let nxData  = []   // networkxp_data rows (newest first)
+let cxData  = []   // cx_experience_log
+let osData  = []   // opensignal_scores
+let sessions = []  // drive_sessions
+let samples  = []  // drive_samples for selected session
+let activeSession = null
+let mapLoaded = false
+
+// ── Tabs ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+    btn.classList.add('active')
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active')
+    if (btn.dataset.tab === 'drive' && mapLoaded) setTimeout(() => map.resize(), 60)
+  })
+})
+
+// ── Chart.js global defaults ──────────────────────────────────────
+Chart.defaults.color          = '#8b949e'
+Chart.defaults.borderColor    = '#30363d'
+Chart.defaults.font.family    = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+Chart.defaults.font.size      = 11
+Chart.defaults.plugins.legend.labels.boxWidth = 10
+
+function mkChart(id, type, data, opts = {}) {
+  const el = document.getElementById(id)
+  if (!el) return null
+  return new Chart(el, {
+    type,
+    data,
+    options: { responsive: true, maintainAspectRatio: false, ...opts },
+  })
+}
+
+// Speed trend
+const chSpeed = mkChart('ch-speed', 'line', {
+  labels: [],
+  datasets: [
+    { label: 'Download (Mbps)', data: [], borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,.07)', tension: 0.3, fill: true, pointRadius: 2 },
+    { label: 'Upload (Mbps)',   data: [], borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,.07)',  tension: 0.3, fill: true, pointRadius: 2 },
+  ],
+}, {
+  plugins: { legend: { display: true } },
+  scales: {
+    x: { display: false },
+    y: { beginAtZero: true, grid: { color: '#21262d' } },
+  },
+})
+
+// RSRP doughnut
+const chRsrp = mkChart('ch-rsrp-dist', 'doughnut', {
+  labels: ['Excellent (≥−80)', 'Good (−90)', 'Fair (−100)', 'Poor (−110)', 'Critical'],
+  datasets: [{
+    data: [0, 0, 0, 0, 0],
+    backgroundColor: ['#00e676', '#00bcd4', '#ffc107', '#ff9800', '#f44336'],
+    borderWidth: 0,
+  }],
+}, {
+  cutout: '60%',
+  plugins: { legend: { position: 'right', labels: { padding: 10 } } },
+})
+
+// Network time-series
+const chNetTs = mkChart('ch-net-ts', 'line', {
+  labels: [],
+  datasets: [
+    { label: 'DL (Mbps)', data: [], borderColor: '#58a6ff', tension: 0.3, pointRadius: 2 },
+    { label: 'UL (Mbps)', data: [], borderColor: '#3fb950', tension: 0.3, pointRadius: 2 },
+    { label: 'Ping (ms)', data: [], borderColor: '#ffc107', tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
+  ],
+}, {
+  plugins: { legend: { display: true } },
+  scales: {
+    x:  { display: false },
+    y:  { beginAtZero: true, grid: { color: '#21262d' }, position: 'left' },
+    y1: { beginAtZero: true, grid: { display: false }, position: 'right' },
+  },
+})
+
+// RAT bar
+const chRat = mkChart('ch-rat', 'bar', {
+  labels: [],
+  datasets: [{ label: 'Tests', data: [], backgroundColor: ['#3fb950', '#58a6ff', '#d29922', '#f85149', '#a371f7'] }],
+}, {
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { display: false } },
+    y: { beginAtZero: true, grid: { color: '#21262d' } },
+  },
+})
+
+// CX trend
+const chCxTrend = mkChart('ch-cx-trend', 'line', {
+  labels: [],
+  datasets: [{ label: 'CX Score', data: [], borderColor: '#a371f7', backgroundColor: 'rgba(163,113,247,.08)', tension: 0.3, fill: true, pointRadius: 2 }],
+}, {
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { display: false },
+    y: { min: 0, max: 100, grid: { color: '#21262d' } },
+  },
+})
+
+// OpenSignal radar
+const chOsRadar = mkChart('ch-os-radar', 'radar', {
+  labels: ['Download', 'Upload', 'Latency', 'Signal'],
+  datasets: [{
+    label: 'Avg Score',
+    data: [0, 0, 0, 0],
+    borderColor: '#1f6feb',
+    backgroundColor: 'rgba(31,111,235,.15)',
+    pointBackgroundColor: '#58a6ff',
+  }],
+}, {
+  scales: { r: { min: 0, max: 100, grid: { color: '#30363d' }, angleLines: { color: '#30363d' }, pointLabels: { color: '#8b949e', font: { size: 11 } } } },
+  plugins: { legend: { display: false } },
+})
+
+// ── MapLibre GL JS (same tile source as NetPulse Android) ─────────
+const map = new maplibregl.Map({
+  container: 'drive-map',
+  style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [104.9282, 11.5564],   // Phnom Penh
+  zoom: 11,
+})
+map.addControl(new maplibregl.NavigationControl(), 'top-right')
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
+
+map.on('load', () => {
+  mapLoaded = true
+
+  // Route polyline
+  map.addSource('route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({
+    id: 'route-line', type: 'line', source: 'route',
+    paint: { 'line-color': '#8b949e', 'line-width': 2, 'line-opacity': 0.5, 'line-dasharray': [3, 2] },
+  })
+
+  // Sample dots — color driven by RSRP using the same bands as Android app
+  // step expression: default (< first stop) is critical; stops must be ascending
+  map.addSource('dots', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({
+    id: 'dots-layer', type: 'circle', source: 'dots',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 4, 15, 9],
+      'circle-color': [
+        'step', ['get', 'rsrp'],
+        '#f44336',         // < −110  critical
+        -110, '#ff9800',   // −110 … −100  poor
+        -100, '#ffc107',   // −100 … −90   fair
+        -90,  '#00bcd4',   // −90  … −80   good
+        -80,  '#00e676',   // ≥ −80        excellent
+      ],
+      'circle-opacity': 0.88,
+      'circle-stroke-width': 1,
+      'circle-stroke-color': 'rgba(0,0,0,.35)',
+    },
+  })
+
+  // Click popup
+  const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
+  map.on('click', 'dots-layer', e => {
+    const p = e.features[0].properties
+    const rsrpVal = p.rsrp != null ? `${p.rsrp} dBm` : '—'
+    popup.setLngLat(e.lngLat).setHTML(`
+      <b style="font-size:13px">${p.rat || '—'}</b><br>
+      RSRP: <b style="color:${rsrpColor(p.rsrp)}">${rsrpVal}</b><br>
+      RSRQ: ${p.rsrq ?? '—'}&nbsp;&nbsp;SINR: ${p.sinr ?? '—'}<br>
+      <span style="color:#8b949e;font-size:10px">${p.at ? new Date(p.at).toLocaleTimeString() : ''}</span>
+    `).addTo(map)
+  })
+  map.on('mouseenter', 'dots-layer', () => { map.getCanvas().style.cursor = 'pointer' })
+  map.on('mouseleave', 'dots-layer', () => { map.getCanvas().style.cursor = '' })
+
+  // Render any already-loaded session
+  if (activeSession) paintMap()
+})
+
+// ── Render helpers ────────────────────────────────────────────────
+function paintKPIs() {
+  if (!nxData.length) return
+  const avg = col => nxData.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0) / nxData.length
+  document.getElementById('k-total').textContent   = nxData.length.toLocaleString()
+  document.getElementById('k-dl').textContent      = n(avg(C.nx.dl))
+  document.getElementById('k-ul').textContent      = n(avg(C.nx.ul))
+  document.getElementById('k-ping').textContent    = n(avg(C.nx.ping), 0)
+  const avgRsrp = avg(C.nx.rsrp)
+  const rsrpEl  = document.getElementById('k-rsrp')
+  rsrpEl.textContent  = n(avgRsrp, 0)
+  rsrpEl.style.color  = rsrpColor(avgRsrp)
+
+  const cutoff = new Date(Date.now() - 86400000).toISOString()
+  const devs   = new Set(nxData.filter(r => r[C.nx.at] > cutoff).map(r => r[C.nx.dev]))
+  document.getElementById('k-devices').textContent = devs.size
+
+  document.getElementById('k-sessions').textContent = sessions.length.toLocaleString()
+  document.getElementById('k-cx').textContent       = cxData.length.toLocaleString()
+}
+
+function paintSpeedCharts() {
+  const slice = [...nxData].reverse().slice(-60)
+  chSpeed.data.labels              = slice.map(r => hms(r[C.nx.at]))
+  chSpeed.data.datasets[0].data   = slice.map(r => r[C.nx.dl])
+  chSpeed.data.datasets[1].data   = slice.map(r => r[C.nx.ul])
+  chSpeed.update('none')
+
+  const bands = [0, 0, 0, 0, 0]
+  nxData.forEach(r => {
+    const v = r[C.nx.rsrp]
+    if (v == null) return
+    if (v >= -80)        bands[0]++
+    else if (v >= -90)   bands[1]++
+    else if (v >= -100)  bands[2]++
+    else if (v >= -110)  bands[3]++
+    else                 bands[4]++
+  })
+  chRsrp.data.datasets[0].data = bands
+  chRsrp.update('none')
+}
+
+function paintNetCharts() {
+  const slice = [...nxData].reverse().slice(-100)
+  chNetTs.data.labels             = slice.map(r => hms(r[C.nx.at]))
+  chNetTs.data.datasets[0].data   = slice.map(r => r[C.nx.dl])
+  chNetTs.data.datasets[1].data   = slice.map(r => r[C.nx.ul])
+  chNetTs.data.datasets[2].data   = slice.map(r => r[C.nx.ping])
+  chNetTs.update('none')
+
+  const ratMap = {}
+  nxData.forEach(r => { const k = r[C.nx.rat] || 'Unknown'; ratMap[k] = (ratMap[k] || 0) + 1 })
+  chRat.data.labels             = Object.keys(ratMap)
+  chRat.data.datasets[0].data   = Object.values(ratMap)
+  chRat.update('none')
+}
+
+function paintCxCharts() {
+  const slice = [...cxData].reverse().slice(-60)
+  chCxTrend.data.labels           = slice.map(r => hms(r[C.cx.at]))
+  chCxTrend.data.datasets[0].data = slice.map(r => r[C.cx.score])
+  chCxTrend.update('none')
+
+  if (osData.length) {
+    const avg = col => osData.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0) / osData.length
+    chOsRadar.data.datasets[0].data = [avg(C.os.dl), avg(C.os.ul), avg(C.os.lat), avg(C.os.sig)]
+    chOsRadar.update('none')
+  }
+}
+
+function paintTable(tbodyId, rows) {
+  document.getElementById(tbodyId).innerHTML = rows
+}
+
+function renderRecentTable() {
+  paintTable('tb-recent', nxData.slice(0, 30).map(r => `
+    <tr>
+      <td>${hms(r[C.nx.at])}</td>
+      <td class="mono">${sid(r[C.nx.dev])}</td>
+      <td>${ratBadge(r[C.nx.rat])}</td>
+      <td style="color:var(--blue);font-weight:600">${n(r[C.nx.dl])}</td>
+      <td style="color:var(--green);font-weight:600">${n(r[C.nx.ul])}</td>
+      <td style="color:var(--yellow)">${n(r[C.nx.ping], 0)}</td>
+      <td>${rsrpPill(r[C.nx.rsrp])}</td>
+      <td style="color:var(--muted)">${n(r[C.nx.sinr])}</td>
+    </tr>`).join(''))
+}
+
+function renderNetTable() {
+  paintTable('tb-net', nxData.slice(0, 80).map(r => `
+    <tr>
+      <td style="white-space:nowrap">${ts(r[C.nx.at])}</td>
+      <td class="mono">${sid(r[C.nx.dev])}</td>
+      <td>${ratBadge(r[C.nx.rat])}</td>
+      <td style="color:var(--blue)">${n(r[C.nx.dl])}</td>
+      <td style="color:var(--green)">${n(r[C.nx.ul])}</td>
+      <td>${n(r[C.nx.ping], 0)}</td>
+      <td>${rsrpPill(r[C.nx.rsrp])}</td>
+      <td class="mono">${n(r[C.nx.rsrq], 1)}</td>
+      <td class="mono">${n(r[C.nx.sinr], 1)}</td>
+      <td class="mono">${r[C.nx.pci] ?? '—'}</td>
+      <td class="mono">${r[C.nx.cell] ?? '—'}</td>
+      <td class="mono">${r[C.nx.lac] ?? '—'}</td>
+    </tr>`).join(''))
+}
+
+function renderCxTable() {
+  paintTable('tb-cx', cxData.slice(0, 60).map(r => `
+    <tr>
+      <td style="white-space:nowrap">${ts(r[C.cx.at])}</td>
+      <td class="mono">${sid(r[C.cx.dev])}</td>
+      <td>${r[C.cx.op] ?? '—'}</td>
+      <td style="color:var(--purple);font-weight:600">${n(r[C.cx.score], 0)}</td>
+      <td class="mono">${r[C.cx.pci] ?? '—'}</td>
+      <td class="mono">${r[C.cx.cell] ?? '—'}</td>
+      <td class="mono">${r[C.cx.tac] ?? '—'}</td>
+    </tr>`).join(''))
+}
+
+function renderOsTable() {
+  paintTable('tb-os', osData.slice(0, 60).map(r => `
+    <tr>
+      <td style="white-space:nowrap">${ts(r[C.os.at])}</td>
+      <td class="mono">${sid(r[C.os.dev])}</td>
+      <td style="color:var(--blue)">${n(r[C.os.dl], 1)}</td>
+      <td style="color:var(--green)">${n(r[C.os.ul], 1)}</td>
+      <td style="color:var(--yellow)">${n(r[C.os.lat], 1)}</td>
+      <td style="color:var(--purple)">${n(r[C.os.sig], 1)}</td>
+    </tr>`).join(''))
+}
+
+function renderSessions() {
+  const el = document.getElementById('sess-list')
+  document.getElementById('sess-count').textContent = `${sessions.length} sessions`
+  if (!sessions.length) { el.innerHTML = '<div class="empty">No sessions recorded yet</div>'; return }
+  el.innerHTML = sessions.map(s => {
+    const dur = s[C.ds.end] && s[C.ds.start]
+      ? `${Math.round((new Date(s[C.ds.end]) - new Date(s[C.ds.start])) / 60000)} min`
+      : 'In progress…'
+    const isSel = activeSession && activeSession[C.ds.id] === s[C.ds.id]
+    return `
+      <div class="session-item${isSel ? ' sel' : ''}" onclick="pickSession(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+        <div class="session-dev">📱 ${sid(s[C.ds.dev])}</div>
+        <div class="session-meta">${ts(s[C.ds.start])}</div>
+        <div class="session-row">
+          <span class="session-stat" style="color:var(--muted)">⏱ ${dur}</span>
+          <span class="session-stat" style="color:var(--blue)">📍 ${s[C.ds.cnt] ?? '?'} pts</span>
+        </div>
+      </div>`
+  }).join('')
+}
+
+function renderSamplesTable() {
+  document.getElementById('samp-count').textContent = `${samples.length} samples`
+  paintTable('tb-samples', samples.slice(0, 120).map((s, i) => `
+    <tr>
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td>${hms(s[C.samp.at])}</td>
+      <td class="mono">${n(s[C.samp.lat], 5)}</td>
+      <td class="mono">${n(s[C.samp.lng], 5)}</td>
+      <td>${ratBadge(s[C.samp.rat])}</td>
+      <td>${rsrpPill(s[C.samp.rsrp])}</td>
+      <td class="mono">${n(s[C.samp.rsrq], 1)}</td>
+      <td class="mono">${n(s[C.samp.sinr], 1)}</td>
+    </tr>`).join(''))
+}
+
+function paintMap() {
+  if (!mapLoaded) return
+  const features = samples
+    .filter(s => s[C.samp.lat] != null && s[C.samp.lng] != null)
+    .map(s => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [+s[C.samp.lng], +s[C.samp.lat]] },
+      properties: {
+        rsrp: s[C.samp.rsrp], rsrq: s[C.samp.rsrq],
+        sinr: s[C.samp.sinr], rat: s[C.samp.rat],
+        at: s[C.samp.at],
+      },
+    }))
+
+  map.getSource('dots').setData({ type: 'FeatureCollection', features })
+
+  const coords = features.map(f => f.geometry.coordinates)
+  map.getSource('route').setData({
+    type: 'FeatureCollection',
+    features: coords.length > 1
+      ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} }]
+      : [],
+  })
+
+  if (coords.length > 1) {
+    const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 50, maxZoom: 16, duration: 900 },
+    )
+  }
+}
+
+// ── Session picker ────────────────────────────────────────────────
+window.pickSession = async function(session) {
+  activeSession = session
+  document.getElementById('map-lbl').textContent =
+    `${sid(session[C.ds.dev])} · ${ts(session[C.ds.start])}`
+  renderSessions()
+
+  const { data, error } = await db
+    .from('drive_samples')
+    .select('*')
+    .eq(C.samp.dev, session[C.ds.dev])
+    .eq(C.samp.sid, session[C.ds.sid])
+    .order(C.samp.at, { ascending: true })
+  if (error) { console.error('drive_samples fetch:', error); return }
+  samples = data || []
+  paintMap()
+  renderSamplesTable()
+}
+
+// ── Connection indicator ──────────────────────────────────────────
+function setConn(state) {
+  const dot = document.getElementById('conn-dot')
+  const lbl = document.getElementById('conn-lbl')
+  dot.className = 'conn-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '')
+  lbl.textContent = { live: 'Live', connecting: 'Connecting…', error: 'Disconnected' }[state] || state
+}
+
+function touch() {
+  document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString()
+}
+
+// ── Refresh everything ────────────────────────────────────────────
+function refresh() {
+  paintKPIs()
+  paintSpeedCharts()
+  paintNetCharts()
+  paintCxCharts()
+  renderRecentTable()
+  renderNetTable()
+  renderCxTable()
+  renderOsTable()
+  touch()
+}
+
+// ── Initial fetch ─────────────────────────────────────────────────
+async function fetchAll() {
+  setConn('connecting')
+  const [nxRes, cxRes, osRes, dsRes] = await Promise.all([
+    db.from('networkxp_data')   .select('*').order('tested_at',  { ascending: false }).limit(300),
+    db.from('cx_experience_log').select('*').order('tested_at',  { ascending: false }).limit(300),
+    db.from('opensignal_scores').select('*').order('tested_at',  { ascending: false }).limit(300),
+    db.from('drive_sessions')   .select('*').order('started_at', { ascending: false }).limit(100),
+  ])
+  if (nxRes.error)  console.error('networkxp_data:', nxRes.error)
+  if (cxRes.error)  console.error('cx_experience_log:', cxRes.error)
+  if (osRes.error)  console.error('opensignal_scores:', osRes.error)
+  if (dsRes.error)  console.error('drive_sessions:', dsRes.error)
+
+  nxData   = nxRes.data  || []
+  cxData   = cxRes.data  || []
+  osData   = osRes.data  || []
+  sessions = dsRes.data  || []
+
+  refresh()
+  renderSessions()
+  setConn('live')
+}
+
+// ── Realtime subscriptions ────────────────────────────────────────
+// NOTE: Tables must be in the supabase_realtime publication.
+// Run the SQL in supabase/enable-realtime.sql to activate.
+function setupRealtime() {
+  db.channel('netpulse-realtime')
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'networkxp_data' },
+      p => {
+        nxData.unshift(p.new)
+        if (nxData.length > 300) nxData.pop()
+        paintKPIs(); paintSpeedCharts(); paintNetCharts()
+        renderRecentTable(); renderNetTable(); touch()
+      })
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'cx_experience_log' },
+      p => {
+        cxData.unshift(p.new)
+        if (cxData.length > 300) cxData.pop()
+        paintCxCharts(); renderCxTable(); touch()
+      })
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'opensignal_scores' },
+      p => {
+        osData.unshift(p.new)
+        if (osData.length > 300) osData.pop()
+        paintCxCharts(); renderOsTable(); touch()
+      })
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'drive_sessions' },
+      p => {
+        sessions.unshift(p.new)
+        renderSessions(); touch()
+      })
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'drive_samples' },
+      p => {
+        if (
+          activeSession &&
+          p.new[C.samp.dev] === activeSession[C.ds.dev] &&
+          p.new[C.samp.sid] === activeSession[C.ds.sid]
+        ) {
+          samples.push(p.new)
+          paintMap()
+          renderSamplesTable()
+        }
+        touch()
+      })
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED')    setConn('live')
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR') setConn('error')
+    })
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+fetchAll().then(() => setupRealtime()).catch(e => {
+  console.error('Boot error:', e)
+  setConn('error')
+})
+</script>
+</body>
+</html>
