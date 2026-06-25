@@ -150,7 +150,18 @@ tr:hover td{background:var(--s2)}
 /* ── UI improvements ── */
 td{font-variant-numeric:tabular-nums}
 td.r,th.r{text-align:right}
-.kcard{border-left:3px solid transparent}
+/* Right-align numeric columns per table (no JS changes needed) */
+#tb-recent tr>:nth-child(5),#tb-recent tr>:nth-child(6),#tb-recent tr>:nth-child(7){text-align:right}
+#tb-rankings tr>:nth-child(n+3){text-align:right}
+#tb-os-rank tr>:nth-child(n+3){text-align:right}
+#tb-net tr>:nth-child(6),#tb-net tr>:nth-child(7),#tb-net tr>:nth-child(8),#tb-net tr>:nth-child(9),#tb-net tr>:nth-child(11),#tb-net tr>:nth-child(12){text-align:right}
+#tb-samples tr>:nth-child(1),#tb-samples tr>:nth-child(3),#tb-samples tr>:nth-child(4),#tb-samples tr>:nth-child(7),#tb-samples tr>:nth-child(8),#tb-samples tr>:nth-child(9),#tb-samples tr>:nth-child(10){text-align:right}
+#tb-cx tr>:nth-child(n+6),#tb-os tr>:nth-child(n+6){text-align:right}
+#tb-gaming tr>:nth-child(5),#tb-gaming tr>:nth-child(6),#tb-gaming tr>:nth-child(7),#tb-gaming tr>:nth-child(8),#tb-gaming tr>:nth-child(9),#tb-gaming tr>:nth-child(10){text-align:right}
+/* Card border contrast + hover lift */
+.card{border-color:#30363d}
+.kcard{border-left:3px solid transparent;transition:border-color .15s,background .15s}
+.kcard:hover{background:var(--s2)}
 .kc-bl{border-left-color:#388bfd}
 .kc-gr{border-left-color:#3fb950}
 .kc-yw{border-left-color:#d29922}
@@ -258,14 +269,14 @@ td.r,th.r{text-align:right}
 
   <!-- KPI row -->
   <div class="kgrid">
-    <div class="kcard"><div class="kcard-lbl">Total Tests</div><div class="kcard-val" id="k-tot">—</div><div class="kcard-unit">speed tests</div></div>
-    <div class="kcard"><div class="kcard-lbl">Avg Download</div><div class="kcard-val" style="color:var(--bl)" id="k-dl">—</div><div class="kcard-unit">Mbps</div></div>
-    <div class="kcard"><div class="kcard-lbl">Avg Upload</div><div class="kcard-val" style="color:var(--gr)" id="k-ul">—</div><div class="kcard-unit">Mbps</div></div>
-    <div class="kcard"><div class="kcard-lbl">Avg Latency</div><div class="kcard-val" style="color:var(--yw)" id="k-ping">—</div><div class="kcard-unit">ms</div></div>
-    <div class="kcard"><div class="kcard-lbl">Avg RSRP</div><div class="kcard-val" id="k-rsrp">—</div><div class="kcard-unit">dBm</div></div>
-    <div class="kcard"><div class="kcard-lbl">Drive Sessions</div><div class="kcard-val" style="color:var(--pu)" id="k-sess">—</div><div class="kcard-unit">recorded</div></div>
-    <div class="kcard"><div class="kcard-lbl">CX Records</div><div class="kcard-val" style="color:var(--cy)" id="k-cx">—</div><div class="kcard-unit">logged</div></div>
-    <div class="kcard"><div class="kcard-lbl">Active Devices</div><div class="kcard-val" style="color:var(--or)" id="k-dev">—</div><div class="kcard-unit">last 24 h</div></div>
+    <div class="kcard kc-bl"><div class="kcard-lbl">Total Tests</div><div class="kcard-val" id="k-tot">—</div><div class="kcard-unit">speed tests</div></div>
+    <div class="kcard kc-bl"><div class="kcard-lbl">Avg Download</div><div class="kcard-val" style="color:var(--bl)" id="k-dl">—</div><div class="kcard-unit">Mbps</div></div>
+    <div class="kcard kc-gr"><div class="kcard-lbl">Avg Upload</div><div class="kcard-val" style="color:var(--gr)" id="k-ul">—</div><div class="kcard-unit">Mbps</div></div>
+    <div class="kcard kc-yw"><div class="kcard-lbl">Avg Latency</div><div class="kcard-val" style="color:var(--yw)" id="k-ping">—</div><div class="kcard-unit">ms</div></div>
+    <div class="kcard kc-bl"><div class="kcard-lbl">Avg RSRP</div><div class="kcard-val" id="k-rsrp">—</div><div class="kcard-unit">dBm</div></div>
+    <div class="kcard kc-pu"><div class="kcard-lbl">Drive Sessions</div><div class="kcard-val" style="color:var(--pu)" id="k-sess">—</div><div class="kcard-unit">recorded</div></div>
+    <div class="kcard kc-cy"><div class="kcard-lbl">CX Records</div><div class="kcard-val" style="color:var(--cy)" id="k-cx">—</div><div class="kcard-unit">logged</div></div>
+    <div class="kcard kc-or"><div class="kcard-lbl">Active Devices</div><div class="kcard-val" style="color:var(--or)" id="k-dev">—</div><div class="kcard-unit">last 24 h</div></div>
   </div>
 
   <!-- Sub-tabs -->
