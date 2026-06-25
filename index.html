@@ -1,1087 +1,1386 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetPulse Web — Live Dashboard</title>
-
-  <!-- MapLibre GL JS 4.x — vendor-neutral map (same tile stack as the Android app) -->
-  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-
-  <!-- Supabase JS v2 UMD — exposes window.supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-
-  <style>
-    /* ── Reset & tokens ─────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --surface2: #1c2128;
-      --border:   #30363d;
-      --primary:  #1f6feb;
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --green:    #3fb950;
-      --yellow:   #d29922;
-      --orange:   #db6d28;
-      --red:      #f85149;
-      --purple:   #a371f7;
-      --blue:     #58a6ff;
-      --cyan:     #39d353;
-
-      /* RSRP bands — validated from NetPulse Android engineering spec */
-      --rsrp-excellent: #00e676;   /* ≥ −80  dBm */
-      --rsrp-good:      #00bcd4;   /* −80 to −90  */
-      --rsrp-fair:      #ffc107;   /* −90 to −100 */
-      --rsrp-poor:      #ff9800;   /* −100 to −110 */
-      --rsrp-critical:  #f44336;   /* < −110 */
-    }
-
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    /* ── Navbar ──────────────────────────────────────────────────── */
-    .navbar {
-      height: 56px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-      gap: 16px;
-      position: sticky;
-      top: 0;
-      z-index: 200;
-    }
-    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-    .logo svg { width: 30px; height: 30px; flex-shrink: 0; }
-    .logo-text { font-size: 17px; font-weight: 700; color: var(--text); }
-    .logo-sub  { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
-    .spacer { flex: 1; }
-    .update-ts { font-size: 11px; color: var(--muted); }
-
-    .conn-pill {
-      display: flex; align-items: center; gap: 6px;
-      padding: 4px 12px; border-radius: 20px;
-      background: var(--surface2); border: 1px solid var(--border);
-      font-size: 12px; color: var(--muted);
-    }
-    .conn-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--muted); transition: background .3s;
-    }
-    .conn-dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
-    .conn-dot.error { background: var(--red); }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
-
-    /* ── Tabs ────────────────────────────────────────────────────── */
-    .tabs {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      display: flex;
-      gap: 2px;
-    }
-    .tab-btn {
-      padding: 12px 20px;
-      background: none; border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--muted); cursor: pointer;
-      font-size: 13px; font-weight: 500;
-      display: flex; align-items: center; gap: 7px;
-      transition: color .15s, border-color .15s;
-    }
-    .tab-btn:hover  { color: var(--text); }
-    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
-
-    /* ── Page layout ─────────────────────────────────────────────── */
-    .page { padding: 24px; max-width: 1480px; margin: 0 auto; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* ── KPI grid ────────────────────────────────────────────────── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-    .kpi-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;
-    }
-    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
-    .kpi-value { font-size: 30px; font-weight: 700; line-height: 1.1; }
-    .kpi-unit  { font-size: 11px; color: var(--muted); }
-
-    /* ── Grid helpers ────────────────────────────────────────────── */
-    .grid { display: grid; gap: 16px; margin-bottom: 16px; }
-    .col-2   { grid-template-columns: 1fr 1fr; }
-    .col-3   { grid-template-columns: 2fr 1fr 1fr; }
-    .col-map { grid-template-columns: 1fr 320px; }
-    @media(max-width: 960px) { .col-2,.col-3,.col-map { grid-template-columns: 1fr; } }
-
-    /* ── Card ────────────────────────────────────────────────────── */
-    .card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; overflow: hidden;
-    }
-    .card-head {
-      padding: 13px 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .card-title    { font-size: 13px; font-weight: 600; }
-    .card-subtitle { font-size: 11px; color: var(--muted); }
-    .card-body     { padding: 16px; }
-
-    /* ── Chart wrapper ───────────────────────────────────────────── */
-    .chart-box { position: relative; }
-    .chart-box canvas { display: block; }
-
-    /* ── MapLibre ────────────────────────────────────────────────── */
-    #drive-map { width: 100%; height: 500px; }
-
-    /* popup light styling */
-    .maplibregl-popup-content {
-      background: var(--surface2) !important;
-      color: var(--text) !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 6px !important;
-      padding: 10px 12px !important;
-      font-size: 12px !important;
-      line-height: 1.6 !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5) !important;
-    }
-    .maplibregl-popup-tip { border-top-color: var(--surface2) !important; }
-
-    /* ── Map legend ──────────────────────────────────────────────── */
-    .map-legend {
-      padding: 12px 16px; border-top: 1px solid var(--border);
-      display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
-    }
-    .leg-item  { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-    .leg-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .leg-label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-right: 4px; }
-
-    /* ── Table ───────────────────────────────────────────────────── */
-    .tbl-wrap { overflow-x: auto; }
-    table   { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th      { padding: 8px 12px; text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 11px; }
-    td      { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--surface2); }
-
-    /* ── Badges ──────────────────────────────────────────────────── */
-    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-    .b5g  { background: rgba(63,185,80,.18); color: #3fb950; }
-    .b4g  { background: rgba(31,111,235,.18); color: #58a6ff; }
-    .b3g  { background: rgba(210,153,34,.18); color: #d29922; }
-    .bunk { background: var(--surface2); color: var(--muted); }
-
-    .rsrp-pill {
-      display: inline-block; padding: 2px 8px;
-      border-radius: 12px; font-size: 11px; font-weight: 600;
-    }
-
-    .live-tag {
-      display: inline-block; padding: 1px 6px;
-      background: rgba(63,185,80,.15); color: var(--green);
-      border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px;
-    }
-
-    /* ── Session sidebar ─────────────────────────────────────────── */
-    .session-list { height: 500px; overflow-y: auto; }
-    .session-item {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      cursor: pointer; transition: background .1s;
-    }
-    .session-item:hover, .session-item.sel { background: var(--surface2); }
-    .session-dev  { font-size: 12px; font-weight: 600; }
-    .session-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .session-row  { display: flex; gap: 10px; margin-top: 6px; }
-    .session-stat { font-size: 11px; }
-
-    /* ── Empty state ─────────────────────────────────────────────── */
-    .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
-
-    /* ── Mono util ───────────────────────────────────────────────── */
-    .mono { font-family: 'Consolas', 'Menlo', monospace; font-size: 11px; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NetPulse Web — Live Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--s1:#161b22;--s2:#1c2128;--bd:#30363d;
+  --pr:#1f6feb;--tx:#e6edf3;--mu:#8b949e;
+  --gr:#3fb950;--yw:#d29922;--or:#db6d28;--re:#f85149;--pu:#a371f7;--bl:#58a6ff;--cy:#39d353;
+  --r-ex:#00e676;--r-go:#00bcd4;--r-fa:#ffc107;--r-po:#ff9800;--r-cr:#f44336;
+}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:14px}
+/* ── Navbar ── */
+.nav{height:52px;background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:300}
+.nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.nav-logo svg{width:28px;height:28px;flex-shrink:0}
+.nav-logo-txt{font-size:16px;font-weight:700;color:var(--tx)}
+.nav-logo-sub{font-size:10px;color:var(--mu);margin-left:3px;font-weight:400}
+.nav-sp{flex:1}
+.nav-ts{font-size:11px;color:var(--mu)}
+.pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--bd);font-size:12px;color:var(--mu)}
+.pill-dot{width:7px;height:7px;border-radius:50%;background:var(--mu);transition:background .3s}
+.pill-dot.live{background:var(--gr);box-shadow:0 0 6px var(--gr);animation:bk 2s infinite}
+.pill-dot.err{background:var(--re)}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.4}}
+/* ── Tabs ── */
+.tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px}
+.tab-btn{padding:11px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--mu);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s;white-space:nowrap}
+.tab-btn:hover{color:var(--tx)}
+.tab-btn.on{color:var(--pr);border-bottom-color:var(--pr)}
+/* ── Filter bar ── */
+.fbar{background:var(--s2);border-bottom:1px solid var(--bd);padding:10px 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fbar-label{font-size:11px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+.fchip{padding:4px 12px;border-radius:20px;border:1px solid var(--bd);background:none;color:var(--mu);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.fchip:hover{border-color:var(--pr);color:var(--tx)}
+.fchip.on{background:rgba(31,111,235,.2);border-color:var(--pr);color:var(--bl);font-weight:600}
+.fdrop{padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s1);color:var(--tx);font-size:12px;cursor:pointer;outline:none}
+.fbar-sep{width:1px;height:20px;background:var(--bd);margin:0 4px}
+/* ── Page ── */
+.page{padding:20px;max-width:1520px;margin:0 auto}
+.tp{display:none}.tp.on{display:block}
+/* ── KPI grid ── */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.kcard{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.kcard-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px}
+.kcard-val{font-size:28px;font-weight:700;line-height:1.1}
+.kcard-unit{font-size:11px;color:var(--mu)}
+/* ── Sub-tabs ── */
+.stabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--bd);padding-bottom:0}
+.stab{padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;color:var(--mu);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.stab:hover{color:var(--tx)}
+.stab.on{color:var(--pr);border-bottom-color:var(--pr)}
+.stp{display:none}.stp.on{display:block}
+/* ── Grid helpers ── */
+.g{display:grid;gap:14px;margin-bottom:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.gmap{grid-template-columns:1fr 300px}
+@media(max-width:900px){.g2,.g3,.gmap{grid-template-columns:1fr}}
+/* ── Cards ── */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.ch{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ch-t{font-size:13px;font-weight:600}
+.ch-s{font-size:11px;color:var(--mu)}
+.cb{padding:16px}
+.chart-h{position:relative}
+/* ── Map ── */
+#dmap{width:100%;height:480px}
+.maplibregl-popup-content{background:var(--s2)!important;color:var(--tx)!important;border:1px solid var(--bd)!important;border-radius:6px!important;padding:10px 12px!important;font-size:12px!important;box-shadow:0 4px 20px rgba(0,0,0,.5)!important}
+.maplibregl-popup-tip{border-top-color:var(--s2)!important}
+.mleg{padding:10px 16px;border-top:1px solid var(--bd);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.mleg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mleg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu)}
+/* ── Table ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 11px;text-align:left;color:var(--mu);font-weight:500;border-bottom:1px solid var(--bd);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+td{padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--s2)}
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600}
+.b5g{background:rgba(63,185,80,.18);color:#3fb950}
+.b4g{background:rgba(31,111,235,.18);color:#58a6ff}
+.b3g{background:rgba(210,153,34,.18);color:#d29922}
+.b2g{background:rgba(248,81,73,.15);color:#f85149}
+.buk{background:var(--s2);color:var(--mu)}
+.rpill{display:inline-block;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:600}
+.live-tag{display:inline-block;padding:1px 6px;background:rgba(63,185,80,.15);color:var(--gr);border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px}
+/* ── Circular gauge ── */
+.gauges-row{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;padding:16px 0}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gauge-lbl{font-size:11px;color:var(--mu);text-align:center;max-width:90px}
+.gauge-sub{font-size:10px;color:var(--mu);text-align:center}
+/* ── Executive summary card ── */
+.exec-card{background:linear-gradient(135deg,var(--s2) 0%,rgba(31,111,235,.08) 100%);border:1px solid var(--bd);border-radius:10px;padding:20px;margin-bottom:16px}
+.exec-score{font-size:13px;color:var(--mu);margin-bottom:4px}
+.exec-big{font-size:36px;font-weight:800;color:var(--bl)}
+.exec-rating{font-size:14px;color:var(--tx);font-weight:600;margin-bottom:16px}
+.exec-stats{display:flex;gap:12px;flex-wrap:wrap}
+.exec-stat{background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.2);border-radius:8px;padding:10px 16px;text-align:center}
+.exec-stat-v{font-size:20px;font-weight:700;color:var(--bl)}
+.exec-stat-l{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+/* ── Awards ── */
+.awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px}
+.award-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.award-icon{font-size:22px}
+.award-info .award-op{font-size:13px;font-weight:600}
+.award-info .award-metric{font-size:11px;color:var(--mu)}
+/* ── Operator comparison cards ── */
+.op-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.op-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px}
+.op-card-name{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.op-card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.op-card-key{font-size:11px;color:var(--mu)}
+.op-card-val{font-size:12px;font-weight:600}
+/* ── Session sidebar ── */
+.sess-list{height:480px;overflow-y:auto}
+.sess-item{padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.sess-item:hover,.sess-item.sel{background:var(--s2)}
+.sess-dev{font-size:12px;font-weight:600}
+.sess-meta{font-size:11px;color:var(--mu);margin-top:2px}
+.sess-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.sess-stat{font-size:11px}
+.pdf-btn{display:block;width:calc(100% - 28px);margin:8px 14px;padding:7px;background:rgba(31,111,235,.15);border:1px solid rgba(31,111,235,.3);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
+.pdf-btn:hover{background:rgba(31,111,235,.25)}
+/* ── CX Latest result ── */
+.cx-latest{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:16px}
+.cx-latest-head{font-size:13px;font-weight:600;margin-bottom:2px}
+.cx-latest-sub{font-size:11px;color:var(--mu);margin-bottom:14px}
+.cx-metrics{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)}
+.cx-metric{text-align:center}
+.cx-metric-v{font-size:18px;font-weight:700}
+.cx-metric-l{font-size:10px;color:var(--mu)}
+/* ── Misc ── */
+.mono{font-family:'Consolas','Menlo',monospace;font-size:11px}
+.empty{padding:32px;text-align:center;color:var(--mu);font-size:13px}
+.mb{margin-bottom:14px}
+.rank-medal{font-size:16px}
+</style>
 </head>
 <body>
 
-<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
-<nav class="navbar">
-  <a class="logo" href="#">
-    <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="30" height="30" rx="7" fill="#1f6feb"/>
-      <polyline points="3,22 8,13 13,17 18,8 23,15 27,10"
-        stroke="white" stroke-width="2.4"
-        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<!-- NAVBAR -->
+<nav class="nav">
+  <a class="nav-logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="28" height="28" rx="6" fill="#1f6feb"/>
+      <polyline points="3,20 7,12 12,16 16,8 21,14 25,10" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     </svg>
-    <span class="logo-text">NetPulse<span class="logo-sub">Web</span></span>
+    <span class="nav-logo-txt">NetPulse<span class="nav-logo-sub">Web</span></span>
   </a>
-  <div class="spacer"></div>
-  <span class="update-ts" id="ts">—</span>
-  <div class="conn-pill">
-    <div class="conn-dot" id="conn-dot"></div>
-    <span id="conn-lbl">Connecting…</span>
-  </div>
+  <div class="nav-sp"></div>
+  <span class="nav-ts" id="nav-ts">—</span>
+  <div class="pill"><div class="pill-dot" id="cdot"></div><span id="clbl">Connecting…</span></div>
 </nav>
 
-<!-- ═══════════════════════════ TABS ═════════════════════════════ -->
+<!-- TABS -->
 <div class="tabs">
-  <button class="tab-btn active" data-tab="dashboard">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>
-    Dashboard
+  <button class="tab-btn on" data-tab="dash">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>
+    Experience Dashboard
   </button>
-  <button class="tab-btn" data-tab="network">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 11l3-4 2 2 4-6 3 4 2-3v6H1v1z"/></svg>
+  <button class="tab-btn" data-tab="net">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1 11l3-4 2 2 4-6 3 4 2-3v6H1v1z"/></svg>
     Network
   </button>
   <button class="tab-btn" data-tab="cx">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.9 3.8L14 5.7l-3 2.9.7 4.1L8 10.5l-3.7 2.2.7-4.1L2 5.7l4.1-.9L8 1z"/></svg>
-    CX Experience
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.9 3.8L14 5.7l-3 2.9.7 4.1L8 10.5l-3.7 2.2.7-4.1L2 5.7l4.1-.9L8 1z"/></svg>
+    CX Rating
   </button>
-  <button class="tab-btn" data-tab="drive">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a5 5 0 100 10A5 5 0 008 1zm0 1.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM8 5a1 1 0 100 2A1 1 0 008 5z"/><path d="M8 10v5"/></svg>
+  <button class="tab-btn" data-tab="drv">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6" r="1.2"/><path d="M8 10v6"/></svg>
     Drive Test
   </button>
 </div>
 
-<!-- ═══════════════════════════ PAGE ══════════════════════════════ -->
 <div class="page">
 
-<!-- ────────────────── DASHBOARD ────────────────── -->
-<div class="tab-panel active" id="tab-dashboard">
+<!-- ══════════════ EXPERIENCE DASHBOARD ══════════════ -->
+<div class="tp on" id="tp-dash">
 
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-label">Total Tests</div>
-      <div class="kpi-value" id="k-total">—</div>
-      <div class="kpi-unit">all time</div>
+  <!-- Dashboard filter bar -->
+  <div class="fbar" style="margin:-20px -20px 20px;padding:10px 20px">
+    <span class="fbar-label">Period</span>
+    <button class="fchip on" data-df="all">All Time</button>
+    <button class="fchip" data-df="week">This Week</button>
+    <button class="fchip" data-df="month">This Month</button>
+    <button class="fchip" data-df="quarter">This Quarter</button>
+    <div class="fbar-sep"></div>
+    <span class="fbar-label">Operator</span>
+    <button class="fchip on" data-dop="all">All</button>
+    <button class="fchip" data-dop="Cellcard">Cellcard</button>
+    <button class="fchip" data-dop="Metfone">Metfone</button>
+    <button class="fchip" data-dop="Smart">Smart</button>
+    <div class="fbar-sep"></div>
+    <select class="fdrop" id="dd-tech"><option value="all">Tech: All</option><option value="5g">5G/NR</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
+    <select class="fdrop" id="dd-cov"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
+    <select class="fdrop" id="dd-prov"><option value="all">Province: All</option></select>
+  </div>
+
+  <!-- KPI row -->
+  <div class="kgrid">
+    <div class="kcard"><div class="kcard-lbl">Total Tests</div><div class="kcard-val" id="k-tot">—</div><div class="kcard-unit">speed tests</div></div>
+    <div class="kcard"><div class="kcard-lbl">Avg Download</div><div class="kcard-val" style="color:var(--bl)" id="k-dl">—</div><div class="kcard-unit">Mbps</div></div>
+    <div class="kcard"><div class="kcard-lbl">Avg Upload</div><div class="kcard-val" style="color:var(--gr)" id="k-ul">—</div><div class="kcard-unit">Mbps</div></div>
+    <div class="kcard"><div class="kcard-lbl">Avg Latency</div><div class="kcard-val" style="color:var(--yw)" id="k-ping">—</div><div class="kcard-unit">ms</div></div>
+    <div class="kcard"><div class="kcard-lbl">Avg RSRP</div><div class="kcard-val" id="k-rsrp">—</div><div class="kcard-unit">dBm</div></div>
+    <div class="kcard"><div class="kcard-lbl">Drive Sessions</div><div class="kcard-val" style="color:var(--pu)" id="k-sess">—</div><div class="kcard-unit">recorded</div></div>
+    <div class="kcard"><div class="kcard-lbl">CX Records</div><div class="kcard-val" style="color:var(--cy)" id="k-cx">—</div><div class="kcard-unit">logged</div></div>
+    <div class="kcard"><div class="kcard-lbl">Active Devices</div><div class="kcard-val" style="color:var(--or)" id="k-dev">—</div><div class="kcard-unit">last 24 h</div></div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="stabs">
+    <button class="stab on" data-st="overview">Overview</button>
+    <button class="stab" data-st="rankings">Rankings</button>
+    <button class="stab" data-st="compare">Compare</button>
+    <button class="stab" data-st="trends">Trends</button>
+  </div>
+
+  <!-- Overview -->
+  <div class="stp on" id="st-overview">
+    <div class="exec-card">
+      <div class="exec-score">Overall Network Score</div>
+      <div><span class="exec-big" id="ex-score">—</span> <span class="exec-rating" id="ex-rating"></span></div>
+      <div class="exec-stats" id="ex-stats"></div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Avg Download</div>
-      <div class="kpi-value" style="color:var(--blue)" id="k-dl">—</div>
-      <div class="kpi-unit">Mbps</div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">🏆 Operator Awards</div>
+    <div class="awards" id="awards-grid"></div>
+    <div class="g g2">
+      <div class="card">
+        <div class="ch"><span class="ch-t">Speed Test Trend</span><span class="ch-s">Last 60 tests</span></div>
+        <div class="cb"><div class="chart-h" style="height:190px"><canvas id="ch-speed"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ch-t">RSRP Distribution</span><span class="ch-s">Signal quality bands</span></div>
+        <div class="cb"><div class="chart-h" style="height:190px"><canvas id="ch-rsrp"></canvas></div></div>
+      </div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Avg Upload</div>
-      <div class="kpi-value" style="color:var(--green)" id="k-ul">—</div>
-      <div class="kpi-unit">Mbps</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Avg Latency</div>
-      <div class="kpi-value" style="color:var(--yellow)" id="k-ping">—</div>
-      <div class="kpi-unit">ms</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Avg RSRP</div>
-      <div class="kpi-value" id="k-rsrp">—</div>
-      <div class="kpi-unit">dBm</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Drive Sessions</div>
-      <div class="kpi-value" style="color:var(--purple)" id="k-sessions">—</div>
-      <div class="kpi-unit">recorded</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Active Devices</div>
-      <div class="kpi-value" style="color:var(--cyan)" id="k-devices">—</div>
-      <div class="kpi-unit">last 24 h</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">CX Records</div>
-      <div class="kpi-value" style="color:var(--orange)" id="k-cx">—</div>
-      <div class="kpi-unit">logged</div>
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">Recent Tests</span><span class="live-tag">LIVE</span></div>
+      <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>RAT</th><th>↓ DL</th><th>↑ UL</th><th>Ping</th><th>RSRP</th><th>Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
     </div>
   </div>
 
-  <div class="grid col-2">
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">Speed Test Trend</span>
-        <span class="card-subtitle">Last 60 tests — Download &amp; Upload</span>
+  <!-- Rankings -->
+  <div class="stp" id="st-rankings">
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">Operator Rankings</span><span class="ch-s">All metrics · filtered period</span></div>
+      <div class="tw"><table><thead><tr><th>Rank</th><th>Operator</th><th>Tests</th><th>↓ DL (Mbps)</th><th>↑ UL (Mbps)</th><th>Ping (ms)</th><th>RSRP (dBm)</th><th>Jitter</th><th>Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
+    </div>
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">OpenSignal Experience Rankings</span><span class="ch-s">By operator</span></div>
+      <div class="tw"><table><thead><tr><th>Rank</th><th>Operator</th><th>Tests</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>Consistent Quality</th><th>Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Compare -->
+  <div class="stp" id="st-compare">
+    <div class="op-cards" id="op-cards"></div>
+    <div class="g g2">
+      <div class="card">
+        <div class="ch"><span class="ch-t">Download Speed Comparison</span></div>
+        <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-dl"></canvas></div></div>
       </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:200px"><canvas id="ch-speed"></canvas></div>
+      <div class="card">
+        <div class="ch"><span class="ch-t">Upload Speed Comparison</span></div>
+        <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-ul"></canvas></div></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">RSRP Signal Distribution</span>
-        <span class="card-subtitle">Sample count by quality band</span>
+    <div class="g g2">
+      <div class="card">
+        <div class="ch"><span class="ch-t">Latency Comparison</span></div>
+        <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-ping"></canvas></div></div>
       </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:200px"><canvas id="ch-rsrp-dist"></canvas></div>
+      <div class="card">
+        <div class="ch"><span class="ch-t">OpenSignal Experience Comparison</span></div>
+        <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-os"></canvas></div></div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Recent Speed Tests</span>
-      <span class="live-tag">LIVE</span>
+  <!-- Trends -->
+  <div class="stp" id="st-trends">
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">Download Trend by Operator</span><span class="ch-s">Daily averages</span></div>
+      <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-trend"></canvas></div></div>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Time</th><th>Device</th><th>RAT</th>
-          <th>↓ DL (Mbps)</th><th>↑ UL (Mbps)</th><th>Ping (ms)</th>
-          <th>RSRP</th><th>SINR</th>
-        </tr></thead>
-        <tbody id="tb-recent"></tbody>
-      </table>
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">RSRP Trend by Operator</span><span class="ch-s">Daily averages</span></div>
+      <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-rsrp-trend"></canvas></div></div>
     </div>
   </div>
 </div>
 
-<!-- ────────────────── NETWORK ────────────────── -->
-<div class="tab-panel" id="tab-network">
-  <div class="grid col-2">
+<!-- ══════════════ NETWORK ══════════════ -->
+<div class="tp" id="tp-net">
+  <div class="fbar" style="margin:-20px -20px 20px;padding:10px 20px">
+    <button class="fchip on" data-nop="all">All Operators</button>
+    <button class="fchip" data-nop="Cellcard">Cellcard</button>
+    <button class="fchip" data-nop="Metfone">Metfone</button>
+    <button class="fchip" data-nop="Smart">Smart</button>
+    <div class="fbar-sep"></div>
+    <button class="fchip on" data-nt="all">All Tech</button>
+    <button class="fchip" data-nt="5g">5G</button>
+    <button class="fchip" data-nt="4g">4G LTE</button>
+    <button class="fchip" data-nt="3g">3G</button>
+    <button class="fchip" data-nt="2g">2G</button>
+    <div class="fbar-sep"></div>
+    <select class="fdrop" id="nd-prov"><option value="all">Province: All</option></select>
+  </div>
+  <div class="g g2">
     <div class="card">
-      <div class="card-head">
-        <span class="card-title">Throughput &amp; Latency Over Time</span>
-        <span class="card-subtitle">Last 100 tests</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:240px"><canvas id="ch-net-ts"></canvas></div>
-      </div>
+      <div class="ch"><span class="ch-t">Throughput &amp; Latency</span><span class="ch-s">Last 100 tests</span></div>
+      <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-net-ts"></canvas></div></div>
     </div>
     <div class="card">
-      <div class="card-head">
-        <span class="card-title">Tests by Radio Access Technology</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:240px"><canvas id="ch-rat"></canvas></div>
-      </div>
+      <div class="ch"><span class="ch-t">RAT Breakdown</span></div>
+      <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-rat"></canvas></div></div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Full Speed-Test Log</span>
-      <span class="live-tag">LIVE</span>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Timestamp</th><th>Device</th><th>RAT</th>
-          <th>↓ DL</th><th>↑ UL</th><th>Ping</th>
-          <th>RSRP</th><th>RSRQ</th><th>SINR</th>
-          <th>PCI</th><th>Cell ID</th><th>TAC/LAC</th>
-        </tr></thead>
-        <tbody id="tb-net"></tbody>
-      </table>
-    </div>
+  <div class="card mb">
+    <div class="ch"><span class="ch-t">Speed Test Log</span><span class="live-tag">LIVE</span></div>
+    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>RAT</th><th>Bands</th><th>↓ DL</th><th>↑ UL</th><th>Ping</th><th>Jitter</th><th>RSRP</th><th>SINR</th><th>PCI</th><th>Province</th><th>Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
+  </div>
+  <div class="card mb">
+    <div class="ch"><span class="ch-t">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
+    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Game</th><th>Avg Ping</th><th>Min Ping</th><th>Max Ping</th><th>Jitter</th><th>Packet Loss</th><th>OpenSignal Score</th><th>Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
 </div>
 
-<!-- ────────────────── CX EXPERIENCE ────────────────── -->
-<div class="tab-panel" id="tab-cx">
-  <div class="grid col-2">
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">CX Score Trend</span>
-        <span class="card-subtitle">Last 60 records</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:240px"><canvas id="ch-cx-trend"></canvas></div>
-      </div>
+<!-- ══════════════ CX RATING ══════════════ -->
+<div class="tp" id="tp-cx">
+  <!-- CX filter rows (mirrors app) -->
+  <div class="fbar" style="margin:-20px -20px 16px;padding:10px 20px;flex-direction:column;align-items:flex-start;gap:8px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="fchip on" data-cov2="all">All</button>
+      <button class="fchip" data-cov2="mobile">Mobile</button>
+      <button class="fchip" data-cov2="broadband">Broadband</button>
+      <div class="fbar-sep"></div>
+      <button class="fchip on" data-ct="all">All Tech</button>
+      <button class="fchip" data-ct="5g">5G</button>
+      <button class="fchip" data-ct="4g">4G LTE</button>
+      <button class="fchip" data-ct="3g">3G</button>
+      <button class="fchip" data-ct="2g">2G</button>
     </div>
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">OpenSignal Score Components</span>
-        <span class="card-subtitle">Average across all devices</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-box" style="height:240px"><canvas id="ch-os-radar"></canvas></div>
-      </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="fchip on" data-cop="all">All Operators</button>
+      <button class="fchip" data-cop="Cellcard">Cellcard</button>
+      <button class="fchip" data-cop="Metfone">Metfone</button>
+      <button class="fchip" data-cop="Smart">Smart</button>
+      <div class="fbar-sep"></div>
+      <select class="fdrop" id="cx-prov"><option value="all">All Provinces</option></select>
     </div>
   </div>
-  <div class="grid col-2">
+
+  <!-- Latest result card -->
+  <div class="cx-latest" id="cx-latest-card">
+    <div class="cx-latest-head" id="cx-latest-head">Latest Result</div>
+    <div class="cx-latest-sub" id="cx-latest-sub">Loading…</div>
+    <div class="gauges-row" id="cx-gauges"></div>
+    <div class="cx-metrics" id="cx-metrics"></div>
+  </div>
+
+  <div style="font-size:12px;color:var(--mu);margin-bottom:12px"><span id="cx-count">—</span> records loaded</div>
+
+  <div class="g g2">
     <div class="card">
-      <div class="card-head">
-        <span class="card-title">CX Experience Log</span>
-        <span class="live-tag">LIVE</span>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Time</th><th>Device</th><th>Operator</th>
-            <th>Score</th><th>PCI</th><th>Cell ID</th><th>TAC</th>
-          </tr></thead>
-          <tbody id="tb-cx"></tbody>
-        </table>
-      </div>
+      <div class="ch"><span class="ch-t">CX Score Trend</span><span class="ch-s">Overall score over time</span></div>
+      <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-trend"></canvas></div></div>
     </div>
     <div class="card">
-      <div class="card-head">
-        <span class="card-title">OpenSignal Scores</span>
-        <span class="live-tag">LIVE</span>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Time</th><th>Device</th>
-            <th>↓ DL</th><th>↑ UL</th><th>Latency</th><th>Signal</th>
-          </tr></thead>
-          <tbody id="tb-os"></tbody>
-        </table>
-      </div>
+      <div class="ch"><span class="ch-t">Experience by Operator</span></div>
+      <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-op"></canvas></div></div>
     </div>
+  </div>
+
+  <div class="card mb">
+    <div class="ch"><span class="ch-t">OpenSignal Scores</span><span class="live-tag">LIVE</span></div>
+    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Tech</th><th>Mode</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>Consistent Q</th><th>Reliability</th><th>↓ DL</th><th>↑ UL</th><th>Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
+  </div>
+
+  <div class="card mb">
+    <div class="ch"><span class="ch-t">CX Experience Log</span><span class="live-tag">LIVE</span></div>
+    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Tech</th><th>Coverage</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>DL Score</th><th>UL Score</th><th>Overall</th><th>Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
   </div>
 </div>
 
-<!-- ────────────────── DRIVE TEST ────────────────── -->
-<div class="tab-panel" id="tab-drive">
-  <div class="grid col-map">
+<!-- ══════════════ DRIVE TEST ══════════════ -->
+<div class="tp" id="tp-drv">
+  <div class="g gmap mb">
     <div class="card">
-      <div class="card-head">
-        <span class="card-title">Drive Route Map</span>
+      <div class="ch">
+        <span class="ch-t">Drive Route Map</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="card-subtitle" id="map-lbl">← select a session</span>
+          <span class="ch-s" id="dmap-lbl">← Select a session</span>
           <span class="live-tag">LIVE</span>
         </div>
       </div>
-      <div id="drive-map"></div>
-      <div class="map-legend">
-        <span class="leg-label">RSRP</span>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-excellent)"></div>≥ −80 Excellent</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-good)"></div>−80…−90 Good</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-fair)"></div>−90…−100 Fair</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-poor)"></div>−100…−110 Poor</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--rsrp-critical)"></div>&lt;−110 Critical</div>
+      <div id="dmap"></div>
+      <div class="mleg">
+        <span style="font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">RSRP</span>
+        <div class="mleg-item"><div class="mleg-dot" style="background:var(--r-ex)"></div>≥−80 Excellent</div>
+        <div class="mleg-item"><div class="mleg-dot" style="background:var(--r-go)"></div>−80…−90 Good</div>
+        <div class="mleg-item"><div class="mleg-dot" style="background:var(--r-fa)"></div>−90…−100 Fair</div>
+        <div class="mleg-item"><div class="mleg-dot" style="background:var(--r-po)"></div>−100…−110 Poor</div>
+        <div class="mleg-item"><div class="mleg-dot" style="background:var(--r-cr)"></div>&lt;−110 Critical</div>
       </div>
     </div>
-
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
-      <div class="card-head">
-        <span class="card-title">Sessions</span>
-        <span class="card-subtitle" id="sess-count">0</span>
-      </div>
-      <div class="session-list" id="sess-list">
-        <div class="empty">Loading sessions…</div>
+      <div class="ch"><span class="ch-t">Sessions</span><span class="ch-s" id="sess-cnt">0</span></div>
+      <div class="sess-list" id="sess-list"><div class="empty">Loading sessions…</div></div>
+    </div>
+  </div>
+
+  <div class="card mb" id="drv-analysis" style="display:none">
+    <div class="ch">
+      <span class="ch-t" id="drv-analysis-title">Drive Analysis</span>
+      <button id="pdf-export-btn" style="padding:6px 14px;background:rgba(31,111,235,.2);border:1px solid rgba(31,111,235,.4);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer">📄 Export PDF</button>
+    </div>
+    <div class="cb">
+      <div class="g g3" style="margin-bottom:0">
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Samples</div><div style="font-size:22px;font-weight:700" id="da-samples">—</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Distance</div><div style="font-size:22px;font-weight:700;color:var(--bl)" id="da-dist">—</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Avg RSRP</div><div style="font-size:22px;font-weight:700" id="da-rsrp">—</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Handovers</div><div style="font-size:22px;font-weight:700;color:var(--yw)" id="da-ho">—</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Avg Download</div><div style="font-size:22px;font-weight:700;color:var(--gr)" id="da-dl">—</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Duration</div><div style="font-size:22px;font-weight:700;color:var(--mu)" id="da-dur">—</div></div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-head">
-      <span class="card-title">Drive Samples</span>
-      <span class="card-subtitle" id="samp-count">—</span>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>#</th><th>Sampled At</th><th>Lat</th><th>Lng</th>
-          <th>RAT</th><th>RSRP</th><th>RSRQ</th><th>SINR</th>
-        </tr></thead>
-        <tbody id="tb-samples"></tbody>
-      </table>
-    </div>
+    <div class="ch"><span class="ch-t">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
+    <div class="tw"><table><thead><tr><th>#</th><th>Time</th><th>Lat</th><th>Lng</th><th>RAT</th><th>Operator</th><th>RSRP</th><th>SINR</th><th>DL (Mbps)</th><th>PCI</th><th>Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
 </div>
 
 </div><!-- /page -->
 
-<!-- ═══════════════════════════ SCRIPT ════════════════════════════ -->
 <script>
-// ╔═══════════════════════════════════════════════════════════╗
-// ║  NetPulse Web — Live Dashboard                           ║
-// ║  Supabase project: bauiffaqfboqlqnmxffc                  ║
-// ║  Replace ANON_KEY with your project's anon/public key.   ║
-// ╚═══════════════════════════════════════════════════════════╝
+// ═══════════════════════════════════════════════════
+//  NetPulse Web v2 — Full App-Parity Dashboard
+//  Supabase project: bauiffaqfboqlqnmxffc
+// ═══════════════════════════════════════════════════
 
-const SUPABASE_URL     = 'https://bauiffaqfboqlqnmxffc.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhdWlmZmFxZmJvcWxxbm14ZmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMjc5ODAsImV4cCI6MjA5NjgwMzk4MH0.jG2VkYTt5xkej4xYiQwEroYGVhQ6P48JrzTvekuHe1M'
+const SB_URL = 'https://bauiffaqfboqlqnmxffc.supabase.co'
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhdWlmZmFxZmJvcWxxbm14ZmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMjc5ODAsImV4cCI6MjA5NjgwMzk4MH0.jG2VkYTt5xkej4xYiQwEroYGVhQ6P48JrzTvekuHe1M'
 
-// Column aliases — update if your schema differs
-const C = {
-  // networkxp_data
-  nx: {
-    id:'id', dev:'device_id', at:'tested_at',
-    dl:'download_mbps', ul:'upload_mbps', ping:'ping_ms',
-    rsrp:'rsrp', rsrq:'rsrq', sinr:'sinr', rat:'rat',
-    pci:'pci', cell:'cell_id', lac:'lac',
-  },
-  // cx_experience_log
-  cx: {
-    at:'tested_at', dev:'device_id', op:'operator',
-    score:'score', pci:'pci', cell:'cell_id', tac:'tac',
-  },
-  // opensignal_scores
-  os: {
-    at:'tested_at', dev:'device_id',
-    dl:'download_score', ul:'upload_score',
-    lat:'latency_score', sig:'signal_score',
-  },
-  // drive_sessions
-  ds: {
-    id:'id', dev:'device_id', sid:'local_session_id',
-    start:'started_at', end:'ended_at', cnt:'sample_count',
-  },
-  // drive_samples
-  samp: {
-    sid:'local_session_id', dev:'device_id', at:'sampled_at',
-    lat:'lat', lng:'lng',
-    rsrp:'rsrp', rsrq:'rsrq', sinr:'sinr', rat:'rat',
-  },
+// ── State ─────────────────────────────────────────
+let nxAll = [], osAll = [], cxAll = [], sessAll = [], gamingAll = []
+let driveSamples = [], activeSess = null
+let mapReady = false
+
+// Active filters
+const F = {
+  // Dashboard
+  dDate:'all', dOp:'all', dTech:'all', dCov:'all', dProv:'all',
+  // Network
+  nOp:'all', nTech:'all', nProv:'all',
+  // CX
+  cCov:'all', cTech:'all', cOp:'all', cProv:'all',
 }
 
-// ── RSRP helpers (3GPP-derived bands validated in NetPulse Android) ──
+// ── Helpers ───────────────────────────────────────
+function normOp(op) {
+  if (!op) return 'Unknown'
+  const l = op.toLowerCase()
+  if (l.includes('cellcard')) return 'Cellcard'
+  if (l.includes('metfone'))  return 'Metfone'
+  if (l.includes('smart'))    return 'Smart'
+  return op
+}
 function rsrpColor(v) {
-  if (v == null) return '#8b949e'
-  if (v >= -80)  return '#00e676'
-  if (v >= -90)  return '#00bcd4'
-  if (v >= -100) return '#ffc107'
-  if (v >= -110) return '#ff9800'
+  if (v==null) return '#8b949e'
+  if (v>=-80)  return '#00e676'
+  if (v>=-90)  return '#00bcd4'
+  if (v>=-100) return '#ffc107'
+  if (v>=-110) return '#ff9800'
   return '#f44336'
 }
-
 function rsrpPill(v) {
-  if (v == null) return '<span style="color:var(--muted)">—</span>'
-  const c = rsrpColor(v)
-  return `<span class="rsrp-pill" style="background:${c}22;color:${c}">${v} dBm</span>`
+  if (v==null) return '<span style="color:var(--mu)">—</span>'
+  const c=rsrpColor(v)
+  return `<span class="rpill" style="background:${c}22;color:${c}">${v} dBm</span>`
 }
-
 function ratBadge(rat) {
-  if (!rat) return '<span style="color:var(--muted)">—</span>'
-  const r = String(rat).toUpperCase()
-  if (r.includes('NR') || r.includes('5G'))        return '<span class="badge b5g">5G/NR</span>'
-  if (r.includes('LTE') || r.includes('4G'))       return '<span class="badge b4g">4G LTE</span>'
-  if (r.includes('WCDMA') || r.includes('3G') || r.includes('UMTS')) return '<span class="badge b3g">3G</span>'
-  return `<span class="badge bunk">${rat}</span>`
+  if (!rat) return '<span style="color:var(--mu)">—</span>'
+  const r=String(rat).toUpperCase()
+  if (r.includes('NR')||r.includes('5G'))       return '<span class="badge b5g">5G/NR</span>'
+  if (r.includes('LTE')||r.includes('4G'))      return '<span class="badge b4g">4G LTE</span>'
+  if (r.includes('WCDMA')||r.includes('3G')||r.includes('UMTS')) return '<span class="badge b3g">3G</span>'
+  if (r.includes('GSM')||r.includes('2G')||r.includes('EDGE'))   return '<span class="badge b2g">2G</span>'
+  return `<span class="badge buk">${rat}</span>`
+}
+function scoreBand(v) {
+  if (v==null||isNaN(v)) return {label:'—',color:'var(--mu)'}
+  if (v>=80) return {label:'Excellent',color:'var(--gr)'}
+  if (v>=70) return {label:'Very Good',color:'var(--cy)'}
+  if (v>=60) return {label:'Good',color:'var(--bl)'}
+  if (v>=50) return {label:'Fair',color:'var(--yw)'}
+  return {label:'Poor',color:'var(--re)'}
+}
+function n(v,d=1){return v==null||isNaN(v)?'—':(+v).toFixed(d)}
+function ts(v){return v?new Date(v).toLocaleString():'—'}
+function hms(v){return v?new Date(v).toLocaleTimeString():'—'}
+function sid(v){return v?String(v).slice(-8).toUpperCase():'—'}
+
+// ── Date cutoff ───────────────────────────────────
+function cutoff(range) {
+  const d = new Date()
+  if (range==='week')    d.setDate(d.getDate()-7)
+  else if (range==='month')   d.setDate(d.getDate()-30)
+  else if (range==='quarter') d.setDate(d.getDate()-90)
+  else return null
+  return d.toISOString()
 }
 
-function n(v, d = 1) { return v == null ? '—' : (+v).toFixed(d) }
-function ts(v)  { return v ? new Date(v).toLocaleString() : '—' }
-function hms(v) { return v ? new Date(v).toLocaleTimeString() : '—' }
-function sid(v) { return v ? String(v).slice(-8).toUpperCase() : '—' }
-
-// ── Supabase client ───────────────────────────────────────────────
-const { createClient } = supabase
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-// ── App state ─────────────────────────────────────────────────────
-let nxData  = []   // networkxp_data rows (newest first)
-let cxData  = []   // cx_experience_log
-let osData  = []   // opensignal_scores
-let sessions = []  // drive_sessions
-let samples  = []  // drive_samples for selected session
-let activeSession = null
-let mapLoaded = false
-
-// ── Tabs ──────────────────────────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
-    btn.classList.add('active')
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active')
-    if (btn.dataset.tab === 'drive' && mapLoaded) setTimeout(() => map.resize(), 60)
+// ── Filter functions ──────────────────────────────
+function filterNx(data, {date,op,tech,prov}={}) {
+  return data.filter(r=>{
+    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
+    if (op&&op!=='all'&&normOp(r.operator)!==op) return false
+    if (tech&&tech!=='all'){
+      const rat=(r.rat||'').toUpperCase()
+      if (tech==='5g'&&!rat.includes('NR')&&!rat.includes('5G')) return false
+      if (tech==='4g'&&!rat.includes('LTE')&&!rat.includes('4G')) return false
+      if (tech==='3g'&&!rat.includes('WCDMA')&&!rat.includes('3G')&&!rat.includes('UMTS')) return false
+      if (tech==='2g'&&!rat.includes('GSM')&&!rat.includes('2G')&&!rat.includes('EDGE')) return false
+    }
+    if (prov&&prov!=='all'&&r.province!==prov) return false
+    return true
   })
-})
+}
+function filterOs(data, {date,op,tech,cov,prov}={}) {
+  return data.filter(r=>{
+    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
+    if (op&&op!=='all'&&normOp(r.operator)!==op) return false
+    if (tech&&tech!=='all'){
+      const t=(r.technology||'').toUpperCase()
+      if (tech==='5g'&&!t.includes('NR')&&!t.includes('5G')) return false
+      if (tech==='4g'&&!t.includes('LTE')&&!t.includes('4G')) return false
+      if (tech==='3g'&&!t.includes('3G')&&!t.includes('WCDMA')) return false
+      if (tech==='2g'&&!t.includes('2G')&&!t.includes('GSM')) return false
+    }
+    if (cov&&cov!=='all'){
+      const m=(r.test_mode||'').toUpperCase()
+      if (cov==='mobile'&&!m.includes('MOBILE')) return false
+      if (cov==='broadband'&&m==='MOBILE') return false
+    }
+    if (prov&&prov!=='all'&&r.province!==prov) return false
+    return true
+  })
+}
+function filterCx(data, {cov,tech,op,prov}={}) {
+  return data.filter(r=>{
+    if (op&&op!=='all'&&normOp(r.operator)!==op) return false
+    if (tech&&tech!=='all'){
+      const t=(r.technology||'').toUpperCase()
+      if (tech==='5g'&&!t.includes('NR')&&!t.includes('5G')) return false
+      if (tech==='4g'&&!t.includes('LTE')&&!t.includes('4G')) return false
+      if (tech==='3g'&&!t.includes('3G')&&!t.includes('WCDMA')) return false
+      if (tech==='2g'&&!t.includes('2G')&&!t.includes('GSM')) return false
+    }
+    if (cov&&cov!=='all'){
+      const c=(r.coverage_type||'').toLowerCase()
+      if (cov==='mobile'&&!c.includes('mobile')) return false
+      if (cov==='broadband'&&c.includes('mobile')) return false
+    }
+    if (prov&&prov!=='all'&&r.province!==prov) return false
+    return true
+  })
+}
 
-// ── Chart.js global defaults ──────────────────────────────────────
-Chart.defaults.color          = '#8b949e'
-Chart.defaults.borderColor    = '#30363d'
-Chart.defaults.font.family    = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
-Chart.defaults.font.size      = 11
+// ── Gauge SVG (pure SVG, cross-browser) ──────────
+// r=40, circumference = 251.33
+function gaugeSVG(score, color, label, sub) {
+  const s = Math.max(0, Math.min(100, +score || 0))
+  const circ = 251.33
+  const fill = (s/100) * circ
+  return `
+  <div class="gauge-wrap">
+    <svg viewBox="0 0 100 100" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="40" fill="none" stroke="#21262d" stroke-width="9"/>
+      <circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="9"
+        stroke-dasharray="${fill.toFixed(1)} ${circ}"
+        stroke-linecap="round" transform="rotate(-90 50 50)"/>
+      <text x="50" y="46" text-anchor="middle" fill="#e6edf3" font-size="22" font-weight="700" font-family="system-ui">${Math.round(s)}</text>
+      <text x="50" y="60" text-anchor="middle" fill="#8b949e" font-size="10" font-family="system-ui">/100</text>
+    </svg>
+    <div class="gauge-lbl">${label}</div>
+    <div class="gauge-sub" style="color:${color};font-weight:600">${scoreBand(s).label}</div>
+  </div>`
+}
+
+// ── Supabase ──────────────────────────────────────
+const {createClient} = supabase
+const db = createClient(SB_URL, SB_KEY)
+
+// ── Chart.js defaults ─────────────────────────────
+Chart.defaults.color = '#8b949e'
+Chart.defaults.borderColor = '#30363d'
+Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',sans-serif"
+Chart.defaults.font.size = 11
 Chart.defaults.plugins.legend.labels.boxWidth = 10
+const GC = {color:'#21262d'}
 
-function mkChart(id, type, data, opts = {}) {
-  const el = document.getElementById(id)
-  if (!el) return null
-  return new Chart(el, {
-    type,
-    data,
-    options: { responsive: true, maintainAspectRatio: false, ...opts },
-  })
+function mk(id,type,data,opts={}) {
+  const el=document.getElementById(id)
+  if(!el) return null
+  return new Chart(el,{type,data,options:{responsive:true,maintainAspectRatio:false,...opts}})
 }
 
-// Speed trend
-const chSpeed = mkChart('ch-speed', 'line', {
-  labels: [],
-  datasets: [
-    { label: 'Download (Mbps)', data: [], borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,.07)', tension: 0.3, fill: true, pointRadius: 2 },
-    { label: 'Upload (Mbps)',   data: [], borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,.07)',  tension: 0.3, fill: true, pointRadius: 2 },
-  ],
-}, {
-  plugins: { legend: { display: true } },
-  scales: {
-    x: { display: false },
-    y: { beginAtZero: true, grid: { color: '#21262d' } },
-  },
-})
+// Dashboard charts
+const chSpeed = mk('ch-speed','line',{
+  labels:[],
+  datasets:[
+    {label:'Download (Mbps)',data:[],borderColor:'#58a6ff',backgroundColor:'rgba(88,166,255,.06)',tension:.3,fill:true,pointRadius:2},
+    {label:'Upload (Mbps)',  data:[],borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,.06)', tension:.3,fill:true,pointRadius:2},
+  ]
+},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{beginAtZero:true,grid:GC}}})
 
-// RSRP doughnut
-const chRsrp = mkChart('ch-rsrp-dist', 'doughnut', {
-  labels: ['Excellent (≥−80)', 'Good (−90)', 'Fair (−100)', 'Poor (−110)', 'Critical'],
-  datasets: [{
-    data: [0, 0, 0, 0, 0],
-    backgroundColor: ['#00e676', '#00bcd4', '#ffc107', '#ff9800', '#f44336'],
-    borderWidth: 0,
-  }],
-}, {
-  cutout: '60%',
-  plugins: { legend: { position: 'right', labels: { padding: 10 } } },
-})
+const chRsrp = mk('ch-rsrp','doughnut',{
+  labels:['Excellent ≥−80','Good −90','Fair −100','Poor −110','Critical'],
+  datasets:[{data:[0,0,0,0,0],backgroundColor:['#00e676','#00bcd4','#ffc107','#ff9800','#f44336'],borderWidth:0}]
+},{cutout:'62%',plugins:{legend:{position:'right',labels:{padding:8}}}})
 
-// Network time-series
-const chNetTs = mkChart('ch-net-ts', 'line', {
-  labels: [],
-  datasets: [
-    { label: 'DL (Mbps)', data: [], borderColor: '#58a6ff', tension: 0.3, pointRadius: 2 },
-    { label: 'UL (Mbps)', data: [], borderColor: '#3fb950', tension: 0.3, pointRadius: 2 },
-    { label: 'Ping (ms)', data: [], borderColor: '#ffc107', tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
-  ],
-}, {
-  plugins: { legend: { display: true } },
-  scales: {
-    x:  { display: false },
-    y:  { beginAtZero: true, grid: { color: '#21262d' }, position: 'left' },
-    y1: { beginAtZero: true, grid: { display: false }, position: 'right' },
-  },
-})
+// Comparison charts
+const chCmpDl   = mk('ch-cmp-dl',  'bar',{labels:[],datasets:[{label:'Avg DL (Mbps)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpUl   = mk('ch-cmp-ul',  'bar',{labels:[],datasets:[{label:'Avg UL (Mbps)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpPing = mk('ch-cmp-ping','bar',{labels:[],datasets:[{label:'Avg Ping (ms)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpOs   = mk('ch-cmp-os', 'bar',{labels:[],datasets:[
+    {label:'Video XP',    data:[],backgroundColor:'rgba(63,185,80,.7)'},
+    {label:'Games XP',   data:[],backgroundColor:'rgba(88,166,255,.7)'},
+    {label:'Voice XP',   data:[],backgroundColor:'rgba(163,113,247,.7)'},
+]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
-// RAT bar
-const chRat = mkChart('ch-rat', 'bar', {
-  labels: [],
-  datasets: [{ label: 'Tests', data: [], backgroundColor: ['#3fb950', '#58a6ff', '#d29922', '#f85149', '#a371f7'] }],
-}, {
-  plugins: { legend: { display: false } },
-  scales: {
-    x: { grid: { display: false } },
-    y: { beginAtZero: true, grid: { color: '#21262d' } },
-  },
-})
+// Trend charts
+const chTrend     = mk('ch-trend','line',{labels:[],datasets:[]},{plugins:{legend:{display:true}},scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true,grid:GC}}})
+const chRsrpTrend = mk('ch-rsrp-trend','line',{labels:[],datasets:[]},{plugins:{legend:{display:true}},scales:{x:{ticks:{maxTicksLimit:10}},y:{grid:GC}}})
 
-// CX trend
-const chCxTrend = mkChart('ch-cx-trend', 'line', {
-  labels: [],
-  datasets: [{ label: 'CX Score', data: [], borderColor: '#a371f7', backgroundColor: 'rgba(163,113,247,.08)', tension: 0.3, fill: true, pointRadius: 2 }],
-}, {
-  plugins: { legend: { display: false } },
-  scales: {
-    x: { display: false },
-    y: { min: 0, max: 100, grid: { color: '#21262d' } },
-  },
-})
+// Network charts
+const chNetTs = mk('ch-net-ts','line',{
+  labels:[],
+  datasets:[
+    {label:'DL (Mbps)',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},
+    {label:'UL (Mbps)',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},
+    {label:'Ping (ms)',data:[],borderColor:'#ffc107',tension:.3,pointRadius:2,yAxisID:'y1'},
+  ]
+},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{beginAtZero:true,grid:GC,position:'left'},y1:{beginAtZero:true,grid:{display:false},position:'right'}}})
 
-// OpenSignal radar
-const chOsRadar = mkChart('ch-os-radar', 'radar', {
-  labels: ['Download', 'Upload', 'Latency', 'Signal'],
-  datasets: [{
-    label: 'Avg Score',
-    data: [0, 0, 0, 0],
-    borderColor: '#1f6feb',
-    backgroundColor: 'rgba(31,111,235,.15)',
-    pointBackgroundColor: '#58a6ff',
-  }],
-}, {
-  scales: { r: { min: 0, max: 100, grid: { color: '#30363d' }, angleLines: { color: '#30363d' }, pointLabels: { color: '#8b949e', font: { size: 11 } } } },
-  plugins: { legend: { display: false } },
-})
+const chRat = mk('ch-rat','bar',{labels:[],datasets:[{label:'Tests',data:[],backgroundColor:['#3fb950','#58a6ff','#d29922','#f85149','#a371f7']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
 
-// ── MapLibre GL JS (same tile source as NetPulse Android) ─────────
+// CX charts
+const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
+const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[],backgroundColor:'rgba(63,185,80,.7)'},{label:'Games XP',data:[],backgroundColor:'rgba(88,166,255,.7)'},{label:'Voice XP',data:[],backgroundColor:'rgba(163,113,247,.7)'}]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
+
+// ── MapLibre ──────────────────────────────────────
 const map = new maplibregl.Map({
-  container: 'drive-map',
-  style: 'https://tiles.openfreemap.org/styles/liberty',
-  center: [104.9282, 11.5564],   // Phnom Penh
-  zoom: 11,
+  container:'dmap',
+  style:'https://tiles.openfreemap.org/styles/liberty',
+  center:[104.9282,11.5564],
+  zoom:11,
+  preserveDrawingBuffer:true   // required for PDF canvas capture
 })
-map.addControl(new maplibregl.NavigationControl(), 'top-right')
-map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
+map.addControl(new maplibregl.NavigationControl(),'top-right')
+map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
 
-map.on('load', () => {
-  mapLoaded = true
+map.on('load',()=>{
+  mapReady=true
+  map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+  map.addLayer({id:'route-line',type:'line',source:'route',paint:{'line-color':'#8b949e','line-width':2,'line-opacity':.5,'line-dasharray':[3,2]}})
 
-  // Route polyline
-  map.addSource('route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-  map.addLayer({
-    id: 'route-line', type: 'line', source: 'route',
-    paint: { 'line-color': '#8b949e', 'line-width': 2, 'line-opacity': 0.5, 'line-dasharray': [3, 2] },
-  })
+  map.addSource('dots',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+  map.addLayer({id:'dots-layer',type:'circle',source:'dots',paint:{
+    'circle-radius':['interpolate',['linear'],['zoom'],9,4,15,9],
+    'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676'],
+    'circle-opacity':.88,
+    'circle-stroke-width':1,
+    'circle-stroke-color':'rgba(0,0,0,.3)',
+  }})
 
-  // Sample dots — color driven by RSRP using the same bands as Android app
-  // step expression: default (< first stop) is critical; stops must be ascending
-  map.addSource('dots', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-  map.addLayer({
-    id: 'dots-layer', type: 'circle', source: 'dots',
-    paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 4, 15, 9],
-      'circle-color': [
-        'step', ['get', 'rsrp'],
-        '#f44336',         // < −110  critical
-        -110, '#ff9800',   // −110 … −100  poor
-        -100, '#ffc107',   // −100 … −90   fair
-        -90,  '#00bcd4',   // −90  … −80   good
-        -80,  '#00e676',   // ≥ −80        excellent
-      ],
-      'circle-opacity': 0.88,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': 'rgba(0,0,0,.35)',
-    },
-  })
-
-  // Click popup
-  const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
-  map.on('click', 'dots-layer', e => {
-    const p = e.features[0].properties
-    const rsrpVal = p.rsrp != null ? `${p.rsrp} dBm` : '—'
+  const popup = new maplibregl.Popup({closeButton:true,maxWidth:'220px'})
+  map.on('click','dots-layer',e=>{
+    const p=e.features[0].properties
     popup.setLngLat(e.lngLat).setHTML(`
-      <b style="font-size:13px">${p.rat || '—'}</b><br>
-      RSRP: <b style="color:${rsrpColor(p.rsrp)}">${rsrpVal}</b><br>
-      RSRQ: ${p.rsrq ?? '—'}&nbsp;&nbsp;SINR: ${p.sinr ?? '—'}<br>
-      <span style="color:#8b949e;font-size:10px">${p.at ? new Date(p.at).toLocaleTimeString() : ''}</span>
+      <b style="font-size:13px">${p.rat||'—'}</b> &nbsp; ${p.operator||''}<br>
+      RSRP: <b style="color:${rsrpColor(p.rsrp)}">${p.rsrp!=null?p.rsrp+' dBm':'—'}</b><br>
+      SINR: ${p.sinr??'—'} &nbsp; DL: ${p.dl!=null?n(p.dl)+' Mbps':'—'}<br>
+      <span style="color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():''}</span>
     `).addTo(map)
   })
-  map.on('mouseenter', 'dots-layer', () => { map.getCanvas().style.cursor = 'pointer' })
-  map.on('mouseleave', 'dots-layer', () => { map.getCanvas().style.cursor = '' })
+  map.on('mouseenter','dots-layer',()=>map.getCanvas().style.cursor='pointer')
+  map.on('mouseleave','dots-layer',()=>map.getCanvas().style.cursor='')
 
-  // Render any already-loaded session
-  if (activeSession) paintMap()
+  if(activeSess) paintMap()
 })
 
-// ── Render helpers ────────────────────────────────────────────────
-function paintKPIs() {
-  if (!nxData.length) return
-  const avg = col => nxData.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0) / nxData.length
-  document.getElementById('k-total').textContent   = nxData.length.toLocaleString()
-  document.getElementById('k-dl').textContent      = n(avg(C.nx.dl))
-  document.getElementById('k-ul').textContent      = n(avg(C.nx.ul))
-  document.getElementById('k-ping').textContent    = n(avg(C.nx.ping), 0)
-  const avgRsrp = avg(C.nx.rsrp)
-  const rsrpEl  = document.getElementById('k-rsrp')
-  rsrpEl.textContent  = n(avgRsrp, 0)
-  rsrpEl.style.color  = rsrpColor(avgRsrp)
-
-  const cutoff = new Date(Date.now() - 86400000).toISOString()
-  const devs   = new Set(nxData.filter(r => r[C.nx.at] > cutoff).map(r => r[C.nx.dev]))
-  document.getElementById('k-devices').textContent = devs.size
-
-  document.getElementById('k-sessions').textContent = sessions.length.toLocaleString()
-  document.getElementById('k-cx').textContent       = cxData.length.toLocaleString()
+// ── Render: KPI cards ─────────────────────────────
+function renderKPIs() {
+  const nx = filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const avg = col => nx.length ? nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length : null
+  document.getElementById('k-tot').textContent = nx.length.toLocaleString()
+  document.getElementById('k-dl').textContent  = n(avg('download_mbps'))
+  document.getElementById('k-ul').textContent  = n(avg('upload_mbps'))
+  document.getElementById('k-ping').textContent= n(avg('ping_ms'),0)
+  const ar = avg('rsrp')
+  const re = document.getElementById('k-rsrp')
+  re.textContent=n(ar,0); re.style.color=rsrpColor(ar)
+  document.getElementById('k-sess').textContent = sessAll.length.toLocaleString()
+  document.getElementById('k-cx').textContent   = osAll.length.toLocaleString()
+  const cut=new Date(Date.now()-86400000).toISOString()
+  const devs=new Set(nx.filter(r=>r.tested_at>cut).map(r=>r.device_id))
+  document.getElementById('k-dev').textContent = devs.size
 }
 
-function paintSpeedCharts() {
-  const slice = [...nxData].reverse().slice(-60)
-  chSpeed.data.labels              = slice.map(r => hms(r[C.nx.at]))
-  chSpeed.data.datasets[0].data   = slice.map(r => r[C.nx.dl])
-  chSpeed.data.datasets[1].data   = slice.map(r => r[C.nx.ul])
+// ── Render: Executive summary ─────────────────────
+function renderExecSummary() {
+  const os = filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv})
+  const avg = col => os.length ? os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length : null
+  const vid=avg('video_experience'), gam=avg('games_experience'), vox=avg('voice_app_experience')
+  const overall = (vid!=null&&gam!=null&&vox!=null) ? (vid+gam+vox)/3 : null
+  const score10 = overall ? (overall/10).toFixed(1) : '—'
+  const {label,color} = overall ? scoreBand(overall) : {label:'',color:'var(--mu)'}
+  document.getElementById('ex-score').textContent = score10+'/10'
+  document.getElementById('ex-score').style.color = color
+  document.getElementById('ex-rating').textContent = label
+  document.getElementById('ex-rating').style.color = color
+
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const avgDl=nx.length?nx.reduce((s,r)=>s+(r.download_mbps||0),0)/nx.length:0
+  const avgUl=nx.length?nx.reduce((s,r)=>s+(r.upload_mbps||0),0)/nx.length:0
+  const avgPing=nx.length?nx.reduce((s,r)=>s+(r.ping_ms||0),0)/nx.length:0
+  document.getElementById('ex-stats').innerHTML=`
+    <div class="exec-stat"><div class="exec-stat-v">${nx.length.toLocaleString()}</div><div class="exec-stat-l">Tests</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:#58a6ff">${n(avgDl)}</div><div class="exec-stat-l">Avg DL (Mbps)</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:#3fb950">${n(avgUl)}</div><div class="exec-stat-l">Avg UL (Mbps)</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:#ffc107">${n(avgPing,0)}</div><div class="exec-stat-l">Avg Ping (ms)</div></div>
+  `
+}
+
+// ── Render: Awards ────────────────────────────────
+function renderAwards() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const ops=['Cellcard','Metfone','Smart']
+  const opStats={}
+  ops.forEach(op=>{
+    const d=nx.filter(r=>normOp(r.operator)===op)
+    if(!d.length){opStats[op]=null;return}
+    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    opStats[op]={count:d.length,dl:avg('download_mbps'),ul:avg('upload_mbps'),ping:avg('ping_ms'),rsrp:avg('rsrp')}
+  })
+  const validOps=ops.filter(o=>opStats[o])
+  const bestBy=(col,higher=true)=>{
+    if(!validOps.length)return'—'
+    return validOps.reduce((best,op)=>{
+      const v=opStats[op][col]
+      const bv=opStats[best]?.[col]??( higher?-Infinity:Infinity)
+      return higher?v>bv?op:best : v<bv?op:best
+    },validOps[0])
+  }
+  const opColor={'Cellcard':'#00bcd4','Metfone':'#ff9800','Smart':'#a371f7'}
+  const awards=[
+    {icon:'🥇',label:'Best Download',op:bestBy('dl'),metric:()=>`${n(opStats[bestBy('dl')]?.dl)} Mbps`},
+    {icon:'🥈',label:'Best Upload',  op:bestBy('ul'),metric:()=>`${n(opStats[bestBy('ul')]?.ul)} Mbps`},
+    {icon:'⚡',label:'Best Latency', op:bestBy('ping',false),metric:()=>`${n(opStats[bestBy('ping',false)]?.ping,0)} ms`},
+    {icon:'📶',label:'Best Signal',  op:bestBy('rsrp'),metric:()=>`${n(opStats[bestBy('rsrp')]?.rsrp,0)} dBm`},
+  ]
+  document.getElementById('awards-grid').innerHTML=awards.map(a=>`
+    <div class="award-card">
+      <div class="award-icon">${a.icon}</div>
+      <div class="award-info">
+        <div class="award-op" style="color:${opColor[a.op]||'var(--tx)'}">${a.op}</div>
+        <div class="award-metric">${a.label} · ${a.metric()}</div>
+      </div>
+    </div>`).join('')
+}
+
+// ── Render: Speed charts ──────────────────────────
+function renderSpeedCharts() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const slice=[...nx].reverse().slice(-60)
+  chSpeed.data.labels=slice.map(r=>hms(r.tested_at))
+  chSpeed.data.datasets[0].data=slice.map(r=>r.download_mbps)
+  chSpeed.data.datasets[1].data=slice.map(r=>r.upload_mbps)
   chSpeed.update('none')
 
-  const bands = [0, 0, 0, 0, 0]
-  nxData.forEach(r => {
-    const v = r[C.nx.rsrp]
-    if (v == null) return
-    if (v >= -80)        bands[0]++
-    else if (v >= -90)   bands[1]++
-    else if (v >= -100)  bands[2]++
-    else if (v >= -110)  bands[3]++
-    else                 bands[4]++
+  const bands=[0,0,0,0,0]
+  nx.forEach(r=>{
+    const v=r.rsrp; if(v==null)return
+    if(v>=-80)bands[0]++; else if(v>=-90)bands[1]++; else if(v>=-100)bands[2]++; else if(v>=-110)bands[3]++; else bands[4]++
   })
-  chRsrp.data.datasets[0].data = bands
-  chRsrp.update('none')
+  chRsrp.data.datasets[0].data=bands; chRsrp.update('none')
 }
 
-function paintNetCharts() {
-  const slice = [...nxData].reverse().slice(-100)
-  chNetTs.data.labels             = slice.map(r => hms(r[C.nx.at]))
-  chNetTs.data.datasets[0].data   = slice.map(r => r[C.nx.dl])
-  chNetTs.data.datasets[1].data   = slice.map(r => r[C.nx.ul])
-  chNetTs.data.datasets[2].data   = slice.map(r => r[C.nx.ping])
-  chNetTs.update('none')
+// ── Render: Rankings tables ───────────────────────
+function renderRankings() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const opColors={'Cellcard':'#00bcd4','Metfone':'#ff9800','Smart':'#a371f7'}
+  const ops=['Cellcard','Metfone','Smart']
+  const opNx=ops.map(op=>{
+    const d=nx.filter(r=>normOp(r.operator)===op); if(!d.length)return null
+    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    return {op,count:d.length,dl:avg('download_mbps'),ul:avg('upload_mbps'),ping:avg('ping_ms'),rsrp:avg('rsrp'),jitter:avg('jitter_ms')}
+  }).filter(Boolean).sort((a,b)=>b.dl-a.dl)
 
-  const ratMap = {}
-  nxData.forEach(r => { const k = r[C.nx.rat] || 'Unknown'; ratMap[k] = (ratMap[k] || 0) + 1 })
-  chRat.data.labels             = Object.keys(ratMap)
-  chRat.data.datasets[0].data   = Object.values(ratMap)
-  chRat.update('none')
-}
-
-function paintCxCharts() {
-  const slice = [...cxData].reverse().slice(-60)
-  chCxTrend.data.labels           = slice.map(r => hms(r[C.cx.at]))
-  chCxTrend.data.datasets[0].data = slice.map(r => r[C.cx.score])
-  chCxTrend.update('none')
-
-  if (osData.length) {
-    const avg = col => osData.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0) / osData.length
-    chOsRadar.data.datasets[0].data = [avg(C.os.dl), avg(C.os.ul), avg(C.os.lat), avg(C.os.sig)]
-    chOsRadar.update('none')
-  }
-}
-
-function paintTable(tbodyId, rows) {
-  document.getElementById(tbodyId).innerHTML = rows
-}
-
-function renderRecentTable() {
-  paintTable('tb-recent', nxData.slice(0, 30).map(r => `
+  const medals=['🥇','🥈','🥉']
+  document.getElementById('tb-rankings').innerHTML=opNx.map((r,i)=>`
     <tr>
-      <td>${hms(r[C.nx.at])}</td>
-      <td class="mono">${sid(r[C.nx.dev])}</td>
-      <td>${ratBadge(r[C.nx.rat])}</td>
-      <td style="color:var(--blue);font-weight:600">${n(r[C.nx.dl])}</td>
-      <td style="color:var(--green);font-weight:600">${n(r[C.nx.ul])}</td>
-      <td style="color:var(--yellow)">${n(r[C.nx.ping], 0)}</td>
-      <td>${rsrpPill(r[C.nx.rsrp])}</td>
-      <td style="color:var(--muted)">${n(r[C.nx.sinr])}</td>
-    </tr>`).join(''))
+      <td><span class="rank-medal">${medals[i]||i+1}</span></td>
+      <td style="font-weight:700;color:${opColors[r.op]||'var(--tx)'}">${r.op}</td>
+      <td>${r.count.toLocaleString()}</td>
+      <td style="color:var(--bl);font-weight:600">${n(r.dl)}</td>
+      <td style="color:var(--gr)">${n(r.ul)}</td>
+      <td style="color:var(--yw)">${n(r.ping,0)}</td>
+      <td>${rsrpPill(Math.round(r.rsrp))}</td>
+      <td style="color:var(--mu)">${n(r.jitter,0)} ms</td>
+      <td><span style="color:${scoreBand(r.dl/3).color};font-weight:600">${scoreBand(r.dl/3).label}</span></td>
+    </tr>`).join('')
+
+  const osOps=ops.map(op=>{
+    const d=filterOs(osAll,{date:F.dDate}).filter(r=>normOp(r.operator)===op)
+    if(!d.length)return null
+    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    return {op,count:d.length,vid:avg('video_experience'),gam:avg('games_experience'),vox:avg('voice_app_experience'),cq:avg('consistent_quality'),rel:avg('reliability_experience')}
+  }).filter(Boolean).sort((a,b)=>((b.vid+b.gam+b.vox)/3)-((a.vid+a.gam+a.vox)/3))
+
+  document.getElementById('tb-os-rank').innerHTML=osOps.map((r,i)=>{
+    const oc=opColors[r.op]||'var(--tx)'
+    return `<tr>
+      <td><span class="rank-medal">${medals[i]||i+1}</span></td>
+      <td style="font-weight:700;color:${oc}">${r.op}</td>
+      <td>${r.count}</td>
+      <td style="color:var(--gr)">${n(r.vid,1)}</td>
+      <td style="color:var(--bl)">${n(r.gam,1)}</td>
+      <td style="color:var(--pu)">${n(r.vox,1)}</td>
+      <td style="color:var(--cy)">${n(r.cq,1)}%</td>
+      <td style="color:var(--yw)">${n(r.rel,0)}/1000</td>
+    </tr>`}).join('')
 }
 
-function renderNetTable() {
-  paintTable('tb-net', nxData.slice(0, 80).map(r => `
-    <tr>
-      <td style="white-space:nowrap">${ts(r[C.nx.at])}</td>
-      <td class="mono">${sid(r[C.nx.dev])}</td>
-      <td>${ratBadge(r[C.nx.rat])}</td>
-      <td style="color:var(--blue)">${n(r[C.nx.dl])}</td>
-      <td style="color:var(--green)">${n(r[C.nx.ul])}</td>
-      <td>${n(r[C.nx.ping], 0)}</td>
-      <td>${rsrpPill(r[C.nx.rsrp])}</td>
-      <td class="mono">${n(r[C.nx.rsrq], 1)}</td>
-      <td class="mono">${n(r[C.nx.sinr], 1)}</td>
-      <td class="mono">${r[C.nx.pci] ?? '—'}</td>
-      <td class="mono">${r[C.nx.cell] ?? '—'}</td>
-      <td class="mono">${r[C.nx.lac] ?? '—'}</td>
-    </tr>`).join(''))
-}
+// ── Render: Compare charts ────────────────────────
+function renderCompare() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const ops=['Cellcard','Metfone','Smart']
+  const opColors=['#00bcd4','#ff9800','#a371f7']
+  const avg=(data,col)=>data.length?data.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/data.length:0
 
-function renderCxTable() {
-  paintTable('tb-cx', cxData.slice(0, 60).map(r => `
-    <tr>
-      <td style="white-space:nowrap">${ts(r[C.cx.at])}</td>
-      <td class="mono">${sid(r[C.cx.dev])}</td>
-      <td>${r[C.cx.op] ?? '—'}</td>
-      <td style="color:var(--purple);font-weight:600">${n(r[C.cx.score], 0)}</td>
-      <td class="mono">${r[C.cx.pci] ?? '—'}</td>
-      <td class="mono">${r[C.cx.cell] ?? '—'}</td>
-      <td class="mono">${r[C.cx.tac] ?? '—'}</td>
-    </tr>`).join(''))
-}
+  const labels=ops, nxByOp=ops.map(op=>nx.filter(r=>normOp(r.operator)===op))
+  chCmpDl.data.labels=labels; chCmpDl.data.datasets[0].data=nxByOp.map(d=>avg(d,'download_mbps')); chCmpDl.data.datasets[0].backgroundColor=opColors; chCmpDl.update('none')
+  chCmpUl.data.labels=labels; chCmpUl.data.datasets[0].data=nxByOp.map(d=>avg(d,'upload_mbps')); chCmpUl.data.datasets[0].backgroundColor=opColors; chCmpUl.update('none')
+  chCmpPing.data.labels=labels; chCmpPing.data.datasets[0].data=nxByOp.map(d=>avg(d,'ping_ms')); chCmpPing.data.datasets[0].backgroundColor=opColors; chCmpPing.update('none')
 
-function renderOsTable() {
-  paintTable('tb-os', osData.slice(0, 60).map(r => `
-    <tr>
-      <td style="white-space:nowrap">${ts(r[C.os.at])}</td>
-      <td class="mono">${sid(r[C.os.dev])}</td>
-      <td style="color:var(--blue)">${n(r[C.os.dl], 1)}</td>
-      <td style="color:var(--green)">${n(r[C.os.ul], 1)}</td>
-      <td style="color:var(--yellow)">${n(r[C.os.lat], 1)}</td>
-      <td style="color:var(--purple)">${n(r[C.os.sig], 1)}</td>
-    </tr>`).join(''))
-}
+  const osFiltered=filterOs(osAll,{date:F.dDate})
+  const osByOp=ops.map(op=>osFiltered.filter(r=>normOp(r.operator)===op))
+  chCmpOs.data.labels=labels
+  chCmpOs.data.datasets[0].data=osByOp.map(d=>avg(d,'video_experience'))
+  chCmpOs.data.datasets[1].data=osByOp.map(d=>avg(d,'games_experience'))
+  chCmpOs.data.datasets[2].data=osByOp.map(d=>avg(d,'voice_app_experience'))
+  chCmpOs.update('none')
 
-function renderSessions() {
-  const el = document.getElementById('sess-list')
-  document.getElementById('sess-count').textContent = `${sessions.length} sessions`
-  if (!sessions.length) { el.innerHTML = '<div class="empty">No sessions recorded yet</div>'; return }
-  el.innerHTML = sessions.map(s => {
-    const dur = s[C.ds.end] && s[C.ds.start]
-      ? `${Math.round((new Date(s[C.ds.end]) - new Date(s[C.ds.start])) / 60000)} min`
-      : 'In progress…'
-    const isSel = activeSession && activeSession[C.ds.id] === s[C.ds.id]
-    return `
-      <div class="session-item${isSel ? ' sel' : ''}" onclick="pickSession(${JSON.stringify(s).replace(/"/g,'&quot;')})">
-        <div class="session-dev">📱 ${sid(s[C.ds.dev])}</div>
-        <div class="session-meta">${ts(s[C.ds.start])}</div>
-        <div class="session-row">
-          <span class="session-stat" style="color:var(--muted)">⏱ ${dur}</span>
-          <span class="session-stat" style="color:var(--blue)">📍 ${s[C.ds.cnt] ?? '?'} pts</span>
-        </div>
-      </div>`
+  // Operator card grid
+  const opColors2={'Cellcard':'#00bcd4','Metfone':'#ff9800','Smart':'#a371f7'}
+  document.getElementById('op-cards').innerHTML=ops.map((op,i)=>{
+    const d=nxByOp[i]; if(!d.length) return ''
+    const a=col=>avg(d,col)
+    const osd=osByOp[i], oa=col=>osd.length?avg(osd,col):null
+    return `<div class="op-card">
+      <div class="op-card-name"><span style="width:10px;height:10px;border-radius:50%;background:${opColors2[op]};display:inline-block"></span>${op}</div>
+      <div class="op-card-row"><span class="op-card-key">Tests</span><span class="op-card-val">${d.length}</span></div>
+      <div class="op-card-row"><span class="op-card-key">Avg Download</span><span class="op-card-val" style="color:var(--bl)">${n(a('download_mbps'))} Mbps</span></div>
+      <div class="op-card-row"><span class="op-card-key">Avg Upload</span><span class="op-card-val" style="color:var(--gr)">${n(a('upload_mbps'))} Mbps</span></div>
+      <div class="op-card-row"><span class="op-card-key">Avg Ping</span><span class="op-card-val" style="color:var(--yw)">${n(a('ping_ms'),0)} ms</span></div>
+      <div class="op-card-row"><span class="op-card-key">Avg RSRP</span><span class="op-card-val" style="color:${rsrpColor(Math.round(a('rsrp')))}">${n(a('rsrp'),0)} dBm</span></div>
+      ${oa('video_experience')!=null?`<div class="op-card-row"><span class="op-card-key">Video XP</span><span class="op-card-val" style="color:var(--gr)">${n(oa('video_experience'),1)}/100</span></div>`:''}
+    </div>`
   }).join('')
 }
 
-function renderSamplesTable() {
-  document.getElementById('samp-count').textContent = `${samples.length} samples`
-  paintTable('tb-samples', samples.slice(0, 120).map((s, i) => `
-    <tr>
-      <td style="color:var(--muted)">${i + 1}</td>
-      <td>${hms(s[C.samp.at])}</td>
-      <td class="mono">${n(s[C.samp.lat], 5)}</td>
-      <td class="mono">${n(s[C.samp.lng], 5)}</td>
-      <td>${ratBadge(s[C.samp.rat])}</td>
-      <td>${rsrpPill(s[C.samp.rsrp])}</td>
-      <td class="mono">${n(s[C.samp.rsrq], 1)}</td>
-      <td class="mono">${n(s[C.samp.sinr], 1)}</td>
-    </tr>`).join(''))
+// ── Render: Trends ────────────────────────────────
+function renderTrends() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const ops=['Cellcard','Metfone','Smart']
+  const colors=['#00bcd4','#ff9800','#a371f7']
+
+  // Group by day
+  function byDay(data,col){
+    const m={}
+    data.forEach(r=>{
+      if(!r.tested_at) return
+      const day=r.tested_at.slice(0,10)
+      if(!m[day]) m[day]={sum:0,cnt:0}
+      m[day].sum+=(parseFloat(r[col])||0); m[day].cnt++
+    })
+    return Object.keys(m).sort().map(d=>({day:d,avg:m[d].sum/m[d].cnt}))
+  }
+
+  const allDays=[...new Set(nx.map(r=>r.tested_at?.slice(0,10)).filter(Boolean))].sort()
+  chTrend.data.labels=allDays
+  chTrend.data.datasets=ops.map((op,i)=>{
+    const d=nx.filter(r=>normOp(r.operator)===op)
+    const byD=Object.fromEntries(byDay(d,'download_mbps').map(x=>[x.day,x.avg]))
+    return {label:op,data:allDays.map(d=>byD[d]??null),borderColor:colors[i],tension:.3,pointRadius:2,spanGaps:true}
+  })
+  chTrend.update('none')
+
+  chRsrpTrend.data.labels=allDays
+  chRsrpTrend.data.datasets=ops.map((op,i)=>{
+    const d=nx.filter(r=>normOp(r.operator)===op)
+    const byD=Object.fromEntries(byDay(d,'rsrp').map(x=>[x.day,x.avg]))
+    return {label:op,data:allDays.map(d=>byD[d]??null),borderColor:colors[i],tension:.3,pointRadius:2,spanGaps:true}
+  })
+  chRsrpTrend.update('none')
 }
 
+// ── Render: Recent table (dashboard) ─────────────
+function renderRecent() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv}).slice(0,30)
+  document.getElementById('tb-recent').innerHTML=nx.map(r=>`
+    <tr>
+      <td>${hms(r.tested_at)}</td>
+      <td class="mono">${sid(r.device_id)}</td>
+      <td style="font-weight:600">${normOp(r.operator)}</td>
+      <td>${ratBadge(r.rat)}</td>
+      <td style="color:var(--bl);font-weight:600">${n(r.download_mbps)}</td>
+      <td style="color:var(--gr)">${n(r.upload_mbps)}</td>
+      <td style="color:var(--yw)">${n(r.ping_ms,0)}</td>
+      <td>${rsrpPill(r.rsrp)}</td>
+      <td style="color:var(--mu)">${r.province||'—'}</td>
+    </tr>`).join('')
+}
+
+// ── Render: Network tab ───────────────────────────
+function renderNetwork() {
+  const nx=filterNx(nxAll,{op:F.nOp,tech:F.nTech,prov:F.nProv})
+  const slice=[...nx].reverse().slice(-100)
+  chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
+  chNetTs.data.datasets[0].data=slice.map(r=>r.download_mbps)
+  chNetTs.data.datasets[1].data=slice.map(r=>r.upload_mbps)
+  chNetTs.data.datasets[2].data=slice.map(r=>r.ping_ms)
+  chNetTs.update('none')
+
+  const ratMap={}
+  nx.forEach(r=>{const k=r.rat||'Unknown';ratMap[k]=(ratMap[k]||0)+1})
+  chRat.data.labels=Object.keys(ratMap); chRat.data.datasets[0].data=Object.values(ratMap); chRat.update('none')
+
+  document.getElementById('tb-net').innerHTML=nx.slice(0,80).map(r=>`
+    <tr>
+      <td style="white-space:nowrap">${ts(r.tested_at)}</td>
+      <td class="mono">${sid(r.device_id)}</td>
+      <td style="font-weight:600">${normOp(r.operator)}</td>
+      <td>${ratBadge(r.rat)}</td>
+      <td style="color:var(--mu)">${r.bands||'—'}</td>
+      <td style="color:var(--bl);font-weight:600">${n(r.download_mbps)}</td>
+      <td style="color:var(--gr)">${n(r.upload_mbps)}</td>
+      <td>${n(r.ping_ms,0)}</td>
+      <td style="color:var(--mu)">${n(r.jitter_ms,0)}</td>
+      <td>${rsrpPill(r.rsrp)}</td>
+      <td class="mono">${n(r.sinr,0)}</td>
+      <td class="mono">${r.pci??'—'}</td>
+      <td>${r.province||'—'}</td>
+      <td style="color:var(--mu)">${r.indoor_outdoor||'—'}</td>
+    </tr>`).join('')
+
+  document.getElementById('tb-gaming').innerHTML=gamingAll.slice(0,60).map(r=>`
+    <tr>
+      <td>${hms(r.tested_at)}</td>
+      <td class="mono">${sid(r.device_id)}</td>
+      <td style="font-weight:600">${normOp(r.operator)}</td>
+      <td style="color:var(--pu)">${r.game||'MLBB'}</td>
+      <td style="color:var(--yw)">${n(r.avg_ping_ms,0)} ms</td>
+      <td>${n(r.min_ping_ms,0)} ms</td>
+      <td>${n(r.max_ping_ms,0)} ms</td>
+      <td>${n(r.jitter_ms,0)} ms</td>
+      <td style="color:${r.packet_loss_pct>2?'var(--re)':'var(--gr)'}">${n(r.packet_loss_pct,1)}%</td>
+      <td style="color:var(--bl);font-weight:600">${n(r.opensignal_games_score,1)}/100</td>
+      <td><span style="color:var(--cy)">${r.opensignal_games_band||'—'}</span></td>
+    </tr>`).join('')
+}
+
+// ── Render: CX tab ────────────────────────────────
+function renderCX() {
+  const os=filterOs(osAll,{op:F.cOp,tech:F.cTech,cov:F.cCov,prov:F.cProv})
+  const cx=filterCx(cxAll,{op:F.cOp,tech:F.cTech,cov:F.cCov,prov:F.cProv})
+
+  document.getElementById('cx-count').textContent=os.length+cx.length
+
+  // Latest result
+  const latest=os[0]
+  if(latest){
+    const op=normOp(latest.operator), tech=latest.technology||'', mode=latest.test_mode||''
+    document.getElementById('cx-latest-head').textContent='Latest Result'
+    document.getElementById('cx-latest-sub').textContent=`${op} · ${tech} · ${mode} — ${ts(latest.tested_at)}`
+    document.getElementById('cx-gauges').innerHTML=
+      gaugeSVG(latest.video_experience,'#3fb950','Video Experience',latest.video_experience_band)+
+      gaugeSVG(latest.games_experience,'#58a6ff','Games Experience',latest.games_experience_band)+
+      gaugeSVG(latest.voice_app_experience,'#a371f7','Voice App Experience',latest.voice_app_experience_band)
+
+    const cqPct=latest.consistent_quality_total?((latest.consistent_quality_passed/latest.consistent_quality_total)*100).toFixed(0):'—'
+    document.getElementById('cx-metrics').innerHTML=`
+      <div class="cx-metric"><div class="cx-metric-v" style="color:var(--bl)">${n(latest.download_speed_mbps)} Mbps</div><div class="cx-metric-l">Download</div></div>
+      <div class="cx-metric"><div class="cx-metric-v" style="color:var(--gr)">${n(latest.upload_speed_mbps)} Mbps</div><div class="cx-metric-l">Upload</div></div>
+      <div class="cx-metric"><div class="cx-metric-v" style="color:var(--cy)">${latest.reliability_experience??'—'}/1000</div><div class="cx-metric-l">Reliability</div></div>
+      <div class="cx-metric"><div class="cx-metric-v" style="color:var(--pu)">${cqPct}%</div><div class="cx-metric-l">Consistent Quality</div></div>
+    `
+  }
+
+  // CX trend chart (last 60)
+  const slice=[...os].reverse().slice(-60)
+  chCxTrend.data.labels=slice.map(r=>hms(r.tested_at))
+  chCxTrend.data.datasets[0].data=slice.map(r=>r.video_experience)
+  chCxTrend.data.datasets[1].data=slice.map(r=>r.games_experience)
+  chCxTrend.data.datasets[2].data=slice.map(r=>r.voice_app_experience)
+  chCxTrend.update('none')
+
+  // By operator
+  const ops=['Cellcard','Metfone','Smart']
+  const avg=(data,col)=>data.length?data.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/data.length:0
+  const osByOp=ops.map(op=>os.filter(r=>normOp(r.operator)===op))
+  chCxOp.data.labels=ops
+  chCxOp.data.datasets[0].data=osByOp.map(d=>avg(d,'video_experience'))
+  chCxOp.data.datasets[1].data=osByOp.map(d=>avg(d,'games_experience'))
+  chCxOp.data.datasets[2].data=osByOp.map(d=>avg(d,'voice_app_experience'))
+  chCxOp.update('none')
+
+  // OS table
+  document.getElementById('tb-os').innerHTML=os.slice(0,60).map(r=>{
+    const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—'
+    return `<tr>
+      <td>${hms(r.tested_at)}</td>
+      <td class="mono">${sid(r.device_id)}</td>
+      <td style="font-weight:600">${normOp(r.operator)}</td>
+      <td>${r.technology||'—'}</td>
+      <td><span class="badge buk">${r.test_mode||'—'}</span></td>
+      <td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td>
+      <td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td>
+      <td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td>
+      <td style="color:var(--cy)">${cq}</td>
+      <td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td>
+      <td style="color:var(--bl)">${n(r.download_speed_mbps)}</td>
+      <td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td>
+      <td>${r.province||'—'}</td>
+    </tr>`}).join('')
+
+  // CX log table
+  document.getElementById('tb-cx').innerHTML=cx.slice(0,60).map(r=>`
+    <tr>
+      <td>${hms(r.tested_at)}</td>
+      <td class="mono">${sid(r.device_id)}</td>
+      <td style="font-weight:600">${normOp(r.operator)}</td>
+      <td>${r.technology||'—'}</td>
+      <td><span class="badge buk">${r.coverage_type||'—'}</span></td>
+      <td style="color:var(--gr)">${r.video_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.video_xp_detail||''}</span></td>
+      <td style="color:var(--bl)">${r.gaming_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.gaming_xp_detail||''}</span></td>
+      <td style="color:var(--pu)">${r.voiceapp_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.voiceapp_xp_detail||''}</span></td>
+      <td>${r.dl_speed_score??'—'}</td>
+      <td>${r.ul_speed_score??'—'}</td>
+      <td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td>
+      <td>${r.province||'—'}</td>
+    </tr>`).join('')
+}
+
+// ── Render: Drive sessions ────────────────────────
+function renderSessions() {
+  const el=document.getElementById('sess-list')
+  document.getElementById('sess-cnt').textContent=`${sessAll.length} sessions`
+  if(!sessAll.length){el.innerHTML='<div class="empty">No sessions recorded yet</div>';return}
+  el.innerHTML=sessAll.map(s=>{
+    const dur=s.end_time&&s.start_time?Math.round((new Date(s.end_time)-new Date(s.start_time))/60000)+'min':'Active'
+    const isSel=activeSess&&activeSess.id===s.id
+    return `
+    <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${s.id})">
+      <div class="sess-dev">📱 ${sid(s.device_id)} ${s.name?'· '+s.name:''}</div>
+      <div class="sess-meta">${ts(s.start_time)}</div>
+      <div class="sess-row">
+        <span class="sess-stat" style="color:var(--mu)">⏱ ${dur}</span>
+        <span class="sess-stat" style="color:var(--bl)">📍 ${s.sample_count??'?'} pts</span>
+        ${s.distance_km!=null?`<span class="sess-stat" style="color:var(--gr)">🛣 ${n(s.distance_km,1)} km</span>`:''}
+        ${s.avg_rsrp!=null?`<span class="sess-stat" style="color:${rsrpColor(Math.round(s.avg_rsrp))}">${n(s.avg_rsrp,0)} dBm</span>`:''}
+      </div>
+    </div>
+    <button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${s.id})">📄 Analyze &amp; Export PDF</button>`
+  }).join('')
+}
+
+window.pickSess = async function(id) {
+  activeSess=sessAll.find(s=>s.id===id)
+  if(!activeSess) return
+  renderSessions()
+  document.getElementById('dmap-lbl').textContent=`${sid(activeSess.device_id)} · ${ts(activeSess.start_time)}`
+  // Update analysis panel
+  document.getElementById('drv-analysis').style.display='block'
+  document.getElementById('drv-analysis-title').textContent=`Drive Analysis — ${ts(activeSess.start_time)}`
+  document.getElementById('da-samples').textContent=activeSess.sample_count??'—'
+  document.getElementById('da-dist').textContent=activeSess.distance_km!=null?n(activeSess.distance_km,1)+' km':'—'
+  document.getElementById('da-rsrp').textContent=activeSess.avg_rsrp!=null?n(activeSess.avg_rsrp,0)+' dBm':'—'
+  document.getElementById('da-rsrp').style.color=rsrpColor(activeSess.avg_rsrp)
+  document.getElementById('da-ho').textContent=activeSess.handover_count??'—'
+  document.getElementById('da-dl').textContent=activeSess.avg_download_mbps!=null?n(activeSess.avg_download_mbps)+' Mbps':'—'
+  const dur=activeSess.end_time&&activeSess.start_time?Math.round((new Date(activeSess.end_time)-new Date(activeSess.start_time))/60000)+' min':'Active'
+  document.getElementById('da-dur').textContent=dur
+
+  const {data,error}=await db.from('drive_samples').select('*').eq('session_id',id).order('sampled_at',{ascending:true})
+  if(error){console.error('drive_samples:',error);return}
+  driveSamples=data||[]
+  paintMap()
+  renderSamples()
+}
+
+// ── Render: Drive map ─────────────────────────────
 function paintMap() {
-  if (!mapLoaded) return
-  const features = samples
-    .filter(s => s[C.samp.lat] != null && s[C.samp.lng] != null)
-    .map(s => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [+s[C.samp.lng], +s[C.samp.lat]] },
-      properties: {
-        rsrp: s[C.samp.rsrp], rsrq: s[C.samp.rsrq],
-        sinr: s[C.samp.sinr], rat: s[C.samp.rat],
-        at: s[C.samp.at],
-      },
-    }))
-
-  map.getSource('dots').setData({ type: 'FeatureCollection', features })
-
-  const coords = features.map(f => f.geometry.coordinates)
-  map.getSource('route').setData({
-    type: 'FeatureCollection',
-    features: coords.length > 1
-      ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} }]
-      : [],
-  })
-
-  if (coords.length > 1) {
-    const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1])
-    map.fitBounds(
-      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-      { padding: 50, maxZoom: 16, duration: 900 },
-    )
+  if(!mapReady) return
+  const feats=driveSamples.filter(s=>s.latitude!=null&&s.longitude!=null).map(s=>({
+    type:'Feature',
+    geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
+    properties:{rsrp:s.rsrp,sinr:s.sinr,rat:s.rat,operator:s.operator,dl:s.download_mbps,at:s.sampled_at}
+  }))
+  map.getSource('dots').setData({type:'FeatureCollection',features:feats})
+  const coords=feats.map(f=>f.geometry.coordinates)
+  map.getSource('route').setData({type:'FeatureCollection',features:coords.length>1?[{type:'Feature',geometry:{type:'LineString',coordinates:coords},properties:{}}]:[]})
+  if(coords.length>1){
+    const lngs=coords.map(c=>c[0]),lats=coords.map(c=>c[1])
+    map.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:50,maxZoom:16,duration:800})
   }
 }
 
-// ── Session picker ────────────────────────────────────────────────
-window.pickSession = async function(session) {
-  activeSession = session
-  document.getElementById('map-lbl').textContent =
-    `${sid(session[C.ds.dev])} · ${ts(session[C.ds.start])}`
-  renderSessions()
-
-  const { data, error } = await db
-    .from('drive_samples')
-    .select('*')
-    .eq(C.samp.dev, session[C.ds.dev])
-    .eq(C.samp.sid, session[C.ds.sid])
-    .order(C.samp.at, { ascending: true })
-  if (error) { console.error('drive_samples fetch:', error); return }
-  samples = data || []
-  paintMap()
-  renderSamplesTable()
+// ── Render: Drive samples table ───────────────────
+function renderSamples() {
+  document.getElementById('samp-cnt').textContent=`${driveSamples.length} samples`
+  document.getElementById('tb-samples').innerHTML=driveSamples.slice(0,120).map((s,i)=>`
+    <tr>
+      <td style="color:var(--mu)">${i+1}</td>
+      <td>${hms(s.sampled_at)}</td>
+      <td class="mono">${n(s.latitude,5)}</td>
+      <td class="mono">${n(s.longitude,5)}</td>
+      <td>${ratBadge(s.rat)}</td>
+      <td style="font-weight:600">${normOp(s.operator)}</td>
+      <td>${rsrpPill(s.rsrp)}</td>
+      <td class="mono">${s.sinr??'—'}</td>
+      <td style="color:var(--gr)">${s.download_mbps!=null?n(s.download_mbps):' —'}</td>
+      <td class="mono">${s.pci??'—'}</td>
+      <td style="color:var(--mu);font-size:10px">${s.event_type||'—'}</td>
+    </tr>`).join('')
 }
 
-// ── Connection indicator ──────────────────────────────────────────
-function setConn(state) {
-  const dot = document.getElementById('conn-dot')
-  const lbl = document.getElementById('conn-lbl')
-  dot.className = 'conn-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '')
-  lbl.textContent = { live: 'Live', connecting: 'Connecting…', error: 'Disconnected' }[state] || state
+// ── PDF Export ────────────────────────────────────
+window.exportPDF = async function(sessId) {
+  const sess=sessAll.find(s=>s.id===sessId)
+  if(!sess){alert('Select session first');return}
+  let samples=driveSamples
+  if(!samples.length||activeSess?.id!==sessId){
+    const {data}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true})
+    samples=data||[]
+  }
+
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF('p','mm','a4')
+  const W=210,M=14
+
+  // Header
+  doc.setFillColor(13,17,23); doc.rect(0,0,W,28,'F')
+  doc.setTextColor(88,166,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
+  doc.text('NetPulse',M,12)
+  doc.setTextColor(139,148,158); doc.setFontSize(10); doc.setFont('helvetica','normal')
+  doc.text('Drive Test Report',M,19)
+  doc.setTextColor(230,237,243); doc.setFontSize(9)
+  doc.text(`Generated: ${new Date().toLocaleString()}`,W-M,12,{align:'right'})
+
+  // Session info box
+  doc.setFillColor(22,27,34); doc.roundedRect(M,32,W-2*M,34,3,3,'F')
+  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
+  doc.text('SESSION DETAILS',M+4,39)
+  doc.setFont('helvetica','normal'); doc.setTextColor(230,237,243); doc.setFontSize(9)
+  const info=[
+    [`Device: ${sid(sess.device_id)}`,`Start: ${ts(sess.start_time)}`],
+    [`Samples: ${sess.sample_count??samples.length}`,`End: ${ts(sess.end_time)}`],
+    [`Distance: ${sess.distance_km!=null?n(sess.distance_km,1)+' km':'—'}`,`Duration: ${sess.end_time&&sess.start_time?Math.round((new Date(sess.end_time)-new Date(sess.start_time))/60000)+' min':'Active'}`],
+    [`Avg RSRP: ${sess.avg_rsrp!=null?n(sess.avg_rsrp,0)+' dBm':'—'}`,`Handovers: ${sess.handover_count??'—'}`],
+  ]
+  info.forEach(([l,r],i)=>{doc.text(l,M+4,46+i*6); doc.text(r,W/2,46+i*6)})
+
+  // RSRP distribution
+  const bands=[0,0,0,0,0]
+  samples.forEach(s=>{const v=s.rsrp;if(v==null)return;if(v>=-80)bands[0]++;else if(v>=-90)bands[1]++;else if(v>=-100)bands[2]++;else if(v>=-110)bands[3]++;else bands[4]++})
+  const bandLabels=['Excellent(≥-80)','Good(-90)','Fair(-100)','Poor(-110)','Critical']
+  const bandColors=[[0,230,118],[0,188,212],[255,193,7],[255,152,0],[244,67,54]]
+  let yy=70
+  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
+  doc.text('RSRP SIGNAL DISTRIBUTION',M,yy); yy+=5
+  const total=bands.reduce((a,b)=>a+b,0)||1
+  bands.forEach((cnt,i)=>{
+    const pct=Math.round(cnt/total*100)
+    const bw=(W-2*M-60)*pct/100
+    doc.setFillColor(...bandColors[i]); doc.rect(M,yy,Math.max(bw,1),5,'F')
+    doc.setTextColor(...bandColors[i]); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
+    doc.text(`${bandLabels[i]}: ${cnt} (${pct}%)`,M+Math.max(bw,1)+2,yy+3.5)
+    yy+=7
+  })
+  yy+=4
+
+  // Map capture
+  if(mapReady&&activeSess?.id===sessId){
+    try{
+      const mapImg=map.getCanvas().toDataURL('image/jpeg',0.85)
+      const mh=60
+      doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
+      doc.text('DRIVE ROUTE MAP',M,yy); yy+=3
+      doc.addImage(mapImg,'JPEG',M,yy,W-2*M,mh)
+      yy+=mh+6
+    }catch(e){console.warn('map capture:',e)}
+  }
+
+  // Sample table
+  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
+  doc.text('DRIVE SAMPLES (first 200)',M,yy); yy+=3
+  doc.autoTable({
+    startY:yy,
+    head:[['#','Time','Lat','Lng','RAT','Operator','RSRP','SINR','DL Mbps','Event']],
+    body:samples.slice(0,200).map((s,i)=>[
+      i+1,
+      s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'—',
+      s.latitude!=null?n(s.latitude,5):'—',
+      s.longitude!=null?n(s.longitude,5):'—',
+      s.rat||'—',
+      normOp(s.operator),
+      s.rsrp!=null?s.rsrp+' dBm':'—',
+      s.sinr??'—',
+      s.download_mbps!=null?n(s.download_mbps):'—',
+      s.event_type||'—',
+    ]),
+    styles:{fontSize:7,cellPadding:2,textColor:[230,237,243],fillColor:[22,27,34],lineColor:[48,54,61],lineWidth:.3},
+    headStyles:{fillColor:[28,33,40],textColor:[139,148,158],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[28,33,40]},
+    margin:{left:M,right:M},
+  })
+
+  doc.save(`NetPulse-DriveTest-${sid(sess.device_id)}-${sess.start_time?.slice(0,10)||'report'}.pdf`)
+}
+document.getElementById('pdf-export-btn').addEventListener('click',()=>activeSess&&exportPDF(activeSess.id))
+
+// ── Province dropdowns ────────────────────────────
+function populateProvinces() {
+  const provs=[...new Set(nxAll.map(r=>r.province).filter(Boolean))].sort()
+  const addOpts=(id)=>{
+    const sel=document.getElementById(id); if(!sel) return
+    const existing=new Set([...sel.options].map(o=>o.value))
+    provs.forEach(p=>{if(!existing.has(p)){const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o)}})
+  }
+  addOpts('dd-prov'); addOpts('nd-prov'); addOpts('cx-prov')
 }
 
-function touch() {
-  document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString()
+// ── Connection status ─────────────────────────────
+function setConn(s){
+  document.getElementById('cdot').className='pill-dot'+(s==='live'?' live':s==='err'?' err':'')
+  document.getElementById('clbl').textContent={live:'Live',connecting:'Connecting…',err:'Disconnected'}[s]||s
 }
+function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
-// ── Refresh everything ────────────────────────────────────────────
-function refresh() {
-  paintKPIs()
-  paintSpeedCharts()
-  paintNetCharts()
-  paintCxCharts()
-  renderRecentTable()
-  renderNetTable()
-  renderCxTable()
-  renderOsTable()
-  touch()
-}
+// ── Refresh all views ─────────────────────────────
+function refreshDash() {renderKPIs();renderExecSummary();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
-// ── Initial fetch ─────────────────────────────────────────────────
+// ── Initial fetch ─────────────────────────────────
 async function fetchAll() {
   setConn('connecting')
-  const [nxRes, cxRes, osRes, dsRes] = await Promise.all([
-    db.from('networkxp_data')   .select('*').order('tested_at',  { ascending: false }).limit(300),
-    db.from('cx_experience_log').select('*').order('tested_at',  { ascending: false }).limit(300),
-    db.from('opensignal_scores').select('*').order('tested_at',  { ascending: false }).limit(300),
-    db.from('drive_sessions')   .select('*').order('started_at', { ascending: false }).limit(100),
+  const [nxR,osR,cxR,dsR,gR]= await Promise.all([
+    db.from('networkxp_data').select('*').order('tested_at',{ascending:false}).limit(500),
+    db.from('opensignal_scores').select('*').order('tested_at',{ascending:false}).limit(500),
+    db.from('cx_experience_log').select('*').order('tested_at',{ascending:false}).limit(500),
+    db.from('drive_sessions').select('*').order('start_time',{ascending:false}).limit(100),
+    db.from('gaming_latency_tests').select('*').order('tested_at',{ascending:false}).limit(200),
   ])
-  if (nxRes.error)  console.error('networkxp_data:', nxRes.error)
-  if (cxRes.error)  console.error('cx_experience_log:', cxRes.error)
-  if (osRes.error)  console.error('opensignal_scores:', osRes.error)
-  if (dsRes.error)  console.error('drive_sessions:', dsRes.error)
-
-  nxData   = nxRes.data  || []
-  cxData   = cxRes.data  || []
-  osData   = osRes.data  || []
-  sessions = dsRes.data  || []
-
-  refresh()
-  renderSessions()
+  if(nxR.error) console.error('networkxp_data:',nxR.error)
+  if(osR.error) console.error('opensignal_scores:',osR.error)
+  if(cxR.error) console.error('cx_experience_log:',cxR.error)
+  if(dsR.error) console.error('drive_sessions:',dsR.error)
+  if(gR.error)  console.error('gaming_latency_tests:',gR.error)
+  nxAll=nxR.data||[]; osAll=osR.data||[]; cxAll=cxR.data||[]; sessAll=dsR.data||[]; gamingAll=gR.data||[]
+  populateProvinces()
+  refreshAll()
   setConn('live')
 }
 
-// ── Realtime subscriptions ────────────────────────────────────────
-// NOTE: Tables must be in the supabase_realtime publication.
-// Run the SQL in supabase/enable-realtime.sql to activate.
+// ── Realtime ──────────────────────────────────────
 function setupRealtime() {
-  db.channel('netpulse-realtime')
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'networkxp_data' },
-      p => {
-        nxData.unshift(p.new)
-        if (nxData.length > 300) nxData.pop()
-        paintKPIs(); paintSpeedCharts(); paintNetCharts()
-        renderRecentTable(); renderNetTable(); touch()
-      })
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'cx_experience_log' },
-      p => {
-        cxData.unshift(p.new)
-        if (cxData.length > 300) cxData.pop()
-        paintCxCharts(); renderCxTable(); touch()
-      })
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'opensignal_scores' },
-      p => {
-        osData.unshift(p.new)
-        if (osData.length > 300) osData.pop()
-        paintCxCharts(); renderOsTable(); touch()
-      })
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'drive_sessions' },
-      p => {
-        sessions.unshift(p.new)
-        renderSessions(); touch()
-      })
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'drive_samples' },
-      p => {
-        if (
-          activeSession &&
-          p.new[C.samp.dev] === activeSession[C.ds.dev] &&
-          p.new[C.samp.sid] === activeSession[C.ds.sid]
-        ) {
-          samples.push(p.new)
-          paintMap()
-          renderSamplesTable()
-        }
-        touch()
-      })
-    .subscribe(status => {
-      if (status === 'SUBSCRIBED')    setConn('live')
-      if (status === 'CLOSED' || status === 'CHANNEL_ERROR') setConn('error')
+  db.channel('np-live')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'networkxp_data'},p=>{
+      nxAll.unshift(p.new); if(nxAll.length>500)nxAll.pop()
+      refreshDash(); renderNetwork(); touch()
     })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'opensignal_scores'},p=>{
+      osAll.unshift(p.new); if(osAll.length>500)osAll.pop()
+      renderCX(); touch()
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'cx_experience_log'},p=>{
+      cxAll.unshift(p.new); if(cxAll.length>500)cxAll.pop()
+      renderCX(); touch()
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'gaming_latency_tests'},p=>{
+      gamingAll.unshift(p.new); if(gamingAll.length>200)gamingAll.pop()
+      renderNetwork(); touch()
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_sessions'},p=>{
+      sessAll.unshift(p.new); renderSessions(); touch()
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_samples'},p=>{
+      if(activeSess&&p.new.session_id===activeSess.id){
+        driveSamples.push(p.new); paintMap(); renderSamples()
+      }; touch()
+    })
+    .subscribe(s=>{if(s==='SUBSCRIBED')setConn('live');if(s==='CLOSED'||s==='CHANNEL_ERROR')setConn('err')})
 }
 
-// ── Boot ──────────────────────────────────────────────────────────
-fetchAll().then(() => setupRealtime()).catch(e => {
-  console.error('Boot error:', e)
-  setConn('error')
-})
+// ── Tab switching ─────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
+  document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on')
+  document.getElementById('tp-'+b.dataset.tab).classList.add('on')
+  if(b.dataset.tab==='drv'&&mapReady) setTimeout(()=>map.resize(),60)
+}))
+
+// Sub-tabs
+document.querySelectorAll('.stab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'))
+  document.querySelectorAll('.stp').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on')
+  document.getElementById('st-'+b.dataset.st).classList.add('on')
+}))
+
+// ── Filter wiring ─────────────────────────────────
+// Dashboard date chips
+document.querySelectorAll('[data-df]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-df]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.dDate=b.dataset.df; refreshDash()
+}))
+// Dashboard operator chips
+document.querySelectorAll('[data-dop]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-dop]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.dOp=b.dataset.dop; refreshDash()
+}))
+document.getElementById('dd-tech').addEventListener('change',e=>{F.dTech=e.target.value;refreshDash()})
+document.getElementById('dd-cov').addEventListener('change',e=>{F.dCov=e.target.value;refreshDash()})
+document.getElementById('dd-prov').addEventListener('change',e=>{F.dProv=e.target.value;refreshDash()})
+
+// Network filters
+document.querySelectorAll('[data-nop]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-nop]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.nOp=b.dataset.nop; renderNetwork()
+}))
+document.querySelectorAll('[data-nt]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-nt]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.nTech=b.dataset.nt; renderNetwork()
+}))
+document.getElementById('nd-prov').addEventListener('change',e=>{F.nProv=e.target.value;renderNetwork()})
+
+// CX filters
+document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-cov2]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.cCov=b.dataset.cov2; renderCX()
+}))
+document.querySelectorAll('[data-ct]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-ct]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.cTech=b.dataset.ct; renderCX()
+}))
+document.querySelectorAll('[data-cop]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-cop]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.cOp=b.dataset.cop; renderCX()
+}))
+document.getElementById('cx-prov').addEventListener('change',e=>{F.cProv=e.target.value;renderCX()})
+
+// ── Boot ──────────────────────────────────────────
+fetchAll().then(()=>setupRealtime()).catch(e=>{console.error(e);setConn('err')})
 </script>
 </body>
 </html>
