@@ -484,10 +484,14 @@ td.r,th.r{text-align:right}
 
   <div class="card mb" id="drv-analysis" style="display:none">
     <div class="ch">
-      <span class="ch-t" id="drv-analysis-title">Drive Analysis</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ch-t" id="drv-analysis-title">Drive Analysis</span>
+        <span id="drv-verdict-pill"></span>
+      </div>
       <button id="pdf-export-btn" style="padding:6px 14px;background:rgba(31,111,235,.2);border:1px solid rgba(31,111,235,.4);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer">📄 Export PDF</button>
     </div>
-    <div class="cb">
+    <!-- KPI stats row -->
+    <div class="cb" style="padding-bottom:0">
       <div class="g g3" style="margin-bottom:0">
         <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Samples</div><div style="font-size:22px;font-weight:700" id="da-samples">—</div></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Distance</div><div style="font-size:22px;font-weight:700;color:var(--bl)" id="da-dist">—</div></div>
@@ -497,11 +501,28 @@ td.r,th.r{text-align:right}
         <div style="text-align:center"><div style="font-size:10px;color:var(--mu);text-transform:uppercase">Duration</div><div style="font-size:22px;font-weight:700;color:var(--mu)" id="da-dur">—</div></div>
       </div>
     </div>
+    <!-- Rule-based analysis panel -->
+    <div id="drv-rules" style="display:flex;gap:20px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--bd)">
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">Signal Grade Distribution</div>
+        <div id="drv-grade-bars"></div>
+      </div>
+      <div style="flex:1.5;min-width:220px">
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">Rule-Based Assessment</div>
+        <div id="drv-assessment"></div>
+      </div>
+      <div style="min-width:120px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--s2);border-radius:8px;padding:16px">
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Session Verdict</div>
+        <div id="drv-verdict-icon" style="font-size:32px;margin-bottom:4px">—</div>
+        <div id="drv-verdict-label" style="font-size:18px;font-weight:800;letter-spacing:1px">—</div>
+        <div id="drv-verdict-sub" style="font-size:10px;color:var(--mu);margin-top:4px"></div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
     <div class="ch"><span class="ch-t">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
-    <div class="tw"><table><thead><tr><th>#</th><th>Time</th><th>Lat</th><th>Lng</th><th>RAT</th><th>Operator</th><th>RSRP</th><th>SINR</th><th>DL (Mbps)</th><th>PCI</th><th>Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th class="r">#</th><th>Time</th><th class="r">Lat</th><th class="r">Lng</th><th>RAT</th><th>Operator</th><th>Grade</th><th>RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th>Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
 </div>
 
@@ -1349,6 +1370,7 @@ window.pickSess = async function(id) {
   driveSamples=data||[]
   paintMap()
   renderSamples()
+  renderDriveRules(driveSamples, activeSess)
 }
 
 // ── Render: Drive map ─────────────────────────────
@@ -1371,20 +1393,121 @@ function paintMap() {
 // ── Render: Drive samples table ───────────────────
 function renderSamples() {
   document.getElementById('samp-cnt').textContent=`${driveSamples.length} samples`
-  document.getElementById('tb-samples').innerHTML=driveSamples.slice(0,120).map((s,i)=>`
-    <tr>
-      <td style="color:var(--mu)">${i+1}</td>
+  document.getElementById('tb-samples').innerHTML=driveSamples.slice(0,120).map((s,i)=>{
+    const g=rsrpGrade(s.rsrp), gc=gradeColor(g)
+    return `<tr>
+      <td style="color:var(--mu);text-align:right">${i+1}</td>
       <td>${hms(s.sampled_at)}</td>
-      <td class="mono">${n(s.latitude,5)}</td>
-      <td class="mono">${n(s.longitude,5)}</td>
+      <td class="mono" style="text-align:right">${n(s.latitude,5)}</td>
+      <td class="mono" style="text-align:right">${n(s.longitude,5)}</td>
       <td>${ratBadge(s.rat)}</td>
       <td style="font-weight:600">${normOp(s.operator)}</td>
+      <td><span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${gc}20;border:1.5px solid ${gc};line-height:22px;text-align:center;font-size:11px;font-weight:700;color:${gc}">${g}</span></td>
       <td>${rsrpPill(s.rsrp)}</td>
-      <td class="mono">${s.sinr??'—'}</td>
-      <td style="color:var(--gr)">${s.download_mbps!=null?n(s.download_mbps):' —'}</td>
-      <td class="mono">${s.pci??'—'}</td>
+      <td class="mono" style="text-align:right">${s.sinr??'—'}</td>
+      <td style="color:var(--gr);text-align:right">${s.download_mbps!=null?n(s.download_mbps):'—'}</td>
+      <td class="mono" style="text-align:right">${s.pci??'—'}</td>
       <td style="color:var(--mu);font-size:10px">${s.event_type||'—'}</td>
-    </tr>`).join('')
+    </tr>`}).join('')
+}
+
+// ── Rule-based Drive Analysis ─────────────────────
+function renderDriveRules(samples, sess) {
+  if (!samples.length) return
+
+  // Grade distribution
+  const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
+  const grades={A:0,B:0,C:0,D:0,F:0}
+  samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
+  const tot=samples.length||1
+
+  document.getElementById('drv-grade-bars').innerHTML=
+    Object.entries(grades).map(([g,cnt])=>{
+      const pct=Math.round(cnt/tot*100)
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:14px;font-size:11px;font-weight:700;color:${GC[g]}">${g}</span>
+        <div style="flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${GC[g]};border-radius:4px;transition:width .4s"></div>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:${GC[g]};width:32px;text-align:right">${pct}%</span>
+        <span style="font-size:10px;color:var(--mu);width:28px">${cnt}</span>
+      </div>`
+    }).join('')
+
+  // Compute averages
+  const sWithRsrp=samples.filter(s=>s.rsrp!=null)
+  const sWithSinr=samples.filter(s=>s.sinr!=null)
+  const sWithDl  =samples.filter(s=>s.download_mbps!=null)
+  const avgRsrp=sWithRsrp.length ? sWithRsrp.reduce((a,b)=>a+b.rsrp,0)/sWithRsrp.length : null
+  const avgSinr=sWithSinr.length ? sWithSinr.reduce((a,b)=>a+b.sinr,0)/sWithSinr.length : null
+  const avgDl  =sWithDl.length   ? sWithDl.reduce((a,b)=>a+b.download_mbps,0)/sWithDl.length : null
+  const abPct  =(grades.A+grades.B)/tot*100
+  const distKm =sess.distance_km||0
+  const hoRate =distKm>0 ? (sess.handover_count||0)/distKm : null
+
+  // Dominant RAT → speed thresholds
+  const ratMap={}
+  samples.forEach(s=>{ if(s.rat) ratMap[s.rat]=(ratMap[s.rat]||0)+1 })
+  const domRat=(Object.entries(ratMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'').toUpperCase()
+  const is5G=domRat.includes('NR')||domRat.includes('5G')
+  const is4G=domRat.includes('LTE')||domRat.includes('4G')
+  const dlThresh=is5G?{go:50,fa:20}:is4G?{go:10,fa:5}:{go:1,fa:0.5}
+
+  // Assessment rules (mirrors app criteria)
+  const rules=[
+    {
+      label:'Signal Coverage',
+      status:abPct>=70?'pass':abPct>=40?'warn':'fail',
+      detail:`${Math.round(abPct)}% A/B (Good+Excellent)`
+    },
+    {
+      label:'Avg RSRP',
+      status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail',
+      detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm`:'No data'
+    },
+    {
+      label:'Download Speed',
+      status:avgDl==null?'warn':avgDl>=dlThresh.go?'pass':avgDl>=dlThresh.fa?'warn':'fail',
+      detail:avgDl!=null?`${avgDl.toFixed(1)} Mbps`:'No data'
+    },
+    {
+      label:'SINR Quality',
+      status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail',
+      detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'
+    },
+    {
+      label:'Handover Rate',
+      status:hoRate==null?'warn':hoRate<=2?'pass':hoRate<=4?'warn':'fail',
+      detail:hoRate!=null?`${hoRate.toFixed(1)}/km`:`${sess.handover_count||0} total`
+    },
+  ]
+
+  const ICON={pass:'✅',warn:'⚠️',fail:'❌'}
+  const COL ={pass:'var(--gr)',warn:'var(--yw)',fail:'var(--re)'}
+  document.getElementById('drv-assessment').innerHTML=rules.map(r=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:12px">${ICON[r.status]}</span>
+      <span style="font-size:11px;color:var(--mu);flex:1">${r.label}</span>
+      <span style="font-size:11px;font-weight:600;color:${COL[r.status]}">${r.detail}</span>
+    </div>`).join('')
+
+  // Overall session verdict
+  const fails=rules.filter(r=>r.status==='fail').length
+  const warns=rules.filter(r=>r.status==='warn').length
+  let verdict,vColor,vIcon
+  if(fails===0&&warns===0){verdict='EXCELLENT';vColor='var(--gr)';vIcon='🏆'}
+  else if(fails===0&&warns<=1){verdict='GOOD';vColor='var(--bl)';vIcon='✅'}
+  else if(fails<=1){verdict='FAIR';vColor='var(--yw)';vIcon='⚠️'}
+  else{verdict='POOR';vColor='var(--re)';vIcon='❌'}
+
+  document.getElementById('drv-verdict-icon').textContent=vIcon
+  document.getElementById('drv-verdict-label').textContent=verdict
+  document.getElementById('drv-verdict-label').style.color=vColor
+  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples`
+
+  // Also update the pill in the card header
+  const pill=document.getElementById('drv-verdict-pill')
+  pill.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${vColor}20;border:1px solid ${vColor}50;color:${vColor}">${vIcon} ${verdict}</span>`
 }
 
 // ── PDF Export ────────────────────────────────────
@@ -1453,6 +1576,23 @@ window.exportPDF = async function(sessId) {
       yy+=mh+6
     }catch(e){console.warn('map capture:',e)}
   }
+
+  // Rule-based assessment table in PDF
+  const gradeCounts={A:0,B:0,C:0,D:0,F:0}
+  samples.forEach(s=>{const g=rsrpGrade(s.rsrp);if(gradeCounts[g]!==undefined)gradeCounts[g]++})
+  const tot2=samples.length||1
+  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
+  doc.text('SIGNAL GRADE DISTRIBUTION',M,yy); yy+=5
+  Object.entries(gradeCounts).forEach(([g,cnt])=>{
+    const pct=Math.round(cnt/tot2*100)
+    const cols={A:[0,230,118],B:[0,188,212],C:[255,193,7],D:[255,152,0],F:[244,67,54]}
+    const bw=(W-2*M-50)*pct/100
+    doc.setFillColor(...cols[g]); doc.rect(M+20,yy,Math.max(bw,0.5),4,'F')
+    doc.setTextColor(...cols[g]); doc.setFontSize(7)
+    doc.text(`${g}: ${cnt} (${pct}%)`,M+Math.max(bw,0.5)+22,yy+3)
+    doc.text(g,M+14,yy+3); yy+=6
+  })
+  yy+=4
 
   // Sample table
   doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
