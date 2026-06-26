@@ -556,6 +556,11 @@ td.r,th.r{text-align:right}
           <div class="layer-dot" style="background:#2563eb"></div>
           <div><div class="layer-iname">Cell Sites</div><div class="layer-isub">4G/5G Blue · 4G Green</div></div>
         </div>
+        <div class="layer-row">
+          <label class="ltog"><input type="checkbox" id="lyr-resellers"><span class="lslid"></span></label>
+          <div class="layer-dot" style="background:#f97316"></div>
+          <div><div class="layer-iname">Reseller Sites</div><div class="layer-isub">Orange · from KMZ/KML</div></div>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -592,13 +597,15 @@ td.r,th.r{text-align:right}
 
       <!-- Cell Sites loader -->
       <div class="sb-sec">
-        <div class="sb-sec-hd">Cell Sites — OpenCelliD</div>
+        <div class="sb-sec-hd">Cell &amp; Reseller Sites</div>
+        <button class="sb-btn" id="load-sb-sites-btn" style="margin-bottom:4px">🗄️ Load from Supabase</button>
+        <div class="tow-st" id="sb-sites-status"></div>
+        <div style="font-size:10px;color:var(--mu);margin:6px 0 6px;border-top:1px solid var(--bd);padding-top:6px">OpenCelliD fallback</div>
         <input class="tok-in" id="ocid-token" type="text" placeholder="Paste free API token…">
         <button class="sb-btn" id="load-towers-btn">📡 Load Cell Sites</button>
         <button class="sb-btn g" id="csv-btn" style="margin-top:4px">📂 Upload towers.csv</button>
         <input type="file" id="tower-csv-input" accept=".csv" style="display:none">
         <div class="tow-st" id="tower-status"></div>
-        <div style="font-size:10px;color:var(--mu);margin-top:6px">Free token: <span style="color:var(--bl)">opencellid.org/register</span></div>
       </div>
 
       <!-- Legend -->
@@ -621,6 +628,7 @@ td.r,th.r{text-align:right}
         <div class="sb-sec-hd" style="margin-top:12px">Cell Sites</div>
         <div class="leg-row"><div class="leg-circ" style="background:#2563eb;border-color:#2563eb"></div>4G/5G (NR) — Blue</div>
         <div class="leg-row"><div class="leg-circ" style="background:#16a34a;border-color:#16a34a"></div>4G LTE only — Green</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#f97316;border-color:#f97316"></div>Reseller — Orange</div>
       </div>
     </div>
 
@@ -631,6 +639,7 @@ td.r,th.r{text-align:right}
         <div class="mpill" id="cov-stat-drive">0 drive pts</div>
         <div class="mpill" id="cov-stat-exp">0 hexbins</div>
         <div class="mpill" id="cov-stat-towers">0 towers</div>
+        <div class="mpill" id="cov-stat-resellers">0 resellers</div>
       </div>
     </div>
 
@@ -651,7 +660,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 // ── State ─────────────────────────────────────────
 let nxAll = [], osAll = [], cxAll = [], sessAll = [], gamingAll = []
 let driveSamples = [], activeSess = null
-let mapReady = false
+let map = null, mapReady = false
 
 // Active filters
 const F = {
@@ -867,19 +876,21 @@ const chRat = mk('ch-rat','bar',{labels:[],datasets:[{label:'Tests',data:[],back
 const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
 const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[],backgroundColor:'rgba(63,185,80,.7)'},{label:'Games XP',data:[],backgroundColor:'rgba(88,166,255,.7)'},{label:'Voice XP',data:[],backgroundColor:'rgba(163,113,247,.7)'}]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
-// ── MapLibre ──────────────────────────────────────
-const map = new maplibregl.Map({
-  container:'dmap',
-  style:'https://tiles.openfreemap.org/styles/liberty',
-  center:[104.9282,11.5564],
-  zoom:11,
-  preserveDrawingBuffer:true   // required for PDF canvas capture
-})
-map.addControl(new maplibregl.NavigationControl(),'top-right')
-map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
+// ── MapLibre (Drive Test) — lazy init on first tab click ──
+function initDriveMap() {
+  if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
+  map = new maplibregl.Map({
+    container:'dmap',
+    style:'https://tiles.openfreemap.org/styles/liberty',
+    center:[104.9282,11.5564],
+    zoom:11,
+    preserveDrawingBuffer:true
+  })
+  map.addControl(new maplibregl.NavigationControl(),'top-right')
+  map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
 
-map.on('load',()=>{
-  mapReady=true
+  map.on('load',()=>{
+    mapReady=true
 
   // Route line — white, below dots (CellMapper breadcrumb style)
   map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
@@ -959,7 +970,8 @@ map.on('load',()=>{
   map.on('mouseleave','dots-layer',()=>map.getCanvas().style.cursor='')
 
   if(activeSess) paintMap()
-})
+  })  // end map.on('load')
+}  // end initDriveMap
 
 // ── Render: KPI cards ─────────────────────────────
 function renderKPIs() {
@@ -1370,7 +1382,21 @@ window.pickSess = async function(id) {
   driveSamples=data||[]
   paintMap()
   renderSamples()
-  renderDriveRules(driveSamples, activeSess)
+  if(driveSamples.length){
+    renderDriveRules(driveSamples, activeSess)
+  } else {
+    // Session metadata exists but samples not yet uploaded from device
+    document.getElementById('drv-grade-bars').innerHTML=
+      '<div style="color:var(--mu);font-size:11px;padding:8px 0">No samples synced yet.<br>Sample count in session: '+(activeSess.sample_count||0)+'</div>'
+    document.getElementById('drv-assessment').innerHTML=
+      '<div style="color:var(--yw);font-size:11px;padding:8px 0">⚠ Drive samples are still uploading from the device. The session recorded '+(activeSess.sample_count||0)+' pts — check back shortly.</div>'
+    document.getElementById('drv-verdict-icon').textContent='⏳'
+    document.getElementById('drv-verdict-label').textContent='PENDING'
+    document.getElementById('drv-verdict-label').style.color='var(--mu)'
+    document.getElementById('drv-verdict-sub').textContent='awaiting upload'
+    document.getElementById('drv-verdict-pill').innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:rgba(139,148,158,.15);border:1px solid rgba(139,148,158,.3);color:var(--mu)">⏳ PENDING</span>'
+  }
 }
 
 // ── Render: Drive map ─────────────────────────────
@@ -1662,37 +1688,57 @@ async function fetchAll() {
   nxAll=nxR.data||[]; osAll=osR.data||[]; cxAll=cxR.data||[]; sessAll=dsR.data||[]; gamingAll=gR.data||[]
   populateProvinces()
   refreshAll()
-  setConn('live')
+  // Don't set 'live' here — wait for realtime subscription confirmation
 }
 
 // ── Realtime ──────────────────────────────────────
+let _rtChannel=null
 function setupRealtime() {
-  db.channel('np-live')
+  if(_rtChannel) { try{db.removeChannel(_rtChannel)}catch(e){} }
+  _rtChannel=db.channel('np-live')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'networkxp_data'},p=>{
       nxAll.unshift(p.new); if(nxAll.length>500)nxAll.pop()
       refreshDash(); renderNetwork(); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'opensignal_scores'},p=>{
       osAll.unshift(p.new); if(osAll.length>500)osAll.pop()
-      renderCX(); touch()
+      refreshDash(); renderCX(); touch()  // refreshDash keeps k-cx KPI in sync
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'cx_experience_log'},p=>{
       cxAll.unshift(p.new); if(cxAll.length>500)cxAll.pop()
-      renderCX(); touch()
+      refreshDash(); renderCX(); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'gaming_latency_tests'},p=>{
       gamingAll.unshift(p.new); if(gamingAll.length>200)gamingAll.pop()
       renderNetwork(); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_sessions'},p=>{
-      sessAll.unshift(p.new); renderSessions(); touch()
+      sessAll.unshift(p.new)
+      refreshDash()         // keeps k-sess KPI in sync
+      renderSessions(); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_samples'},p=>{
+      // Drive Test tab: update active session map + table
       if(activeSess&&p.new.session_id===activeSess.id){
         driveSamples.push(p.new); paintMap(); renderSamples()
-      }; touch()
+        renderDriveRules(driveSamples, activeSess)
+      }
+      // Coverage Map: keep covDriveSamples in sync regardless of active session
+      if(p.new.latitude&&p.new.longitude){
+        covDriveSamples.unshift(p.new)
+        if(covDriveSamples.length>3000) covDriveSamples.pop()
+        if(mapCovReady) renderCovMap()
+      }
+      touch()
     })
-    .subscribe(s=>{if(s==='SUBSCRIBED')setConn('live');if(s==='CLOSED'||s==='CHANNEL_ERROR')setConn('err')})
+    .subscribe(s=>{
+      if(s==='SUBSCRIBED'){setConn('live'); console.log('[NP] realtime connected')}
+      if(s==='CLOSED'||s==='CHANNEL_ERROR'){
+        setConn('err')
+        console.warn('[NP] realtime lost — reconnecting in 5s…')
+        setTimeout(setupRealtime, 5000)
+      }
+    })
 }
 
 // ── Tab switching ─────────────────────────────────
@@ -1701,7 +1747,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
   b.classList.add('on')
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
-  if(b.dataset.tab==='drv'&&mapReady) setTimeout(()=>map.resize(),60)
+  if(b.dataset.tab==='drv') setTimeout(initDriveMap,80)
   if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
 }))
 
@@ -1758,7 +1804,7 @@ document.getElementById('cx-prov').addEventListener('change',e=>{F.cProv=e.targe
 //  COVERAGE MAP — H3 hexbin + CellMapper drive dots
 // ══════════════════════════════════════════════════
 let mapCov=null, mapCovReady=false
-let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}
+let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}, covResellersGJ={type:'FeatureCollection',features:[]}
 const CF={op:'all',tech:'all',device:'all',type:'all'}
 
 // ── H3 hexbin builder ─────────────────────────────
@@ -1858,10 +1904,14 @@ function renderCovMap(){
   mapCov.getSource('cov-routes').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : {type:'FeatureCollection',features:routeFeats})
   mapCov.getSource('cov-hex').setData(show==='drive'  ? {type:'FeatureCollection',features:[]} : hexGJ)
 
+  // Push resellers (static — only updated by loadSitesFromSupabase)
+  if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
+
   // Stats
   document.getElementById('cov-stat-drive').textContent=driveRows.length+' drive pts'
   document.getElementById('cov-stat-exp').textContent=hexGJ.features.length+' hexbins'
   document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
+  document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
 }
 
 // ── Init coverage map (lazy, on first tab click) ──
@@ -1880,11 +1930,12 @@ function initCovMap(){
     mapCovReady=true
 
     // Sources
-    mapCov.addSource('cov-hex',    {type:'geojson',data:{type:'FeatureCollection',features:[]}})
-    mapCov.addSource('cov-routes', {type:'geojson',data:{type:'FeatureCollection',features:[]}})
-    mapCov.addSource('cov-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
+    mapCov.addSource('cov-hex',      {type:'geojson',data:{type:'FeatureCollection',features:[]}})
+    mapCov.addSource('cov-routes',   {type:'geojson',data:{type:'FeatureCollection',features:[]}})
+    mapCov.addSource('cov-samples',  {type:'geojson',data:{type:'FeatureCollection',features:[]},
       cluster:true,clusterMaxZoom:13,clusterRadius:40,generateId:true})
-    mapCov.addSource('cov-towers', {type:'geojson',data:{type:'FeatureCollection',features:[]}})
+    mapCov.addSource('cov-towers',   {type:'geojson',data:{type:'FeatureCollection',features:[]}})
+    mapCov.addSource('cov-resellers',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
 
     // ── Hexbin fill (bottom) ──
     mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:{
@@ -1894,10 +1945,10 @@ function initCovMap(){
       'fill-outline-color':'rgba(0,0,0,0.2)'
     }})
 
-    // ── Route lines (below dots) ──
-    mapCov.addLayer({id:'cov-route-line',type:'line',source:'cov-routes',minzoom:11,
+    // ── Route lines (below dots) — no minzoom so routes show at any zoom ──
+    mapCov.addLayer({id:'cov-route-line',type:'line',source:'cov-routes',
       layout:{'line-join':'round','line-cap':'round'},
-      paint:{'line-color':'rgba(255,255,255,0.45)','line-width':1.5,'line-opacity':.45}})
+      paint:{'line-color':'rgba(255,255,255,0.55)','line-width':2,'line-opacity':.55}})
 
     // ── Clusters ──
     mapCov.addLayer({id:'cov-clusters',type:'circle',source:'cov-samples',
@@ -2003,7 +2054,34 @@ function initCovMap(){
     mapCov.on('click','tow-5g',e=>towerPopup(e.lngLat,e.features[0].properties))
     mapCov.on('click','tow-4g',e=>towerPopup(e.lngLat,e.features[0].properties))
 
-    ;['cov-dots','hex-fill','tow-5g','tow-4g'].forEach(id=>{
+    // ── Reseller layer ──
+    mapCov.addLayer({id:'res-dots',type:'circle',source:'cov-resellers',
+      paint:{'circle-radius':5,'circle-color':'#f97316','circle-stroke-width':1.5,
+        'circle-stroke-color':'#fff','circle-opacity':.85}})
+    mapCov.addLayer({id:'res-lbl',type:'symbol',source:'cov-resellers',minzoom:14,
+      layout:{'text-field':['get','name'],'text-size':9,'text-offset':[0,1.2],
+        'text-font':['Noto Sans Regular'],'text-allow-overlap':false},
+      paint:{'text-color':'#e6edf3','text-halo-color':'#0d1117','text-halo-width':1}})
+    // Resellers off by default until loaded
+    mapCov.setLayoutProperty('res-dots','visibility','none')
+    mapCov.setLayoutProperty('res-lbl','visibility','none')
+
+    mapCov.on('click','res-dots',e=>{
+      const p=e.features[0].properties
+      covPopup.setLngLat(e.lngLat).setHTML(`
+        <div style="font-family:system-ui;font-size:12px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <div style="width:10px;height:10px;border-radius:50%;background:#f97316"></div>
+            <b style="color:#e6edf3">${p.name||'Reseller'}</b>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="color:#8b949e;padding:2px 0">Site ID</td><td style="text-align:right">${p.site_id||'—'}</td></tr>
+            <tr><td style="color:#8b949e;padding:2px 0">Source</td><td style="text-align:right;font-size:10px">${p.source_file||'—'}</td></tr>
+          </table>
+        </div>`).addTo(mapCov)
+    })
+
+    ;['cov-dots','hex-fill','tow-5g','tow-4g','res-dots'].forEach(id=>{
       mapCov.on('mouseenter',id,()=>mapCov.getCanvas().style.cursor='pointer')
       mapCov.on('mouseleave',id,()=>mapCov.getCanvas().style.cursor='')
     })
@@ -2032,6 +2110,7 @@ document.getElementById('lyr-drive').addEventListener('change',e=>covLayer(['cov
 document.getElementById('lyr-routes').addEventListener('change',e=>covLayer(['cov-route-line'],e.target.checked))
 document.getElementById('lyr-hex').addEventListener('change',e=>covLayer(['hex-fill'],e.target.checked))
 document.getElementById('lyr-towers').addEventListener('change',e=>covLayer(['tow-4g','tow-5g','tow-lbl'],e.target.checked))
+document.getElementById('lyr-resellers').addEventListener('change',e=>covLayer(['res-dots','res-lbl'],e.target.checked))
 
 // ── Coverage filter wiring ────────────────────────
 document.querySelectorAll('[data-cop2]').forEach(b=>b.addEventListener('click',()=>{
@@ -2047,6 +2126,67 @@ document.querySelectorAll('[data-ctype]').forEach(b=>b.addEventListener('click',
   b.classList.add('on'); CF.type=b.dataset.ctype; renderCovMap()
 }))
 document.getElementById('cov-device').addEventListener('change',e=>{CF.device=e.target.value;renderCovMap()})
+
+// ── Load cell sites + resellers from Supabase ─────
+async function loadSitesFromSupabase(){
+  const st=document.getElementById('sb-sites-status')
+  st.textContent='⏳ Loading from Supabase…'
+  try{
+    const [csR,rsR,logR]=await Promise.all([
+      db.from('cell_sites').select('name,latitude,longitude,description,source_file').limit(20000),
+      db.from('reseller_sites').select('name,latitude,longitude,description,source_file').limit(20000),
+      db.from('kml_sync_log').select('file_type,file_name,site_count,uploaded_at').order('uploaded_at',{ascending:false}),
+    ])
+
+    // Cell sites → towers GeoJSON
+    const csSites=(csR.data||[]).filter(r=>r.latitude&&r.longitude)
+    if(csSites.length){
+      covTowersGJ={type:'FeatureCollection',features:csSites.map(r=>({
+        type:'Feature',
+        geometry:{type:'Point',coordinates:[+r.longitude,+r.latitude]},
+        properties:{name:r.name,has5g:false,radio:'LTE',operator:'Cellcard',
+          source_file:r.source_file,description:r.description}
+      }))}
+      if(mapCovReady) mapCov.getSource('cov-towers').setData(covTowersGJ)
+      document.getElementById('lyr-towers').checked=true
+      covLayer(['tow-4g','tow-5g','tow-lbl'],true)
+    }
+
+    // Reseller sites → resellers GeoJSON
+    const rsSites=(rsR.data||[]).filter(r=>r.latitude&&r.longitude)
+    if(rsSites.length){
+      covResellersGJ={type:'FeatureCollection',features:rsSites.map(r=>({
+        type:'Feature',
+        geometry:{type:'Point',coordinates:[+r.longitude,+r.latitude]},
+        properties:{name:r.name,site_id:r.name,source_file:r.source_file}
+      }))}
+      if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
+      document.getElementById('lyr-resellers').checked=true
+      covLayer(['res-dots','res-lbl'],true)
+    }
+
+    // KML sync log status
+    const logs=logR.data||[]
+    const csLog=logs.find(l=>l.file_type==='CELL_SITE')
+    const rsLog=logs.find(l=>l.file_type==='RESELLER')
+    const lines=[]
+    if(csLog) lines.push(`📡 Cell: ${csLog.site_count.toLocaleString()} sites (${csLog.file_name})`)
+    if(rsLog) lines.push(`🏪 Reseller: ${rsLog.site_count.toLocaleString()} sites (${rsLog.file_name})`)
+
+    if(!csSites.length&&!rsSites.length){
+      const hint=lines.length ? lines.join(' · ')+' — KMZ parsed but rows not yet written to DB' : 'No site data in database yet'
+      st.textContent='⚠ '+hint
+    } else {
+      st.textContent=`✅ ${csSites.length} cell sites · ${rsSites.length} resellers loaded`
+    }
+
+    document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
+    document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
+  }catch(e){
+    document.getElementById('sb-sites-status').textContent='❌ '+e.message
+  }
+}
+document.getElementById('load-sb-sites-btn').addEventListener('click',loadSitesFromSupabase)
 
 // ── Tower loader — OpenCelliD API ─────────────────
 async function loadTowers(){
