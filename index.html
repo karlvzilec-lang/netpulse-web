@@ -661,6 +661,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 let nxAll = [], osAll = [], cxAll = [], sessAll = [], gamingAll = []
 let driveSamples = [], activeSess = null
 let map = null, mapReady = false
+let sampledSessionIds = new Set()   // session IDs that have actual drive_samples rows
 
 // Active filters
 const F = {
@@ -892,11 +893,11 @@ function initDriveMap() {
   map.on('load',()=>{
     mapReady=true
 
-  // Route line — white, below dots (CellMapper breadcrumb style)
+  // Route line — blue breadcrumb (white is invisible on Liberty light tiles)
   map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
   map.addLayer({id:'route-line',type:'line',source:'route',
     layout:{'line-join':'round','line-cap':'round'},
-    paint:{'line-color':'rgba(255,255,255,0.45)','line-width':1.5,'line-opacity':.45}})
+    paint:{'line-color':'#2563eb','line-width':2.5,'line-opacity':.75}})
 
   // Drive dots — clustered, CellMapper style
   map.addSource('dots',{
@@ -1340,14 +1341,28 @@ function renderCX() {
 // ── Render: Drive sessions ────────────────────────
 function renderSessions() {
   const el=document.getElementById('sess-list')
-  document.getElementById('sess-cnt').textContent=`${sessAll.length} sessions`
+  // Sessions with actual GPS rows float to top; within each group keep start_time DESC
+  const sorted=[...sessAll].sort((a,b)=>{
+    const aHas=sampledSessionIds.has(a.id)?1:0, bHas=sampledSessionIds.has(b.id)?1:0
+    if(aHas!==bHas) return bHas-aHas
+    return new Date(b.start_time)-new Date(a.start_time)
+  })
+  const syncedCnt=sorted.filter(s=>sampledSessionIds.has(s.id)).length
+  document.getElementById('sess-cnt').textContent=`${sessAll.length} sessions · ${syncedCnt} synced`
   if(!sessAll.length){el.innerHTML='<div class="empty">No sessions recorded yet</div>';return}
-  el.innerHTML=sessAll.map(s=>{
+  el.innerHTML=sorted.map(s=>{
     const dur=s.end_time&&s.start_time?Math.round((new Date(s.end_time)-new Date(s.start_time))/60000)+'min':'Active'
     const isSel=activeSess&&activeSess.id===s.id
+    const hasSamples=sampledSessionIds.has(s.id)
+    const syncBadge=hasSamples
+      ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
+      : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#8b949e18;color:#8b949e;border:1px solid #8b949e30">⏳ PENDING</span>`
     return `
     <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${s.id})">
-      <div class="sess-dev">📱 ${sid(s.device_id)} ${s.name?'· '+s.name:''}</div>
+      <div class="sess-dev" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📱 ${sid(s.device_id)} ${s.name?'· '+s.name:''}</span>
+        ${syncBadge}
+      </div>
       <div class="sess-meta">${ts(s.start_time)}</div>
       <div class="sess-row">
         <span class="sess-stat" style="color:var(--mu)">⏱ ${dur}</span>
@@ -1673,12 +1688,13 @@ function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions()
 // ── Initial fetch ─────────────────────────────────
 async function fetchAll() {
   setConn('connecting')
-  const [nxR,osR,cxR,dsR,gR]= await Promise.all([
+  const [nxR,osR,cxR,dsR,gR,sampR]= await Promise.all([
     db.from('networkxp_data').select('*').order('tested_at',{ascending:false}).limit(500),
     db.from('opensignal_scores').select('*').order('tested_at',{ascending:false}).limit(500),
     db.from('cx_experience_log').select('*').order('tested_at',{ascending:false}).limit(500),
     db.from('drive_sessions').select('*').order('start_time',{ascending:false}).limit(100),
     db.from('gaming_latency_tests').select('*').order('tested_at',{ascending:false}).limit(200),
+    db.from('drive_samples').select('session_id').limit(10000),   // which sessions have real GPS rows
   ])
   if(nxR.error) console.error('networkxp_data:',nxR.error)
   if(osR.error) console.error('opensignal_scores:',osR.error)
@@ -1686,6 +1702,7 @@ async function fetchAll() {
   if(dsR.error) console.error('drive_sessions:',dsR.error)
   if(gR.error)  console.error('gaming_latency_tests:',gR.error)
   nxAll=nxR.data||[]; osAll=osR.data||[]; cxAll=cxR.data||[]; sessAll=dsR.data||[]; gamingAll=gR.data||[]
+  sampledSessionIds=new Set((sampR.data||[]).map(r=>r.session_id).filter(Boolean))
   populateProvinces()
   refreshAll()
   // Don't set 'live' here — wait for realtime subscription confirmation
@@ -1741,13 +1758,22 @@ function setupRealtime() {
     })
 }
 
+function autoPickDriveSession(){
+  if(activeSess) return
+  const first=[...sessAll].sort((a,b)=>{
+    const aH=sampledSessionIds.has(a.id)?1:0,bH=sampledSessionIds.has(b.id)?1:0
+    return bH-aH||new Date(b.start_time)-new Date(a.start_time)
+  }).find(s=>sampledSessionIds.has(s.id))
+  if(first) pickSess(first.id)
+}
+
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
   b.classList.add('on')
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
-  if(b.dataset.tab==='drv') setTimeout(initDriveMap,80)
+  if(b.dataset.tab==='drv') setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
   if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
 }))
 
@@ -1945,10 +1971,10 @@ function initCovMap(){
       'fill-outline-color':'rgba(0,0,0,0.2)'
     }})
 
-    // ── Route lines (below dots) — no minzoom so routes show at any zoom ──
+    // ── Route lines — blue, visible on Liberty light tiles, no minzoom ──
     mapCov.addLayer({id:'cov-route-line',type:'line',source:'cov-routes',
       layout:{'line-join':'round','line-cap':'round'},
-      paint:{'line-color':'rgba(255,255,255,0.55)','line-width':2,'line-opacity':.55}})
+      paint:{'line-color':'#2563eb','line-width':2.5,'line-opacity':.75}})
 
     // ── Clusters ──
     mapCov.addLayer({id:'cov-clusters',type:'circle',source:'cov-samples',
@@ -2098,6 +2124,18 @@ function initCovMap(){
     devs.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=sid(d);devSel.appendChild(o)})
 
     renderCovMap()
+
+    // Auto-fit to drive data extent
+    if(covDriveSamples.length){
+      const lats=covDriveSamples.map(s=>s.latitude), lngs=covDriveSamples.map(s=>s.longitude)
+      mapCov.fitBounds([
+        [Math.min(...lngs)-0.01, Math.min(...lats)-0.01],
+        [Math.max(...lngs)+0.01, Math.max(...lats)+0.01]
+      ],{padding:40,maxZoom:14})
+    }
+
+    // Auto-load cell/reseller sites from Supabase
+    loadSitesFromSupabase()
   })
 }
 
