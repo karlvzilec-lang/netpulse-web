@@ -34,7 +34,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--bd);font-size:12px;color:var(--mu)}
 .pill-dot{width:7px;height:7px;border-radius:50%;background:var(--mu);transition:background .3s}
 .pill-dot.live{background:var(--gr);box-shadow:0 0 6px var(--gr);animation:bk 2s infinite}
-.pill-dot.err{background:var(--re)}
+.pill-dot.err{background:#64748b}
 @keyframes bk{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── Tabs ── */
 .tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px}
@@ -94,29 +94,28 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pgr-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--s1);color:var(--tx);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
 .pgr-btn:hover:not(:disabled){background:var(--s2)}
 .pgr-btn:disabled{opacity:.35;cursor:default}
-/* OpenSignal competitive matrix */
-.os-matrix-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--bd);margin-bottom:18px;background:var(--s1)}
-.os-matrix{width:100%;border-collapse:collapse;min-width:680px}
-.os-matrix th,.os-matrix td{border:1px solid var(--bd)}
-.os-grp-hd{text-align:center;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#fff;padding:9px 6px}
-.os-grp-overall{background:#0f4c5c}
-.os-grp-coverage{background:#92400e}
-.os-grp-consistency{background:#581c87}
-.os-metric-hd{background:var(--s2);padding:8px 6px;text-align:center;vertical-align:bottom;min-width:88px;max-width:100px}
-.os-metric-icon{font-size:20px;display:block;margin-bottom:6px}
-.os-metric-lbl{font-size:8.5px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;line-height:1.25;writing-mode:vertical-lr;transform:rotate(180deg);height:72px;margin:0 auto;display:flex;align-items:center;justify-content:center;text-align:center}
-.os-op-cell{background:var(--s1);padding:10px 16px;white-space:nowrap;position:sticky;left:0;z-index:1;border-right:2px solid var(--bd);min-width:120px}
-.os-op-badge{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;flex-shrink:0;margin-right:10px}
-.os-op-name{font-size:12px;font-weight:700;color:var(--tx)}
-.os-cell{padding:10px 6px;text-align:center;background:var(--s1);vertical-align:middle}
-.os-cell-win{background:rgba(13,148,136,.09)}
-.os-badge-ring{width:58px;height:58px;border-radius:50%;background:rgba(13,148,136,.13);border:2.5px solid #0d9488;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 4px}
-.os-badge-ring.joint{border-style:dashed;background:rgba(13,148,136,.06)}
-.os-badge-txt{font-size:7px;font-weight:900;color:#0d9488;text-transform:uppercase;letter-spacing:.3px;line-height:1.2;text-align:center}
-.os-badge-val{font-size:10px;color:var(--mu);font-weight:600}
 .os-score-hd{display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--s2);border-radius:10px;margin-bottom:14px;border:1px solid var(--bd);flex-wrap:wrap}
 .os-score-period{font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .os-score-title{font-size:16px;font-weight:800;color:var(--tx);flex:1}
+/* Metric Experience Card Grid */
+.mxc-wrap{margin-bottom:20px}
+.mxc-grp-hd{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.mxc-grp-rule{flex:1;height:1px;background:var(--bd)}
+.mxc-grp-pill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;padding:4px 14px;border-radius:20px;white-space:nowrap}
+.mxc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:4px}
+.mxc-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;position:relative}
+.mxc-card-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:13px}
+.mxc-card-title{font-size:13px;font-weight:700;color:var(--tx)}
+.mxc-card-unit{font-size:10px;color:var(--mu);margin-left:6px}
+.mxc-op-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mxc-op-row:last-of-type{margin-bottom:0}
+.mxc-op-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mxc-op-name{font-size:11px;color:var(--mu);width:58px;flex-shrink:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mxc-op-track{flex:1;height:5px;background:rgba(148,163,184,.1);border-radius:3px;overflow:hidden}
+.mxc-op-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.mxc-op-val{font-size:12px;font-weight:700;color:var(--tx);min-width:52px;text-align:right;flex-shrink:0}
+.mxc-win-strip{margin-top:11px;padding-top:9px;border-top:1px solid var(--bd);font-size:9px;font-weight:800;color:#0d9488;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:5px}
+.mxc-nodata{font-size:11px;color:var(--mu);text-align:center;padding:20px 0}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:8px 11px;text-align:left;color:var(--mu);font-weight:500;border-bottom:1px solid var(--bd);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
 td{padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:middle}
@@ -192,28 +191,6 @@ td.r,th.r{text-align:right}
 #tb-samples tr>:nth-child(1),#tb-samples tr>:nth-child(3),#tb-samples tr>:nth-child(4),#tb-samples tr>:nth-child(7),#tb-samples tr>:nth-child(8),#tb-samples tr>:nth-child(9),#tb-samples tr>:nth-child(10){text-align:right}
 #tb-cx tr>:nth-child(n+6),#tb-os tr>:nth-child(n+6){text-align:right}
 #tb-gaming tr>:nth-child(5),#tb-gaming tr>:nth-child(6),#tb-gaming tr>:nth-child(7),#tb-gaming tr>:nth-child(8),#tb-gaming tr>:nth-child(9),#tb-gaming tr>:nth-child(10){text-align:right}
-/* ── OpenSignal Drill-Down Chart ── */
-.os-drill-wrap{display:flex;gap:0;border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:18px;min-height:260px}
-.os-drill-nav{width:210px;flex-shrink:0;background:var(--s2);border-right:1px solid var(--bd)}
-.os-drill-grp-tabs{display:flex;border-bottom:1px solid var(--bd)}
-.os-drill-grp-tab{flex:1;padding:9px 4px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;border-bottom:2px solid transparent;color:var(--mu);transition:all .15s}
-.os-drill-grp-tab.on.overall{border-bottom-color:#0f4c5c;color:#0f4c5c;background:rgba(15,76,92,.07)}
-.os-drill-grp-tab.on.coverage{border-bottom-color:#92400e;color:#92400e;background:rgba(146,64,14,.07)}
-.os-drill-grp-tab.on.consistency{border-bottom-color:#581c87;color:#581c87;background:rgba(88,28,135,.07)}
-.os-drill-metric-btn{display:block;width:100%;text-align:left;padding:10px 16px;font-size:12px;font-weight:500;color:var(--mu);background:none;border:none;border-left:3px solid transparent;cursor:pointer;transition:all .15s;border-bottom:1px solid var(--bd)}
-.os-drill-metric-btn:hover{color:var(--tx);background:rgba(255,255,255,.04)}
-.os-drill-metric-btn.on{color:var(--tx);font-weight:700;background:var(--s1);border-left-color:var(--pr)}
-.os-drill-chart{flex:1;padding:22px 28px;background:var(--s1)}
-.os-drill-title{font-size:17px;font-weight:800;color:var(--tx);margin-bottom:2px}
-.os-drill-unit{font-size:11px;color:var(--mu);margin-bottom:20px}
-.os-bar-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.os-bar-op{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0}
-.os-bar-name{width:72px;font-size:12px;font-weight:600;color:var(--tx);flex-shrink:0}
-.os-bar-track{flex:1;background:var(--s2);border-radius:4px;height:28px;position:relative;overflow:visible}
-.os-bar-fill{height:100%;border-radius:4px;position:relative;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width .4s cubic-bezier(.4,0,.2,1);min-width:4px}
-.os-bar-badge{position:absolute;right:-2px;top:50%;transform:translateY(-50%);background:#0d9488;border-radius:20px;padding:2px 7px;font-size:7.5px;font-weight:900;color:#fff;text-transform:uppercase;white-space:nowrap;z-index:2}
-.os-bar-val{width:52px;flex-shrink:0;text-align:right;font-size:14px;font-weight:800;color:var(--tx)}
-.os-bar-axis{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--mu);padding-left:120px}
 /* Card border contrast + hover lift */
 .card{border-color:#30363d}
 .kcard{border-left:3px solid transparent;transition:border-color .15s,background .15s}
@@ -559,50 +536,24 @@ td.r,th.r{text-align:right}
           <div id="os-health-badge" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;background:var(--s2);color:var(--mu)">LOADING</div>
         </div>
       </div>
-      <!-- Competitive matrix -->
-      <div class="os-matrix-wrap">
-        <table class="os-matrix">
-          <thead>
-            <tr>
-              <th style="background:var(--s2);border:1px solid var(--bd);padding:9px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;min-width:120px"></th>
-              <th colspan="4" class="os-grp-hd os-grp-overall">Overall Experience</th>
-              <th colspan="2" class="os-grp-hd os-grp-consistency">Consistency</th>
-            </tr>
-            <tr>
-              <th style="background:var(--s2);border:1px solid var(--bd)"></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">⬇</span><div class="os-metric-lbl">Download Speed Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">⬆</span><div class="os-metric-lbl">Upload Speed Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">🎮</span><div class="os-metric-lbl">Games Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">▶</span><div class="os-metric-lbl">Video Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">🏅</span><div class="os-metric-lbl">Consistent Quality</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">🛡</span><div class="os-metric-lbl">Reliability Experience</div></th>
-            </tr>
-          </thead>
-          <tbody id="os-matrix-body">
-            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--mu);font-size:12px">Loading operator data…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <!-- Footnote -->
-      <div style="font-size:10px;color:var(--mu);margin-bottom:18px;padding:0 2px">
-        Winner = highest score per metric. Joint Winner = within 3% of top. Metrics computed from drive test and speed test samples in selected period.
-      </div>
     </div>
 
-    <!-- ══ OPENSIGNAL DRILL-DOWN BAR CHART ══ -->
-    <div class="exec-view" id="os-drill-section" style="margin-bottom:18px">
-      <div class="os-drill-wrap">
-        <div class="os-drill-nav">
-          <div class="os-drill-grp-tabs">
-            <div class="os-drill-grp-tab on overall" data-dg="overall">Overall</div>
-            <div class="os-drill-grp-tab consistency" data-dg="consistency">Consistency</div>
-          </div>
-          <div id="os-drill-metrics"><!-- populated by JS --></div>
-        </div>
-        <div class="os-drill-chart" id="os-drill-chart">
-          <div style="color:var(--mu);font-size:12px;margin-top:40px;text-align:center">Select a metric to compare operators</div>
-        </div>
+    <!-- ══ METRIC EXPERIENCE CARDS ══ -->
+    <div class="exec-view mxc-wrap" id="mxc-section">
+      <!-- Overall Experience group -->
+      <div class="mxc-grp-hd">
+        <div class="mxc-grp-rule"></div>
+        <span class="mxc-grp-pill" style="background:rgba(15,76,92,.25);color:#2dd4bf;border:1px solid rgba(45,212,191,.2)">Overall Experience</span>
+        <div class="mxc-grp-rule"></div>
       </div>
+      <div class="mxc-grid" id="mxc-grid-overall"></div>
+      <!-- Consistency group -->
+      <div class="mxc-grp-hd" style="margin-top:16px">
+        <div class="mxc-grp-rule"></div>
+        <span class="mxc-grp-pill" style="background:rgba(88,28,135,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.2)">Consistency</span>
+        <div class="mxc-grp-rule"></div>
+      </div>
+      <div class="mxc-grid" id="mxc-grid-consistency"></div>
     </div>
 
     <!-- ══ ACTIONS REQUIRED (Exec) ══ -->
@@ -1906,127 +1857,101 @@ function renderConsistentQuality() {
 // ── Render: OpenSignal-style competitive matrix ────
 function renderOSMatrix() {
   const OPERATORS = [
-    {key:'Cellcard', initial:'C', color:'#f97316'},
-    {key:'Metfone',  initial:'M', color:'#ef4444'},
-    {key:'Smart',    initial:'S', color:'#22c55e'},
+    {key:'Cellcard', color:'#f97316', initial:'C'},
+    {key:'Metfone',  color:'#ef4444', initial:'M'},
+    {key:'Smart',    color:'#22c55e', initial:'S'},
   ]
-  const avgOf = (arr, col) => arr.length ? arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length : null
 
-  // Compute per-operator metrics from nxAll filtered by date/tech/prov but NOT by op
+  // Compute per-operator data — always use all operators regardless of F.dOp
   const opData = {}
   for(const op of OPERATORS) {
     const rows = filterNx(nxAll, {date:F.dDate, op:op.key, tech:F.dTech, prov:F.dProv})
+    const avg = col => rows.length ? rows.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/rows.length : null
     const rsrps = rows.map(r=>r.rsrp).filter(v=>v!=null)
-    const dl = avgOf(rows,'download_mbps')
-    const ul = avgOf(rows,'upload_mbps')
-    const ping = avgOf(rows,'ping_ms')
+    const dl = avg('download_mbps')
+    const ul = avg('upload_mbps')
+    const ping = avg('ping_ms')
     opData[op.key] = {
       count: rows.length,
-      dl,
-      ul,
-      ping,
-      // Games: latency-based — lower ping = better UX, stored inverted so higher=better for winner logic
-      games: ping!=null ? Math.max(0, 200-ping) : null,
-      // Video: % samples with DL >= 10 Mbps
+      dl, ul, ping,
       video: rows.length ? rows.filter(r=>(parseFloat(r.download_mbps)||0)>=10).length/rows.length*100 : null,
-      // Coverage: % samples RSRP >= -100 (Good+)
-      cov: rsrps.length ? rsrps.filter(v=>v>=-100).length/rsrps.length*100 : null,
-      // Time on 4G: % LTE samples
-      time4g: rows.length ? rows.filter(r=>{ const rat=(r.rat||'').toUpperCase(); return rat.includes('LTE')||rat==='4G'||rat.includes('NR') }).length/rows.length*100 : null,
-      // Consistent Quality: % samples meeting ALL thresholds (OpenSignal model)
       cq: rows.length ? rows.filter(r=>{
         const d=parseFloat(r.download_mbps)||0, u=parseFloat(r.upload_mbps)||0
         const p=parseFloat(r.ping_ms)||999, rs=r.rsrp??-120
         return d>=25&&u>=5&&p<100&&rs>=-100
       }).length/rows.length*100 : null,
-      // Reliability: % samples RSRP >= -110
       rel: rsrps.length ? rsrps.filter(v=>v>=-110).length/rsrps.length*100 : null,
     }
   }
 
-  // Metric definitions: getter returns the comparable value (higher=better for all after inversion)
-  const METRICS = [
-    {id:'dl',    get:d=>d.dl,    fmt:v=>n(v)+' Mbps'},
-    {id:'ul',    get:d=>d.ul,    fmt:v=>n(v)+' Mbps'},
-    {id:'games', get:d=>d.games, fmt:v=>n(v,0)+' ms'},
-    {id:'video', get:d=>d.video, fmt:v=>n(v,0)+'%'},
-    {id:'cq',    get:d=>d.cq,    fmt:v=>n(v,0)+'%'},
-    {id:'rel',   get:d=>d.rel,   fmt:v=>n(v,0)+'%'},
+  // Metric definitions
+  const METRICS_OVERALL = [
+    {id:'dl',    title:'Download Speed',    unit:'Mbps',        get:d=>d.dl,    higher:true,  fmt:v=>n(v,1)},
+    {id:'ul',    title:'Upload Speed',      unit:'Mbps',        get:d=>d.ul,    higher:true,  fmt:v=>n(v,1)},
+    {id:'games', title:'Games Experience',  unit:'ms latency',  get:d=>d.ping,  higher:false, fmt:v=>n(v,0)+'ms'},
+    {id:'video', title:'Video Experience',  unit:'% ≥10 Mbps',  get:d=>d.video, higher:true,  fmt:v=>n(v,0)+'%'},
+  ]
+  const METRICS_CONSISTENCY = [
+    {id:'cq',  title:'Consistent Quality', unit:'% all thresholds', get:d=>d.cq,  higher:true, fmt:v=>n(v,0)+'%'},
+    {id:'rel', title:'Reliability',         unit:'% signal ≥−110',  get:d=>d.rel, higher:true, fmt:v=>n(v,0)+'%'},
   ]
 
-  // Determine winners per metric
-  METRICS.forEach(m => {
-    const vals = OPERATORS.map(op=>({op:op.key,v:m.get(opData[op.key])})).filter(x=>x.v!=null)
-    if(!vals.length){m.winners=[];return}
-    const best = Math.max(...vals.map(x=>x.v))
-    const tol = Math.max(Math.abs(best)*0.03, 0.1)
-    m.winners = vals.filter(x=>x.v>=best-tol).map(x=>x.op)
-  })
-
-  // Format display value per cell
-  const dispVal = (m, opKey) => {
-    const d = opData[opKey]
-    if(m.id==='games') { const p=d.ping; return p!=null?n(p,0)+' ms ping':'—' }
-    const v = m.get(d)
-    return v!=null ? m.fmt(v) : '—'
+  function buildCards(metrics, gridId) {
+    const grid = document.getElementById(gridId)
+    if(!grid) return
+    grid.innerHTML = metrics.map(m => {
+      const vals = OPERATORS.map(op => ({op, v: m.get(opData[op.key]), count: opData[op.key].count}))
+      const defined = vals.filter(x => x.v != null)
+      if(!defined.length) {
+        return `<div class="mxc-card"><div class="mxc-card-hd"><span class="mxc-card-title">${m.title}</span></div><div class="mxc-nodata">No data for this period</div></div>`
+      }
+      // Winner: best value (higher or lower depending on metric)
+      const best = m.higher ? Math.max(...defined.map(x=>x.v)) : Math.min(...defined.map(x=>x.v))
+      const tol = Math.max(Math.abs(best)*0.03, 0.05)
+      const winners = defined.filter(x => m.higher ? x.v>=best-tol : x.v<=best+tol).map(x=>x.op.key)
+      // Scale: max display value for bar width
+      const scaleMax = Math.max(...defined.map(x=>x.v))
+      const rows = vals.map(({op, v, count}) => {
+        const pct = (v!=null && scaleMax>0) ? Math.max(4, (m.higher ? v/scaleMax : (scaleMax-v)/scaleMax+0.1) * 100) : 0
+        const dotBorder = winners.includes(op.key) ? `box-shadow:0 0 0 2px ${op.color}44` : ''
+        return `<div class="mxc-op-row">
+          <div class="mxc-op-dot" style="background:${op.color};${dotBorder}"></div>
+          <div class="mxc-op-name">${op.key}</div>
+          <div class="mxc-op-track"><div class="mxc-op-fill" style="width:${pct}%;background:${winners.includes(op.key)?op.color:op.color+'66'}"></div></div>
+          <div class="mxc-op-val" style="color:${winners.includes(op.key)?'var(--tx)':'var(--mu)'}">${v!=null?m.fmt(v):'—'}</div>
+        </div>`
+      }).join('')
+      const winnerLabel = winners.length>1 ? 'Joint Winner: '+winners.join(' & ') : 'Winner: '+winners[0]
+      return `<div class="mxc-card">
+        <div class="mxc-card-hd">
+          <span class="mxc-card-title">${m.title}</span>
+          <span class="mxc-card-unit">${m.unit}</span>
+        </div>
+        ${rows}
+        ${winners.length ? `<div class="mxc-win-strip"><svg width="10" height="10" viewBox="0 0 16 16" fill="#0d9488"><path d="M8 1l1.5 4.5H15l-4.5 3.3 1.5 5-4-2.8L4 13.8l1.5-5L1 5.5h5.5z"/></svg>${winnerLabel}</div>` : ''}
+      </div>`
+    }).join('')
   }
 
-  // Build rows HTML
-  const body = document.getElementById('os-matrix-body')
-  if(!body) return
+  buildCards(METRICS_OVERALL, 'mxc-grid-overall')
+  buildCards(METRICS_CONSISTENCY, 'mxc-grid-consistency')
 
-  body.innerHTML = OPERATORS.map(op => {
-    const d = opData[op.key]
-    const cells = METRICS.map(m => {
-      const v = m.get(d)
-      const isWinner = m.winners.includes(op.key)
-      const isJoint = isWinner && m.winners.length > 1
-      const label = dispVal(m, op.key)
-      if(v==null || d.count===0) {
-        return `<td class="os-cell"><span style="color:var(--bd);font-size:18px;font-weight:300">—</span></td>`
-      }
-      if(isWinner) {
-        return `<td class="os-cell os-cell-win">
-          <div class="os-badge-ring${isJoint?' joint':''}">
-            <div class="os-badge-txt">${isJoint?'JOINT<br>':''}WINNER</div>
-          </div>
-          <div class="os-badge-val">${label}</div>
-        </td>`
-      }
-      return `<td class="os-cell"><div class="os-badge-val" style="margin-top:0">${label}</div></td>`
-    }).join('')
-
-    return `<tr>
-      <td class="os-op-cell">
-        <div style="display:flex;align-items:center">
-          <div class="os-op-badge" style="background:${op.color}">${op.initial}</div>
-          <div>
-            <div class="os-op-name">${op.key}</div>
-            <div style="font-size:9px;color:var(--mu)">${d.count} tests</div>
-          </div>
-        </div>
-      </td>
-      ${cells}
-    </tr>`
-  }).join('')
-
-  // Update health score header using Cellcard (default/selected op)
-  const selOp = F.dOp==='all'?'Cellcard':F.dOp
-  const sd = opData[selOp]||opData['Cellcard']
-  if(sd && sd.count) {
-    const dlScore = Math.min(100,Math.max(0,(sd.dl||0)/50*100))
-    const rsrpProxy = Math.min(100,Math.max(0,(sd.cov||0)))
-    const cqScore = Math.min(100,Math.max(0,sd.cq||0))
-    const health = Math.round(dlScore*0.4+rsrpProxy*0.35+cqScore*0.25)
-    const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
-    if(hn) hn.textContent=health
-    if(hn) hn.style.color=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
-    if(hb){
-      const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
-      const bg=health>=70?'rgba(63,185,80,.2)':health>=50?'rgba(255,193,7,.2)':'rgba(244,67,54,.2)'
-      const clr=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
-      hb.textContent=lbl; hb.style.background=bg; hb.style.color=clr
-    }
+  // Update health score badge in the score header
+  const nx = filterNx(nxAll, {date:F.dDate, op:F.dOp, tech:F.dTech, prov:F.dProv})
+  const avg = col => nx.length ? nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length : null
+  const dl=avg('download_mbps'), rsrps=nx.map(r=>r.rsrp).filter(v=>v!=null)
+  const cov=rsrps.length?rsrps.filter(v=>v>=-100).length/rsrps.length*100:null
+  const cq=nx.length?nx.filter(r=>{const d=parseFloat(r.download_mbps)||0,u=parseFloat(r.upload_mbps)||0,p=parseFloat(r.ping_ms)||999,rs=r.rsrp??-120;return d>=25&&u>=5&&p<100&&rs>=-100}).length/nx.length*100:null
+  const dlS=dl!=null?Math.min(100,(dl/50)*100):50
+  const covS=cov!=null?Math.min(100,cov):50
+  const cqS=cq!=null?Math.min(100,cq):50
+  const health=Math.round(dlS*0.4+covS*0.35+cqS*0.25)
+  const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
+  if(hn&&nx.length){hn.textContent=health;hn.style.color=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'}
+  if(hb&&nx.length){
+    const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
+    const clr=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
+    hb.textContent=lbl;hb.style.background=clr+'22';hb.style.color=clr;hb.style.border='1px solid '+clr+'44'
   }
   // Update period label
   const per=document.getElementById('os-period')
@@ -3100,12 +3025,12 @@ function populateProvinces() {
 // ── Connection status ─────────────────────────────
 function setConn(s){
   document.getElementById('cdot').className='pill-dot'+(s==='live'?' live':s==='err'?' err':'')
-  document.getElementById('clbl').textContent={live:'Live',connecting:'Connecting…',err:'Disconnected'}[s]||s
+  document.getElementById('clbl').textContent={live:'Live',connecting:'Connecting…',err:'REST Only'}[s]||s
 }
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix();renderOSDrill();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
