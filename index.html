@@ -22,7 +22,7 @@
 }
 html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:14px}
 /* ── Navbar ── */
-.nav{background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;height:52px;gap:0;position:sticky;top:0;z-index:20}
+.nav{background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;height:52px;gap:0;position:sticky;top:0;z-index:300}
 .nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;margin-right:28px}
 .nav-logo svg{width:28px;height:28px;flex-shrink:0}
 .nav-logo-txt{font-size:15px;font-weight:800;color:var(--tx);letter-spacing:-.3px;white-space:nowrap}
@@ -541,19 +541,23 @@ td.r,th.r{text-align:right}
     <!-- ══ METRIC EXPERIENCE CARDS ══ -->
     <div class="exec-view mxc-wrap" id="mxc-section">
       <!-- Overall Experience group -->
-      <div class="mxc-grp-hd">
-        <div class="mxc-grp-rule"></div>
-        <span class="mxc-grp-pill" style="background:rgba(15,76,92,.25);color:#2dd4bf;border:1px solid rgba(45,212,191,.2)">Overall Experience</span>
-        <div class="mxc-grp-rule"></div>
+      <div class="mxc-grp">
+        <div class="mxc-grp-hd">
+          <div class="mxc-grp-rule"></div>
+          <span class="mxc-grp-pill" style="background:rgba(15,76,92,.25);color:#2dd4bf;border:1px solid rgba(45,212,191,.2)">Overall Experience</span>
+          <div class="mxc-grp-rule"></div>
+        </div>
+        <div class="mxc-grid" id="mxc-grid-overall"></div>
       </div>
-      <div class="mxc-grid" id="mxc-grid-overall"></div>
       <!-- Consistency group -->
-      <div class="mxc-grp-hd" style="margin-top:16px">
-        <div class="mxc-grp-rule"></div>
-        <span class="mxc-grp-pill" style="background:rgba(88,28,135,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.2)">Consistency</span>
-        <div class="mxc-grp-rule"></div>
+      <div class="mxc-grp" style="margin-top:16px">
+        <div class="mxc-grp-hd">
+          <div class="mxc-grp-rule"></div>
+          <span class="mxc-grp-pill" style="background:rgba(88,28,135,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.2)">Consistency</span>
+          <div class="mxc-grp-rule"></div>
+        </div>
+        <div class="mxc-grid" id="mxc-grid-consistency"></div>
       </div>
-      <div class="mxc-grid" id="mxc-grid-consistency"></div>
     </div>
 
     <!-- ══ ACTIONS REQUIRED (Exec) ══ -->
@@ -1910,9 +1914,12 @@ function renderOSMatrix() {
       const tol = Math.max(Math.abs(best)*0.03, 0.05)
       const winners = defined.filter(x => m.higher ? x.v>=best-tol : x.v<=best+tol).map(x=>x.op.key)
       // Scale: max display value for bar width
-      const scaleMax = Math.max(...defined.map(x=>x.v))
+      const allVals = defined.map(x=>x.v)
+      const scaleMax = Math.max(...allVals)
+      const scaleMin = Math.min(...allVals)
+      const scaleRange = scaleMax - scaleMin || 1
       const rows = vals.map(({op, v, count}) => {
-        const pct = (v!=null && scaleMax>0) ? Math.max(4, (m.higher ? v/scaleMax : (scaleMax-v)/scaleMax+0.1) * 100) : 0
+        const pct = v!=null ? Math.max(4, m.higher ? (v/scaleMax)*100 : ((scaleMax-v)/scaleRange)*96+4) : 0
         const dotBorder = winners.includes(op.key) ? `box-shadow:0 0 0 2px ${op.color}44` : ''
         return `<div class="mxc-op-row">
           <div class="mxc-op-dot" style="background:${op.color};${dotBorder}"></div>
@@ -1921,7 +1928,7 @@ function renderOSMatrix() {
           <div class="mxc-op-val" style="color:${winners.includes(op.key)?'var(--tx)':'var(--mu)'}">${v!=null?m.fmt(v):'—'}</div>
         </div>`
       }).join('')
-      const winnerLabel = winners.length>1 ? 'Joint Winner: '+winners.join(' & ') : 'Winner: '+winners[0]
+      const winnerLabel = winners.length>1 ? 'Joint Winner: '+winners.join(' & ') : winners.length===1 ? 'Winner: '+winners[0] : ''
       return `<div class="mxc-card">
         <div class="mxc-card-hd">
           <span class="mxc-card-title">${m.title}</span>
