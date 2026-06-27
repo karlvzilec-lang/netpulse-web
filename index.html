@@ -978,6 +978,62 @@ td.r,th.r{text-align:right}
         <select class="fdrop" id="cov-device" style="width:100%"><option value="all">All Devices</option></select>
       </div>
 
+      <!-- RF Coverage Simulation -->
+      <div class="sb-sec" id="sim-sec">
+        <div class="sb-sec-hd" style="display:flex;align-items:center;justify-content:space-between">
+          RF Coverage Simulation
+          <label class="ltog" style="transform:scale(.85)"><input type="checkbox" id="lyr-sim"><span class="lslid"></span></label>
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-bottom:8px;line-height:1.5">Propagation model applied to loaded cell sites. Estimates RSRP at each H3 hex.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <div>
+            <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Freq (MHz)</div>
+            <select class="fdrop" id="sim-freq" style="width:100%;font-size:11px">
+              <option value="850">850 MHz</option>
+              <option value="900">900 MHz</option>
+              <option value="1800" selected>1800 MHz</option>
+              <option value="2100">2100 MHz</option>
+              <option value="2600">2600 MHz</option>
+              <option value="3500">3500 MHz (5G)</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Environment</div>
+            <select class="fdrop" id="sim-env" style="width:100%;font-size:11px">
+              <option value="urban">Urban (n=3.5)</option>
+              <option value="suburban" selected>Suburban (n=3.0)</option>
+              <option value="rural">Rural (n=2.5)</option>
+              <option value="indoor">Indoor (n=4.0)</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Tx Power (dBm)</div>
+            <input type="number" id="sim-power" value="43" min="20" max="50" class="fdrop" style="width:100%;font-size:11px">
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Ant. Gain (dBi)</div>
+            <input type="number" id="sim-gain" value="15" min="0" max="25" class="fdrop" style="width:100%;font-size:11px">
+          </div>
+        </div>
+        <div style="margin-bottom:6px">
+          <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Resolution</div>
+          <div style="display:flex;gap:4px">
+            <button class="fchip" style="font-size:10px;padding:2px 8px" data-simres="8">Standard</button>
+            <button class="fchip on" style="font-size:10px;padding:2px 8px" data-simres="9">High</button>
+          </div>
+        </div>
+        <button id="sim-run-btn" style="width:100%;padding:7px;background:rgba(31,111,235,.25);border:1px solid rgba(31,111,235,.5);border-radius:6px;color:var(--bl);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:4px">▶ Run Simulation</button>
+        <button id="sim-clear-btn" style="width:100%;padding:5px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;display:none">✕ Clear</button>
+        <div id="sim-status" style="font-size:10px;color:var(--mu);margin-top:6px;min-height:14px"></div>
+        <div class="sb-sec-hd" style="margin-top:10px">Simulation Legend</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#00e676"></div>Excellent ≥ −80 dBm</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#00bcd4"></div>Good −80…−90</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#ffc107"></div>Fair −90…−100</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#ff9800"></div>Poor −100…−110</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#f44336"></div>Very Poor &lt; −110</div>
+        <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:rgba(100,116,139,.3)"></div>No Coverage</div>
+      </div>
+
       <!-- Cell Sites loader -->
       <div class="sb-sec">
         <div class="sb-sec-hd">Cell &amp; Reseller Sites</div>
@@ -2824,12 +2880,31 @@ function initCovMap(){
     mapCovReady=true
 
     // Sources
+    mapCov.addSource('sim-coverage',  {type:'geojson',data:{type:'FeatureCollection',features:[]}})
     mapCov.addSource('cov-hex',      {type:'geojson',data:{type:'FeatureCollection',features:[]}})
     mapCov.addSource('cov-routes',   {type:'geojson',data:{type:'FeatureCollection',features:[]}})
     mapCov.addSource('cov-samples',  {type:'geojson',data:{type:'FeatureCollection',features:[]},
       cluster:true,clusterMaxZoom:13,clusterRadius:40,generateId:true})
     mapCov.addSource('cov-towers',   {type:'geojson',data:{type:'FeatureCollection',features:[]}})
     mapCov.addSource('cov-resellers',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+
+    // ── Simulated coverage fill (bottom-most) ──
+    mapCov.addLayer({id:'sim-fill',type:'fill',source:'sim-coverage',layout:{visibility:'none'},paint:{
+      'fill-color':['step',['get','rsrp'],
+        '#f44336',
+        -110,'#ff9800',
+        -100,'#ffc107',
+        -90,'#00bcd4',
+        -80,'#00e676'
+      ],
+      'fill-opacity':0.45
+    }})
+    mapCov.addLayer({id:'sim-outline',type:'line',source:'sim-coverage',layout:{visibility:'none'},paint:{
+      'line-color':['step',['get','rsrp'],
+        '#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676'
+      ],
+      'line-opacity':0.15,'line-width':0.5
+    }})
 
     // ── Hexbin fill (bottom) ──
     mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:{
@@ -3034,6 +3109,162 @@ document.getElementById('lyr-routes').addEventListener('change',e=>covLayer(['co
 document.getElementById('lyr-hex').addEventListener('change',e=>covLayer(['hex-fill'],e.target.checked))
 document.getElementById('lyr-towers').addEventListener('change',e=>covLayer(['tow-4g','tow-5g','tow-lbl'],e.target.checked))
 document.getElementById('lyr-resellers').addEventListener('change',e=>covLayer(['res-dots','res-lbl'],e.target.checked))
+
+// ── RF Coverage Simulation Engine ────────────────
+// Log-distance path loss model with COST-231 Hata coefficients
+// Returns estimated RSRP (dBm) at distance d km from a cell site
+function pathLossRSRP(distKm, freqMHz, txPowerdBm, antGaindBi, envN) {
+  const d = Math.max(0.05, distKm)           // min 50m
+  const EIRP = txPowerdBm + antGaindBi - 2   // 2 dB cable loss
+  // COST-231 Hata path loss (urban macro, medium city)
+  const hb = 30, hm = 1.5
+  const logF = Math.log10(freqMHz)
+  const a_hm = (1.1*logF - 0.7)*hm - (1.56*logF - 0.8)  // mobile antenna correction
+  const Cm = freqMHz >= 2000 ? 3 : 0                      // dense urban correction
+  const PL = 46.3 + 33.9*logF - 13.82*Math.log10(hb) - a_hm +
+    (44.9 - 6.55*Math.log10(hb))*Math.log10(d) * (envN/3.5) + Cm
+  // RSRP = EIRP - PL - per-RE offset (10*log10(N_REs) ≈ 30 dB for 20MHz LTE)
+  const rsrp = EIRP - PL - 30
+  return Math.max(-140, Math.min(-44, rsrp))
+}
+
+// Great-circle distance between two [lng,lat] points → km
+function haversineKm([lng1,lat1],[lng2,lat2]) {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))
+}
+
+let simH3Res = 9   // current resolution choice
+
+async function runSimulation() {
+  const towers = covTowersGJ.features
+  if(!towers.length) {
+    document.getElementById('sim-status').textContent = '⚠ Load cell sites first (Supabase or OpenCelliD)'
+    return
+  }
+  const freqMHz  = +document.getElementById('sim-freq').value
+  const txPow    = +document.getElementById('sim-power').value
+  const antGain  = +document.getElementById('sim-gain').value
+  const envMap   = {urban:3.5, suburban:3.0, rural:2.5, indoor:4.0}
+  const envN     = envMap[document.getElementById('sim-env').value] || 3.0
+  const res      = simH3Res
+  const btn      = document.getElementById('sim-run-btn')
+  const status   = document.getElementById('sim-status')
+
+  // Coverage edge: solve for max distance where RSRP ≥ -120 dBm
+  // Binary-search-free: just cap at 8 km for urban, 15 km for rural
+  const maxKm = envN <= 2.5 ? 15 : envN <= 3.0 ? 10 : 6
+
+  btn.disabled = true
+  btn.textContent = '⏳ Computing…'
+  status.textContent = `Modelling ${towers.length} sites at H3 res ${res}…`
+
+  // Yield to browser so UI updates
+  await new Promise(r => setTimeout(r, 20))
+
+  // For each tower, generate H3 grid disk and compute RSRP
+  const hexBest = new Map()   // hexId → best RSRP (strongest = highest)
+
+  // Determine k-ring radius from maxKm
+  // H3 res 9 edge ≈ 174m, res 8 ≈ 461m
+  const edgeKm = res === 9 ? 0.174 : 0.461
+  const kRing  = Math.ceil(maxKm / (edgeKm * 1.5))
+
+  let processed = 0
+  for(const feat of towers) {
+    const [lng, lat] = feat.geometry.coordinates
+    const towerCell = h3.latLngToCell(lat, lng, res)
+    const disk = h3.gridDisk(towerCell, kRing)
+
+    for(const hexId of disk) {
+      const [hLat, hLng] = h3.cellToLatLng(hexId)
+      const distKm = haversineKm([lng, lat], [hLng, hLat])
+      if(distKm > maxKm) continue
+      const rsrp = pathLossRSRP(distKm, freqMHz, txPow, antGain, envN)
+      // Keep best (strongest) signal at each hex from any tower
+      if(!hexBest.has(hexId) || hexBest.get(hexId) < rsrp) {
+        hexBest.set(hexId, rsrp)
+      }
+    }
+    processed++
+    // Yield every 20 towers to keep UI responsive
+    if(processed % 20 === 0) {
+      status.textContent = `Processing tower ${processed}/${towers.length}…`
+      await new Promise(r => setTimeout(r, 0))
+    }
+  }
+
+  // Build GeoJSON from hex map
+  const features = []
+  for(const [hexId, rsrp] of hexBest) {
+    if(rsrp < -120) continue
+    const boundary = h3.cellToBoundary(hexId)
+    const coords   = boundary.map(([la,lo]) => [lo, la])
+    coords.push(coords[0])
+    features.push({
+      type: 'Feature',
+      geometry: {type:'Polygon', coordinates:[coords]},
+      properties: {rsrp: Math.round(rsrp), hexId}
+    })
+  }
+
+  mapCov.getSource('sim-coverage').setData({type:'FeatureCollection', features})
+  mapCov.setLayoutProperty('sim-fill',    'visibility', 'visible')
+  mapCov.setLayoutProperty('sim-outline', 'visibility', 'visible')
+  document.getElementById('lyr-sim').checked = true
+  document.getElementById('sim-clear-btn').style.display = ''
+
+  const covered = features.filter(f => f.properties.rsrp >= -110).length
+  const good    = features.filter(f => f.properties.rsrp >= -90).length
+  status.innerHTML = `✓ <b>${features.length.toLocaleString()}</b> hexes · <b style="color:#3fb950">${good.toLocaleString()}</b> good signal · <b style="color:#ff9800">${(features.length-covered).toLocaleString()}</b> edge`
+  btn.disabled = false
+  btn.textContent = '▶ Run Simulation'
+
+  // Add click popup on simulated hexes
+  if(!mapCov._simPopupBound) {
+    mapCov._simPopupBound = true
+    const simPopup = new maplibregl.Popup({closeButton:true,maxWidth:'200px'})
+    mapCov.on('click','sim-fill', e => {
+      const p = e.features[0].properties
+      const gc = p.rsrp >= -80 ? '#00e676' : p.rsrp >= -90 ? '#00bcd4' : p.rsrp >= -100 ? '#ffc107' : p.rsrp >= -110 ? '#ff9800' : '#f44336'
+      const band = p.rsrp >= -80 ? 'Excellent' : p.rsrp >= -90 ? 'Good' : p.rsrp >= -100 ? 'Fair' : p.rsrp >= -110 ? 'Poor' : 'Very Poor'
+      simPopup.setLngLat(e.lngLat).setHTML(`
+        <div style="font-family:system-ui;font-size:12px">
+          <div style="font-weight:700;color:${gc};margin-bottom:6px">Simulated: ${band}</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="color:#8b949e;padding:2px 0">Est. RSRP</td><td style="text-align:right;color:${gc};font-weight:700">${p.rsrp} dBm</td></tr>
+            <tr><td style="color:#8b949e;padding:2px 0">Model</td><td style="text-align:right;font-size:10px">COST-231 Hata</td></tr>
+            <tr><td style="color:#8b949e;padding:2px 0">Note</td><td style="text-align:right;font-size:9px;color:#8b949e">Simulated · not measured</td></tr>
+          </table>
+        </div>`).addTo(mapCov)
+    })
+    mapCov.on('mouseenter','sim-fill',()=>{ mapCov.getCanvas().style.cursor='pointer' })
+    mapCov.on('mouseleave','sim-fill',()=>{ mapCov.getCanvas().style.cursor='' })
+  }
+}
+
+function clearSimulation() {
+  mapCov.getSource('sim-coverage').setData({type:'FeatureCollection',features:[]})
+  mapCov.setLayoutProperty('sim-fill',    'visibility', 'none')
+  mapCov.setLayoutProperty('sim-outline', 'visibility', 'none')
+  document.getElementById('lyr-sim').checked = false
+  document.getElementById('sim-clear-btn').style.display = 'none'
+  document.getElementById('sim-status').textContent = ''
+}
+
+document.getElementById('sim-run-btn').addEventListener('click', runSimulation)
+document.getElementById('sim-clear-btn').addEventListener('click', clearSimulation)
+document.getElementById('lyr-sim').addEventListener('change', e => {
+  const v = e.target.checked ? 'visible' : 'none'
+  mapCov.setLayoutProperty('sim-fill',    'visibility', v)
+  mapCov.setLayoutProperty('sim-outline', 'visibility', v)
+})
+document.querySelectorAll('[data-simres]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-simres]').forEach(x => x.classList.remove('on'))
+  b.classList.add('on')
+  simH3Res = +b.dataset.simres
+}))
 
 // ── Coverage filter wiring ────────────────────────
 
