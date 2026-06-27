@@ -936,7 +936,19 @@ td.r,th.r{text-align:right}
 
       <!-- Filters -->
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl">Operator</div>
+        <div class="cov-fbar-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          Province
+          <button id="cov-prov-reset" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;display:none">✕ Reset</button>
+        </div>
+        <select class="fdrop" id="cov-prov" style="width:100%">
+          <option value="all">All Provinces</option>
+        </select>
+      </div>
+      <div class="cov-fbar">
+        <div class="cov-fbar-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          Operator
+          <button id="cov-op-default-btn" title="Set as default operator" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer">☆ Set Default</button>
+        </div>
         <div class="cov-chips">
           <button class="fchip on" style="font-size:11px;padding:3px 8px" data-cop2="all">All</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Cellcard">Cellcard</button>
@@ -2647,7 +2659,35 @@ document.getElementById('cx-prov').addEventListener('change',e=>{F.cProv=e.targe
 // ══════════════════════════════════════════════════
 let mapCov=null, mapCovReady=false
 let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}, covResellersGJ={type:'FeatureCollection',features:[]}
-const CF={op:'all',tech:'all',device:'all',type:'all'}
+const CF={op:'all',tech:'all',device:'all',type:'all',prov:'all'}
+
+// Cambodia province bounding boxes [west, south, east, north]
+const KH_PROV_BBOX={
+  'Phnom Penh':    [104.820,11.490,104.990,11.640],
+  'Siem Reap':     [103.680,13.200,104.200,13.550],
+  'Battambang':    [102.800,12.800,103.400,13.200],
+  'Sihanoukville': [103.450,10.520,103.700,10.700],
+  'Kampong Cham':  [105.300,11.800,105.700,12.200],
+  'Kampong Chhnang':[104.500,11.800,104.900,12.200],
+  'Kampong Speu':  [103.900,11.200,104.400,11.700],
+  'Kampong Thom':  [104.500,12.300,105.200,12.900],
+  'Kampot':        [103.900,10.500,104.300,10.900],
+  'Kandal':        [104.700,11.200,105.100,11.600],
+  'Kep':           [104.260,10.460,104.350,10.530],
+  'Koh Kong':      [102.800,11.200,103.500,11.700],
+  'Kratie':        [105.700,12.100,106.200,12.700],
+  'Mondulkiri':    [107.000,12.200,107.600,12.900],
+  'Oddar Meanchey':[103.500,13.800,104.200,14.300],
+  'Pailin':        [102.580,12.700,102.700,12.900],
+  'Preah Vihear':  [104.500,13.700,105.200,14.500],
+  'Prey Veng':     [105.200,11.300,105.800,11.800],
+  'Pursat':        [103.500,12.000,104.100,12.700],
+  'Ratanakiri':    [106.500,13.200,107.300,14.000],
+  'Stung Treng':   [105.700,13.200,106.400,14.000],
+  'Svay Rieng':    [105.500,10.900,106.000,11.400],
+  'Takeo':         [104.500,10.800,105.000,11.300],
+  'Tboung Khmum':  [105.700,11.600,106.200,12.200],
+}
 
 // ── H3 hexbin builder ─────────────────────────────
 function buildHexbins(rows) {
@@ -2683,6 +2723,7 @@ function filterCovDrive(){
     if(!s.latitude||!s.longitude) return false
     if(CF.op!=='all'&&normOp(s.operator)!==CF.op) return false
     if(CF.device!=='all'&&s.device_id!==CF.device) return false
+    if(CF.prov!=='all'&&(s.province||'')!==CF.prov) return false
     if(CF.tech!=='all'){
       const r=(s.rat||'').toUpperCase()
       if(CF.tech==='5g'&&!r.includes('NR')&&!r.includes('5G')) return false
@@ -2697,6 +2738,7 @@ function filterCovNx(){
     if(!r.latitude||!r.longitude) return false
     if(CF.op!=='all'&&normOp(r.operator)!==CF.op) return false
     if(CF.device!=='all'&&r.device_id!==CF.device) return false
+    if(CF.prov!=='all'&&(r.province||'')!==CF.prov) return false
     if(CF.tech!=='all'){
       const rat=(r.rat||'').toUpperCase()
       if(CF.tech==='5g'&&!rat.includes('NR')&&!rat.includes('5G')) return false
@@ -2949,14 +2991,22 @@ function initCovMap(){
 
     // Load drive samples for coverage map
     const {data:ds}=await db.from('drive_samples')
-      .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id')
+      .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id,province')
       .order('sampled_at',{ascending:false}).limit(3000)
     covDriveSamples=ds||[]
 
-    // Populate device filter
-    const devs=[...new Set(covDriveSamples.map(s=>s.device_id).filter(Boolean))]
-    const devSel=document.getElementById('cov-device')
-    devs.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=sid(d);devSel.appendChild(o)})
+    // Populate province + device dropdowns from actual data
+    populateCovProvinces()
+    populateCovDevices()
+
+    // Restore saved default operator
+    const savedOp=localStorage.getItem('np_cov_default_op')
+    if(savedOp&&savedOp!=='all'){
+      CF.op=savedOp
+      document.querySelectorAll('[data-cop2]').forEach(b=>{
+        b.classList.toggle('on', b.dataset.cop2===savedOp)
+      })
+    }
 
     renderCovMap()
 
@@ -2986,10 +3036,65 @@ document.getElementById('lyr-towers').addEventListener('change',e=>covLayer(['to
 document.getElementById('lyr-resellers').addEventListener('change',e=>covLayer(['res-dots','res-lbl'],e.target.checked))
 
 // ── Coverage filter wiring ────────────────────────
+
+// Province filter + zoom
+function populateCovProvinces(){
+  const provs=new Set()
+  covDriveSamples.forEach(s=>{if(s.province)provs.add(s.province)})
+  nxAll.forEach(r=>{if(r.province)provs.add(r.province)})
+  const sel=document.getElementById('cov-prov')
+  const cur=sel.value
+  sel.innerHTML='<option value="all">All Provinces</option>'+
+    [...provs].sort().map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('')
+}
+
+function zoomToProvince(prov){
+  if(!mapCov||prov==='all') return
+  const bbox=KH_PROV_BBOX[prov]
+  if(bbox){
+    mapCov.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],{padding:40,duration:800})
+  } else {
+    // fallback: fit to actual data points for this province
+    const pts=[...covDriveSamples,...nxAll].filter(r=>r.province===prov&&r.latitude&&r.longitude)
+    if(!pts.length) return
+    const lngs=pts.map(r=>+r.longitude), lats=pts.map(r=>+r.latitude)
+    mapCov.fitBounds([
+      [Math.min(...lngs),Math.min(...lats)],
+      [Math.max(...lngs),Math.max(...lats)]
+    ],{padding:60,duration:800})
+  }
+}
+
+document.getElementById('cov-prov').addEventListener('change',e=>{
+  CF.prov=e.target.value
+  const resetBtn=document.getElementById('cov-prov-reset')
+  if(resetBtn) resetBtn.style.display=CF.prov==='all'?'none':'inline-block'
+  renderCovMap()
+  zoomToProvince(CF.prov)
+})
+document.getElementById('cov-prov-reset').addEventListener('click',()=>{
+  CF.prov='all'
+  document.getElementById('cov-prov').value='all'
+  document.getElementById('cov-prov-reset').style.display='none'
+  renderCovMap()
+})
+
+// Operator chips
 document.querySelectorAll('[data-cop2]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-cop2]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); CF.op=b.dataset.cop2; renderCovMap()
 }))
+
+// Set Default operator button
+document.getElementById('cov-op-default-btn').addEventListener('click',()=>{
+  const cur=document.querySelector('[data-cop2].on')?.dataset?.cop2||'all'
+  localStorage.setItem('np_cov_default_op', cur)
+  const btn=document.getElementById('cov-op-default-btn')
+  btn.textContent='★ Default set'
+  btn.style.color='var(--yw)'
+  setTimeout(()=>{ btn.textContent='☆ Set Default'; btn.style.color='' },2000)
+})
+
 document.querySelectorAll('[data-ctech]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-ctech]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); CF.tech=b.dataset.ctech; renderCovMap()
@@ -2998,6 +3103,18 @@ document.querySelectorAll('[data-ctype]').forEach(b=>b.addEventListener('click',
   document.querySelectorAll('[data-ctype]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); CF.type=b.dataset.ctype; renderCovMap()
 }))
+
+// Device / User filter — populate from data
+function populateCovDevices(){
+  const devs=new Set()
+  covDriveSamples.forEach(s=>{if(s.device_id)devs.add(s.device_id)})
+  nxAll.forEach(r=>{if(r.device_id)devs.add(r.device_id)})
+  const sel=document.getElementById('cov-device')
+  const cur=sel.value
+  sel.innerHTML='<option value="all">All Users / Devices</option>'+
+    [...devs].sort().map(d=>`<option value="${d}"${d===cur?' selected':''}>${sid(d)}</option>`).join('')
+}
+
 document.getElementById('cov-device').addEventListener('change',e=>{CF.device=e.target.value;renderCovMap()})
 
 // ── Load cell sites + resellers from Supabase ─────
