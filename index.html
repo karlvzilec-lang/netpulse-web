@@ -885,10 +885,15 @@ function initDriveMap() {
     style:'https://tiles.openfreemap.org/styles/liberty',
     center:[104.9282,11.5564],
     zoom:11,
-    preserveDrawingBuffer:true
+    preserveDrawingBuffer:true,
+    antialias:true
   })
   map.addControl(new maplibregl.NavigationControl(),'top-right')
   map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
+
+  // Android WebView WebGL context recovery
+  map.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
+  map.getCanvas().addEventListener('webglcontextrestored',()=>{ map.setStyle(map.getStyle()) },false)
 
   map.on('load',()=>{
     mapReady=true
@@ -897,7 +902,7 @@ function initDriveMap() {
   map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
   map.addLayer({id:'route-line',type:'line',source:'route',
     layout:{'line-join':'round','line-cap':'round'},
-    paint:{'line-color':'#2563eb','line-width':2.5,'line-opacity':.75}})
+    paint:{'line-color':'#1d4ed8','line-width':4,'line-opacity':.9}})
 
   // Drive dots — clustered, CellMapper style
   map.addSource('dots',{
@@ -923,8 +928,8 @@ function initDriveMap() {
     filter:['!',['has','point_count']],
     paint:{
       'circle-radius':['interpolate',['linear'],['zoom'],9,5,15,9],
-      'circle-stroke-width':1,
-      'circle-stroke-color':'rgba(255,255,255,0.75)',
+      'circle-stroke-width':1.5,
+      'circle-stroke-color':'#1e293b',
       'circle-opacity':['case',['==',['get','active'],1],0.9,0.6],
       'circle-color':['step',['get','rsrp'],
         '#f44336',
@@ -1947,10 +1952,15 @@ function initCovMap(){
     container:'cov-map',
     style:'https://tiles.openfreemap.org/styles/liberty',
     center:[104.9282,11.5564], zoom:11,
-    preserveDrawingBuffer:true
+    preserveDrawingBuffer:true,
+    antialias:true
   })
   mapCov.addControl(new maplibregl.NavigationControl(),'top-right')
   mapCov.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
+
+  // Android WebView WebGL context recovery
+  mapCov.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
+  mapCov.getCanvas().addEventListener('webglcontextrestored',()=>{ mapCov.setStyle(mapCov.getStyle()) },false)
 
   mapCov.on('load',async()=>{
     mapCovReady=true
@@ -1974,7 +1984,7 @@ function initCovMap(){
     // ── Route lines — blue, visible on Liberty light tiles, no minzoom ──
     mapCov.addLayer({id:'cov-route-line',type:'line',source:'cov-routes',
       layout:{'line-join':'round','line-cap':'round'},
-      paint:{'line-color':'#2563eb','line-width':2.5,'line-opacity':.75}})
+      paint:{'line-color':'#1d4ed8','line-width':4,'line-opacity':.9}})
 
     // ── Clusters ──
     mapCov.addLayer({id:'cov-clusters',type:'circle',source:'cov-samples',
@@ -1995,8 +2005,8 @@ function initCovMap(){
       filter:['!',['has','point_count']],
       paint:{
         'circle-radius':6,
-        'circle-stroke-width':1,
-        'circle-stroke-color':'rgba(255,255,255,0.75)',
+        'circle-stroke-width':1.5,
+        'circle-stroke-color':'#1e293b',
         'circle-opacity':['case',['==',['get','active'],1],0.9,0.6],
         'circle-color':['step',['get','rsrp'],
           '#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']
