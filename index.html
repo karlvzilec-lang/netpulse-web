@@ -84,6 +84,11 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .mleg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu)}
 /* ── Table ── */
 .tw{overflow-x:auto}
+.pgr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--bd);background:var(--s2);font-size:11px;color:var(--mu)}
+.pgr-btns{display:flex;gap:6px}
+.pgr-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--s1);color:var(--tx);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
+.pgr-btn:hover:not(:disabled){background:var(--s2)}
+.pgr-btn:disabled{opacity:.35;cursor:default}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:8px 11px;text-align:left;color:var(--mu);font-weight:500;border-bottom:1px solid var(--bd);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
 td{padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:middle}
@@ -390,14 +395,15 @@ td.r,th.r{text-align:right}
   <!-- Dashboard filter bar -->
   <div class="fbar" style="margin:-4px -20px 20px;padding:10px 20px">
     <span class="fbar-label">Period</span>
-    <button class="fchip on" data-df="all">All Time</button>
-    <button class="fchip" data-df="week">This Week</button>
-    <button class="fchip" data-df="month">This Month</button>
+    <button class="fchip" data-df="all">All Time</button>
+    <button class="fchip on" data-df="ytd">YTD</button>
     <button class="fchip" data-df="quarter">This Quarter</button>
+    <button class="fchip" data-df="month">This Month</button>
+    <button class="fchip" data-df="week">This Week</button>
     <div class="fbar-sep"></div>
     <span class="fbar-label">Operator</span>
-    <button class="fchip on" data-dop="all">All</button>
-    <button class="fchip" data-dop="Cellcard">Cellcard</button>
+    <button class="fchip" data-dop="all">All</button>
+    <button class="fchip on" data-dop="Cellcard">Cellcard</button>
     <button class="fchip" data-dop="Metfone">Metfone</button>
     <button class="fchip" data-dop="Smart">Smart</button>
     <div class="fbar-sep"></div>
@@ -406,8 +412,8 @@ td.r,th.r{text-align:right}
     <select class="fdrop" id="dd-prov"><option value="all">Province: All</option></select>
   </div>
 
-  <!-- KPI row -->
-  <div class="kgrid">
+  <!-- KPI row (technical view only — exec view uses hero cards instead) -->
+  <div class="kgrid tech-only">
     <div class="kcard kc-bl">
       <div class="kcard-lbl">Speed Tests<span class="rag" id="rag-tot"></span></div>
       <div class="kcard-val" id="k-tot">—</div>
@@ -1028,10 +1034,54 @@ let driveSamples = [], activeSess = null
 let map = null, mapReady = false
 let sampledSessionIds = new Set()   // session IDs that have actual drive_samples rows
 
+// ── Paginator ─────────────────────────────────────
+// pages[tableId] = current 0-based page index
+const pages = {}
+const PAGE_SIZE = 10
+
+function paginate(tbodyId, allRows, renderRow, wrapId) {
+  if(!(tbodyId in pages)) pages[tbodyId] = 0
+  const total = allRows.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if(pages[tbodyId] >= totalPages) pages[tbodyId] = 0
+  const start = pages[tbodyId] * PAGE_SIZE
+  const slice = allRows.slice(start, start + PAGE_SIZE)
+
+  document.getElementById(tbodyId).innerHTML = slice.map(renderRow).join('')
+
+  // find or create paginator below the table wrapper
+  const wrap = wrapId ? document.getElementById(wrapId) : document.getElementById(tbodyId).closest('.tw')
+  if(!wrap) return
+  let pgr = wrap.nextElementSibling
+  if(!pgr || !pgr.classList.contains('pgr')) {
+    pgr = document.createElement('div')
+    pgr.className = 'pgr'
+    wrap.after(pgr)
+  }
+  pgr.innerHTML = `
+    <span>${total ? start+1+'–'+Math.min(start+PAGE_SIZE,total)+' of '+total.toLocaleString()+' rows' : 'No data'}</span>
+    <div class="pgr-btns">
+      <button class="pgr-btn" ${pages[tbodyId]===0?'disabled':''} onclick="goPage('${tbodyId}',${pages[tbodyId]-1},'${wrapId||''}')">← Prev</button>
+      <span style="padding:4px 8px;font-weight:600">${pages[tbodyId]+1} / ${totalPages}</span>
+      <button class="pgr-btn" ${pages[tbodyId]>=totalPages-1?'disabled':''} onclick="goPage('${tbodyId}',${pages[tbodyId]+1},'${wrapId||''}')">Next →</button>
+    </div>`
+}
+
+window.goPage = function(tbodyId, newPage, wrapId) {
+  pages[tbodyId] = newPage
+  const rerender = {
+    'tb-recent': ()=>renderRecent(),
+    'tb-net':    ()=>renderNetwork(),
+    'tb-gaming': ()=>renderNetwork(),
+    'tb-samples':()=>{ if(activeSess) selectSession(activeSess.id) },
+  }
+  if(rerender[tbodyId]) rerender[tbodyId]()
+}
+
 // Active filters
 const F = {
   // Dashboard
-  dDate:'all', dOp:'all', dTech:'all', dCov:'all', dProv:'all',
+  dDate:'ytd', dOp:'Cellcard', dTech:'all', dCov:'all', dProv:'all',
   // Network
   nOp:'all', nTech:'all', nProv:'all',
   // CX
@@ -1099,6 +1149,7 @@ function cutoff(range) {
   if (range==='week')    d.setDate(d.getDate()-7)
   else if (range==='month')   d.setDate(d.getDate()-30)
   else if (range==='quarter') d.setDate(d.getDate()-90)
+  else if (range==='ytd')    { d.setMonth(0,1); d.setHours(0,0,0,0) }
   else return null
   return d.toISOString()
 }
@@ -1872,8 +1923,8 @@ function renderTrends() {
 
 // ── Render: Recent table (dashboard) ─────────────
 function renderRecent() {
-  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv}).slice(0,30)
-  document.getElementById('tb-recent').innerHTML=nx.map(r=>`
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  paginate('tb-recent', nx, r=>`
     <tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -1884,11 +1935,12 @@ function renderRecent() {
       <td style="color:var(--yw)">${n(r.ping_ms,0)}</td>
       <td>${rsrpPill(r.rsrp)}</td>
       <td style="color:var(--mu)">${r.province||'—'}</td>
-    </tr>`).join('')
+    </tr>`)
 }
 
 // ── Render: Network tab ───────────────────────────
 function renderNetwork() {
+  pages['tb-net']=0; pages['tb-gaming']=0;
   const nx=filterNx(nxAll,{op:F.nOp,tech:F.nTech,prov:F.nProv})
   const slice=[...nx].reverse().slice(-100)
   chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
@@ -1901,7 +1953,7 @@ function renderNetwork() {
   nx.forEach(r=>{const k=r.rat||'Unknown';ratMap[k]=(ratMap[k]||0)+1})
   chRat.data.labels=Object.keys(ratMap); chRat.data.datasets[0].data=Object.values(ratMap); chRat.update('none')
 
-  document.getElementById('tb-net').innerHTML=nx.slice(0,80).map(r=>`
+  paginate('tb-net', nx, r=>`
     <tr>
       <td style="white-space:nowrap">${ts(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -1917,9 +1969,9 @@ function renderNetwork() {
       <td class="mono">${r.pci??'—'}</td>
       <td>${r.province||'—'}</td>
       <td style="color:var(--mu)">${r.indoor_outdoor||'—'}</td>
-    </tr>`).join('')
+    </tr>`)
 
-  document.getElementById('tb-gaming').innerHTML=gamingAll.slice(0,60).map(r=>`
+  paginate('tb-gaming', gamingAll, r=>`
     <tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -1932,7 +1984,7 @@ function renderNetwork() {
       <td style="color:${r.packet_loss_pct>2?'var(--re)':'var(--gr)'}">${n(r.packet_loss_pct,1)}%</td>
       <td style="color:var(--bl);font-weight:600">${n(r.opensignal_games_score,1)}/100</td>
       <td><span style="color:var(--cy)">${r.opensignal_games_band||'—'}</span></td>
-    </tr>`).join('')
+    </tr>`)
 }
 
 // ── Render: CX tab ────────────────────────────────
@@ -2158,10 +2210,12 @@ function paintMap() {
 // ── Render: Drive samples table ───────────────────
 function renderSamples() {
   document.getElementById('samp-cnt').textContent=`${driveSamples.length} samples`
-  document.getElementById('tb-samples').innerHTML=driveSamples.slice(0,120).map((s,i)=>{
+  const globalOffset = pages['tb-samples'] ? pages['tb-samples'] * PAGE_SIZE : 0
+  paginate('tb-samples', driveSamples, (s,i)=>{
+    const absIdx = globalOffset + i
     const g=rsrpGrade(s.rsrp), gc=gradeColor(g)
     return `<tr>
-      <td style="color:var(--mu);text-align:right">${i+1}</td>
+      <td style="color:var(--mu);text-align:right">${absIdx+1}</td>
       <td>${hms(s.sampled_at)}</td>
       <td class="mono" style="text-align:right">${n(s.latitude,5)}</td>
       <td class="mono" style="text-align:right">${n(s.longitude,5)}</td>
@@ -2173,7 +2227,7 @@ function renderSamples() {
       <td style="color:var(--gr);text-align:right">${s.download_mbps!=null?n(s.download_mbps):'—'}</td>
       <td class="mono" style="text-align:right">${s.pci??'—'}</td>
       <td style="color:var(--mu);font-size:10px">${s.event_type||'—'}</td>
-    </tr>`}).join('')
+    </tr>`})
 }
 
 // ── Rule-based Drive Analysis ─────────────────────
@@ -2444,7 +2498,7 @@ function setConn(s){
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
