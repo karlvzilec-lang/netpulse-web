@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -2212,62 +2213,79 @@ document.querySelectorAll('[data-ctype]').forEach(b=>b.addEventListener('click',
 document.getElementById('cov-device').addEventListener('change',e=>{CF.device=e.target.value;renderCovMap()})
 
 // ── Load cell sites + resellers from Supabase ─────
+// Parse a KMZ blob from Supabase Storage → GeoJSON FeatureCollection
+async function parseKmzToGeoJson(storagePath){
+  const {data,error}=await db.storage.from('kml-files').download(storagePath)
+  if(error) throw new Error('Storage download failed: '+error.message)
+  const ab=await data.arrayBuffer()
+  const zip=await JSZip.loadAsync(ab)
+  // KMZ always contains doc.kml at root
+  const kmlEntry=zip.file('doc.kml')
+  if(!kmlEntry) throw new Error('doc.kml not found in '+storagePath)
+  const kmlStr=await kmlEntry.async('string')
+  const parser=new DOMParser()
+  const kmlDoc=parser.parseFromString(kmlStr,'application/xml')
+  const placemarks=kmlDoc.getElementsByTagName('Placemark')
+  const features=[]
+  for(let i=0;i<placemarks.length;i++){
+    const pm=placemarks[i]
+    const nameEl=pm.getElementsByTagName('name')[0]
+    const name=nameEl?nameEl.textContent.trim():null
+    const descEl=pm.getElementsByTagName('description')[0]
+    const desc=descEl?descEl.textContent.trim():null
+    const pt=pm.getElementsByTagName('Point')[0]
+    if(!pt) continue
+    const cEl=pt.getElementsByTagName('coordinates')[0]
+    if(!cEl) continue
+    const parts=cEl.textContent.trim().split(',')
+    const lon=parseFloat(parts[0]), lat=parseFloat(parts[1])
+    if(isNaN(lon)||isNaN(lat)) continue
+    features.push({type:'Feature',
+      geometry:{type:'Point',coordinates:[lon,lat]},
+      properties:{name,description:desc}})
+  }
+  return {type:'FeatureCollection',features}
+}
+
 async function loadSitesFromSupabase(){
   const st=document.getElementById('sb-sites-status')
-  st.textContent='⏳ Loading from Supabase…'
+  st.textContent='⏳ Downloading KMZ from Storage…'
   try{
-    const [csR,rsR,logR]=await Promise.all([
-      db.from('cell_sites').select('name,latitude,longitude,description,source_file').limit(20000),
-      db.from('reseller_sites').select('name,latitude,longitude,description,source_file').limit(20000),
-      db.from('kml_sync_log').select('file_type,file_name,site_count,uploaded_at').order('uploaded_at',{ascending:false}),
+    // Run both KMZ downloads in parallel
+    const [csGJ,rsGJ]=await Promise.all([
+      parseKmzToGeoJson('cell_site/PhaDo_Dashboard_V1.5.kmz'),
+      parseKmzToGeoJson('reseller/active_resellers_pins.kmz'),
     ])
 
-    // Cell sites → towers GeoJSON
-    const csSites=(csR.data||[]).filter(r=>r.latitude&&r.longitude)
-    if(csSites.length){
-      covTowersGJ={type:'FeatureCollection',features:csSites.map(r=>({
-        type:'Feature',
-        geometry:{type:'Point',coordinates:[+r.longitude,+r.latitude]},
-        properties:{name:r.name,has5g:false,radio:'LTE',operator:'Cellcard',
-          source_file:r.source_file,description:r.description}
-      }))}
+    // Cell sites → towers layer
+    if(csGJ.features.length){
+      // Enrich: detect 5G by name keyword
+      csGJ.features.forEach(f=>{
+        const nm=(f.properties.name||'').toUpperCase()
+        f.properties.has5g=nm.includes('5G')||nm.includes('NR')
+        f.properties.radio=f.properties.has5g?'NR':'LTE'
+        f.properties.operator='Cellcard'
+      })
+      covTowersGJ=csGJ
       if(mapCovReady) mapCov.getSource('cov-towers').setData(covTowersGJ)
       document.getElementById('lyr-towers').checked=true
       covLayer(['tow-4g','tow-5g','tow-lbl'],true)
     }
 
-    // Reseller sites → resellers GeoJSON
-    const rsSites=(rsR.data||[]).filter(r=>r.latitude&&r.longitude)
-    if(rsSites.length){
-      covResellersGJ={type:'FeatureCollection',features:rsSites.map(r=>({
-        type:'Feature',
-        geometry:{type:'Point',coordinates:[+r.longitude,+r.latitude]},
-        properties:{name:r.name,site_id:r.name,source_file:r.source_file}
-      }))}
+    // Reseller sites → resellers layer
+    if(rsGJ.features.length){
+      covResellersGJ=rsGJ
       if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
       document.getElementById('lyr-resellers').checked=true
       covLayer(['res-dots','res-lbl'],true)
     }
 
-    // KML sync log status
-    const logs=logR.data||[]
-    const csLog=logs.find(l=>l.file_type==='CELL_SITE')
-    const rsLog=logs.find(l=>l.file_type==='RESELLER')
-    const lines=[]
-    if(csLog) lines.push(`📡 Cell: ${csLog.site_count.toLocaleString()} sites (${csLog.file_name})`)
-    if(rsLog) lines.push(`🏪 Reseller: ${rsLog.site_count.toLocaleString()} sites (${rsLog.file_name})`)
-
-    if(!csSites.length&&!rsSites.length){
-      const hint=lines.length ? lines.join(' · ')+' — KMZ parsed but rows not yet written to DB' : 'No site data in database yet'
-      st.textContent='⚠ '+hint
-    } else {
-      st.textContent=`✅ ${csSites.length} cell sites · ${rsSites.length} resellers loaded`
-    }
-
+    st.textContent=`✅ ${csGJ.features.length.toLocaleString()} cell sites · ${rsGJ.features.length.toLocaleString()} resellers loaded`
     document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
     document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
   }catch(e){
-    document.getElementById('sb-sites-status').textContent='❌ '+e.message
+    console.error('loadSitesFromSupabase:',e)
+    st.textContent='❌ '+e.message
   }
 }
 document.getElementById('load-sb-sites-btn').addEventListener('click',loadSitesFromSupabase)
