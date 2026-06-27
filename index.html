@@ -3075,12 +3075,14 @@ function refreshDash() {
   _dashAllOpNx = {Cellcard:_allNx.filter(r=>r._op==='Cellcard'), Metfone:_allNx.filter(r=>r._op==='Metfone'), Smart:_allNx.filter(r=>r._op==='Smart')}
   const _allOs = filterOs(osAll, {date:F.dDate})
   _dashAllOpOs = {Cellcard:_allOs.filter(r=>r._op==='Cellcard'), Metfone:_allOs.filter(r=>r._op==='Metfone'), Smart:_allOs.filter(r=>r._op==='Smart')}
-  // Frame 1: above-fold exec content (user sees immediately)
+  // Frame 1: above-fold exec content (visible immediately)
+  // Note: renderExecSummary/renderExecBanner/renderHeroKPIs target removed elements — skip them
+  // Health banner is handled by renderHealthScore() called inside renderKPIs()
   requestAnimationFrame(()=>{
-    renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix()
+    renderKPIs();renderOSMatrix()
     // Frame 2: secondary exec panels
     requestAnimationFrame(()=>{
-      renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards()
+      renderActionsRequired();renderSevLiveCounts();renderAwards()
       // Frame 3: charts and tables (heaviest work, deferred)
       requestAnimationFrame(()=>{
         renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()
