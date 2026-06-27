@@ -566,7 +566,6 @@ td.r,th.r{text-align:right}
             <tr>
               <th style="background:var(--s2);border:1px solid var(--bd);padding:9px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;min-width:120px"></th>
               <th colspan="4" class="os-grp-hd os-grp-overall">Overall Experience</th>
-              <th colspan="2" class="os-grp-hd os-grp-coverage">Coverage</th>
               <th colspan="2" class="os-grp-hd os-grp-consistency">Consistency</th>
             </tr>
             <tr>
@@ -575,14 +574,12 @@ td.r,th.r{text-align:right}
               <th class="os-metric-hd"><span class="os-metric-icon">⬆</span><div class="os-metric-lbl">Upload Speed Experience</div></th>
               <th class="os-metric-hd"><span class="os-metric-icon">🎮</span><div class="os-metric-lbl">Games Experience</div></th>
               <th class="os-metric-hd"><span class="os-metric-icon">▶</span><div class="os-metric-lbl">Video Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">📡</span><div class="os-metric-lbl">Coverage Experience</div></th>
-              <th class="os-metric-hd"><span class="os-metric-icon">📶</span><div class="os-metric-lbl">Time on 4G</div></th>
               <th class="os-metric-hd"><span class="os-metric-icon">🏅</span><div class="os-metric-lbl">Consistent Quality</div></th>
               <th class="os-metric-hd"><span class="os-metric-icon">🛡</span><div class="os-metric-lbl">Reliability Experience</div></th>
             </tr>
           </thead>
           <tbody id="os-matrix-body">
-            <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--mu);font-size:12px">Loading operator data…</td></tr>
+            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--mu);font-size:12px">Loading operator data…</td></tr>
           </tbody>
         </table>
       </div>
@@ -598,7 +595,6 @@ td.r,th.r{text-align:right}
         <div class="os-drill-nav">
           <div class="os-drill-grp-tabs">
             <div class="os-drill-grp-tab on overall" data-dg="overall">Overall</div>
-            <div class="os-drill-grp-tab coverage" data-dg="coverage">Coverage</div>
             <div class="os-drill-grp-tab consistency" data-dg="consistency">Consistency</div>
           </div>
           <div id="os-drill-metrics"><!-- populated by JS --></div>
@@ -1954,8 +1950,6 @@ function renderOSMatrix() {
     {id:'ul',    get:d=>d.ul,    fmt:v=>n(v)+' Mbps'},
     {id:'games', get:d=>d.games, fmt:v=>n(v,0)+' ms'},
     {id:'video', get:d=>d.video, fmt:v=>n(v,0)+'%'},
-    {id:'cov',   get:d=>d.cov,   fmt:v=>n(v,0)+'%'},
-    {id:'time4g',get:d=>d.time4g,fmt:v=>n(v,0)+'%'},
     {id:'cq',    get:d=>d.cq,    fmt:v=>n(v,0)+'%'},
     {id:'rel',   get:d=>d.rel,   fmt:v=>n(v,0)+'%'},
   ]
@@ -2049,10 +2043,6 @@ const OS_DRILL_GROUPS = {
     {id:'ul',    label:'Upload Speed',     unit:'Mbps',    get:d=>d.ul,    higher:true},
     {id:'games', label:'Games Experience', unit:'ms ping', get:d=>d.ping,  higher:false},
     {id:'video', label:'Video Experience', unit:'% ≥10 Mbps', get:d=>d.video,higher:true},
-  ],
-  coverage:[
-    {id:'cov',    label:'Coverage Experience', unit:'% Good+',   get:d=>d.cov,   higher:true},
-    {id:'time4g', label:'Time on 4G',          unit:'% on LTE',  get:d=>d.time4g,higher:true},
   ],
   consistency:[
     {id:'cq',  label:'Consistent Quality', unit:'% meeting all thresholds', get:d=>d.cq,  higher:true},
