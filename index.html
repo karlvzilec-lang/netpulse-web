@@ -767,6 +767,16 @@ td.r,th.r{text-align:right}
     <div class="ch"><span class="ch-t">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
     <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Game</th><th>Avg Ping</th><th>Min Ping</th><th>Max Ping</th><th>Jitter</th><th>Packet Loss</th><th>OpenSignal Score</th><th>Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
+  <div class="g g2">
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">Province Performance Ranking</span><span class="ch-s">Avg DL · UL · Ping · RSRP by province</span></div>
+      <div class="tw"><table><thead><tr><th>Province</th><th class="r">Tests</th><th class="r">↓ DL Mbps</th><th class="r">↑ UL Mbps</th><th class="r">Ping ms</th><th class="r">RSRP dBm</th><th>Grade</th></tr></thead><tbody id="tb-prov-rank"></tbody></table></div>
+    </div>
+    <div class="card mb">
+      <div class="ch"><span class="ch-t">Hourly Performance Pattern</span><span class="ch-s">Avg download speed by hour of day</span></div>
+      <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-hourly"></canvas></div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════ CX RATING ══════════════ -->
@@ -887,6 +897,29 @@ td.r,th.r{text-align:right}
         <div id="drv-verdict-icon" style="font-size:32px;margin-bottom:4px">—</div>
         <div id="drv-verdict-label" style="font-size:18px;font-weight:800;letter-spacing:1px">—</div>
         <div id="drv-verdict-sub" style="font-size:10px;color:var(--mu);margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb" id="upload-card">
+    <div class="ch">
+      <span class="ch-t">📂 Manual Upload</span>
+      <span class="ch-s">CSV or GPX drive test data</span>
+    </div>
+    <div style="padding:12px 16px">
+      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">
+        Upload a CSV or GPX file to visualize drive test data not yet synced from the Android app.
+        <br><b style="color:var(--tx)">CSV columns:</b> timestamp, latitude, longitude, rsrp, sinr, rat, operator, download_mbps (header row required)
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="upload-drv-input" accept=".csv,.gpx" style="display:none">
+        <button id="upload-drv-btn" style="padding:6px 14px;background:rgba(31,111,235,.2);border:1px solid rgba(31,111,235,.4);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer">📂 Choose File</button>
+        <button id="upload-clear-btn" style="padding:6px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:12px;cursor:pointer;display:none">✕ Clear Upload</button>
+        <span id="upload-status" style="font-size:11px;color:var(--mu)"></span>
+      </div>
+      <div id="upload-preview" style="margin-top:10px;display:none">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:4px">Preview (first 3 rows)</div>
+        <div id="upload-preview-rows" style="font-size:10px;font-family:monospace;color:var(--tx);background:var(--s2);border-radius:6px;padding:8px;overflow-x:auto"></div>
       </div>
     </div>
   </div>
@@ -1024,6 +1057,9 @@ td.r,th.r{text-align:right}
         </div>
         <button id="sim-run-btn" style="width:100%;padding:7px;background:rgba(31,111,235,.25);border:1px solid rgba(31,111,235,.5);border-radius:6px;color:var(--bl);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:4px">▶ Run Simulation</button>
         <button id="sim-clear-btn" style="width:100%;padding:5px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;display:none">✕ Clear</button>
+        <button id="sim-compare-btn" style="width:100%;padding:6px;background:rgba(148,163,184,.15);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;margin-bottom:4px">📊 Show Measured Overlay</button>
+        <button id="gap-analysis-btn" style="width:100%;padding:6px;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4);border-radius:6px;color:#f97316;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:4px">🔍 Analyze Coverage Gaps</button>
+        <div id="gap-status" style="font-size:10px;color:var(--mu);margin-top:4px"></div>
         <div id="sim-status" style="font-size:10px;color:var(--mu);margin-top:6px;min-height:14px"></div>
         <div class="sb-sec-hd" style="margin-top:10px">Simulation Legend</div>
         <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#00e676"></div>Excellent ≥ −80 dBm</div>
@@ -1356,6 +1392,7 @@ const chNetTs = mk('ch-net-ts','line',{
 },{plugins:{legend:{display:true}},scales:{x:{display:false},y:{beginAtZero:true,grid:GC,position:'left'},y1:{beginAtZero:true,grid:{display:false},position:'right'}}})
 
 const chRat = mk('ch-rat','bar',{labels:[],datasets:[{label:'Tests',data:[],backgroundColor:['#3fb950','#58a6ff','#d29922','#f85149','#a371f7']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chHourly = mk('ch-hourly','bar',{labels:Array.from({length:24},(_,i)=>i),datasets:[{label:'Avg DL (Mbps)',data:new Array(24).fill(null),backgroundColor:'rgba(88,166,255,0.7)'}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},title:{display:true,text:'Hour of Day'}},y:{beginAtZero:true,grid:GC}}})
 
 // CX charts
 const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
@@ -2053,6 +2090,52 @@ function renderNetwork() {
       <td style="color:var(--bl);font-weight:600">${n(r.opensignal_games_score,1)}/100</td>
       <td><span style="color:var(--cy)">${r.opensignal_games_band||'—'}</span></td>
     </tr>`)
+
+  renderProvRanking(nx)
+  renderHourly(nx)
+}
+
+function renderProvRanking(nx) {
+  const provMap = {}
+  nx.forEach(r => {
+    const p = r.province || 'Unknown'
+    if (!provMap[p]) provMap[p] = {dl:[],ul:[],ping:[],rsrp:[]}
+    if (r.download_mbps != null) provMap[p].dl.push(r.download_mbps)
+    if (r.upload_mbps   != null) provMap[p].ul.push(r.upload_mbps)
+    if (r.ping_ms       != null) provMap[p].ping.push(r.ping_ms)
+    if (r.rsrp          != null) provMap[p].rsrp.push(r.rsrp)
+  })
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null
+  const rows = Object.entries(provMap).map(([prov,v]) => ({
+    prov, tests: v.dl.length||v.rsrp.length,
+    dl: avg(v.dl), ul: avg(v.ul), ping: avg(v.ping), rsrp: avg(v.rsrp)
+  })).sort((a,b) => (b.dl||0)-(a.dl||0))
+  const tb = document.getElementById('tb-prov-rank')
+  if (!tb) return
+  tb.innerHTML = rows.map(r => {
+    const grade = rsrpGrade(r.rsrp)
+    return `<tr>
+      <td style="font-weight:600">${r.prov}</td>
+      <td class="r">${r.tests}</td>
+      <td class="r" style="color:var(--bl);font-weight:600">${r.dl!=null?n(r.dl):'—'}</td>
+      <td class="r" style="color:var(--gr)">${r.ul!=null?n(r.ul):'—'}</td>
+      <td class="r">${r.ping!=null?n(r.ping,0):'—'}</td>
+      <td class="r" style="color:${rsrpColor(r.rsrp)}">${r.rsrp!=null?n(r.rsrp,0):'—'}</td>
+      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:${gradeColor(grade)}22;color:${gradeColor(grade)};border:1px solid ${gradeColor(grade)}44">${grade}</span></td>
+    </tr>`
+  }).join('')
+}
+
+function renderHourly(nx) {
+  const buckets = Array.from({length:24}, () => [])
+  nx.forEach(r => {
+    if (r.tested_at == null || r.download_mbps == null) return
+    const h = new Date(r.tested_at).getHours()
+    if (h >= 0 && h < 24) buckets[h].push(r.download_mbps)
+  })
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null
+  chHourly.data.datasets[0].data = buckets.map(avg)
+  chHourly.update('none')
 }
 
 // ── Render: CX tab ────────────────────────────────
@@ -2153,13 +2236,16 @@ function renderSessions() {
     const dur=s.end_time&&s.start_time?Math.round((new Date(s.end_time)-new Date(s.start_time))/60000)+'min':'Active'
     const isSel=activeSess&&activeSess.id===s.id
     const hasSamples=sampledSessionIds.has(s.id)
-    const syncBadge=hasSamples
-      ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
-      : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#ff980018;color:#ff9800;border:1px solid #ff980030" title="GPS route data recorded on device but not yet uploaded to cloud">📱 NOT UPLOADED</span>`
+    const isManual=s.id==='manual'
+    const syncBadge=isManual
+      ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(31,111,235,.2);color:var(--bl);border:1px solid rgba(31,111,235,.4)">📂 Uploaded File</span>`
+      : hasSamples
+        ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
+        : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#ff980018;color:#ff9800;border:1px solid #ff980030" title="GPS route data recorded on device but not yet uploaded to cloud">📱 NOT UPLOADED</span>`
     return `
-    <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${s.id})">
+    <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${isManual?'\'manual\'':s.id})">
       <div class="sess-dev" style="display:flex;justify-content:space-between;align-items:center">
-        <span>📱 ${sid(s.device_id)} ${s.name?'· '+s.name:''}</span>
+        <span>${isManual?'📂':('📱 '+sid(s.device_id))} ${s.name?'· '+s.name:''}</span>
         ${syncBadge}
       </div>
       <div class="sess-meta">${ts(s.start_time)}</div>
@@ -2174,7 +2260,150 @@ function renderSessions() {
   }).join('')
 }
 
+// ── Manual Upload (CSV / GPX) ─────────────────────
+let manualSamples = []
+let manualSess = null
+
+function parseCSVUpload(text, filename) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) return null
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+  const colMap = {
+    sampled_at: headers.findIndex(h => ['timestamp','time','sampled_at'].includes(h)),
+    latitude:   headers.findIndex(h => ['lat','latitude'].includes(h)),
+    longitude:  headers.findIndex(h => ['lon','lng','longitude'].includes(h)),
+    rsrp:       headers.findIndex(h => h === 'rsrp'),
+    sinr:       headers.findIndex(h => h === 'sinr'),
+    rat:        headers.findIndex(h => h === 'rat'),
+    operator:   headers.findIndex(h => ['operator','op'].includes(h)),
+    download_mbps: headers.findIndex(h => ['dl','download','download_mbps'].includes(h))
+  }
+  const rows = []
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',')
+    const lat = parseFloat(cols[colMap.latitude])
+    const lng = parseFloat(cols[colMap.longitude])
+    if (isNaN(lat) || isNaN(lng)) continue
+    rows.push({
+      sampled_at:   colMap.sampled_at >= 0 ? cols[colMap.sampled_at]?.trim() : null,
+      latitude:     lat,
+      longitude:    lng,
+      rsrp:         colMap.rsrp >= 0 ? parseFloat(cols[colMap.rsrp]) || null : null,
+      sinr:         colMap.sinr >= 0 ? parseFloat(cols[colMap.sinr]) || null : null,
+      rat:          colMap.rat >= 0 ? cols[colMap.rat]?.trim() : null,
+      operator:     colMap.operator >= 0 ? cols[colMap.operator]?.trim() : null,
+      download_mbps:colMap.download_mbps >= 0 ? parseFloat(cols[colMap.download_mbps]) || null : null
+    })
+  }
+  return rows.length ? rows : null
+}
+
+function parseGPXUpload(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml')
+  const trkpts = [...doc.querySelectorAll('trkpt')]
+  const rows = []
+  trkpts.forEach(pt => {
+    const lat = parseFloat(pt.getAttribute('lat'))
+    const lng = parseFloat(pt.getAttribute('lon'))
+    if (isNaN(lat) || isNaN(lng)) return
+    const timeEl = pt.querySelector('time')
+    const rsrpEl = pt.querySelector('rsrp') || pt.querySelector('SignalStrength')
+    const eleEl  = pt.querySelector('ele')
+    rows.push({
+      sampled_at:    timeEl ? timeEl.textContent.trim() : null,
+      latitude:      lat,
+      longitude:     lng,
+      rsrp:          rsrpEl ? parseFloat(rsrpEl.textContent) || null : (eleEl ? parseFloat(eleEl.textContent) || null : null),
+      sinr:          null,
+      rat:           null,
+      operator:      null,
+      download_mbps: null
+    })
+  })
+  return rows.length ? rows : null
+}
+
+function loadUploadedSamples(rows, filename) {
+  manualSamples = rows
+  const rsrpVals = rows.map(r => r.rsrp).filter(v => v != null)
+  const avgRsrp = rsrpVals.length ? rsrpVals.reduce((a,b) => a+b, 0) / rsrpVals.length : null
+  manualSess = {
+    id: 'manual',
+    device_id: 'uploaded-file',
+    name: filename,
+    start_time: rows[0]?.sampled_at || null,
+    sample_count: rows.length,
+    distance_km: null,
+    avg_rsrp: avgRsrp
+  }
+  // Prepend if not already present
+  if (!sessAll.find(s => s.id === 'manual')) sessAll.unshift(manualSess)
+  else { const idx = sessAll.findIndex(s => s.id === 'manual'); sessAll[idx] = manualSess }
+  sampledSessionIds.add('manual')
+  renderSessions()
+  document.getElementById('upload-status').textContent = `✓ ${rows.length} points loaded`
+  document.getElementById('upload-status').style.color = 'var(--gr)'
+  document.getElementById('upload-clear-btn').style.display = ''
+  // Preview
+  const preview = rows.slice(0, 3).map(r =>
+    `lat:${n(r.latitude,4)} lng:${n(r.longitude,4)} rsrp:${r.rsrp??'—'} rat:${r.rat||'—'}`
+  ).join('\n')
+  document.getElementById('upload-preview-rows').textContent = preview
+  document.getElementById('upload-preview').style.display = ''
+}
+
+document.getElementById('upload-drv-btn').addEventListener('click', () => document.getElementById('upload-drv-input').click())
+document.getElementById('upload-drv-input').addEventListener('change', e => {
+  const file = e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = ev => {
+    const text = ev.target.result
+    const isGPX = file.name.toLowerCase().endsWith('.gpx')
+    const rows = isGPX ? parseGPXUpload(text) : parseCSVUpload(text, file.name)
+    if (!rows) {
+      document.getElementById('upload-status').textContent = '⚠ Could not parse file — check format'
+      document.getElementById('upload-status').style.color = 'var(--re)'
+      return
+    }
+    loadUploadedSamples(rows, file.name)
+  }
+  reader.readAsText(file)
+  e.target.value = ''
+})
+document.getElementById('upload-clear-btn').addEventListener('click', () => {
+  manualSamples = []
+  manualSess = null
+  const idx = sessAll.findIndex(s => s.id === 'manual')
+  if (idx >= 0) sessAll.splice(idx, 1)
+  sampledSessionIds.delete('manual')
+  if (activeSess?.id === 'manual') activeSess = null
+  renderSessions()
+  document.getElementById('upload-status').textContent = ''
+  document.getElementById('upload-clear-btn').style.display = 'none'
+  document.getElementById('upload-preview').style.display = 'none'
+})
+
 window.pickSess = async function(id) {
+  if (id === 'manual') {
+    activeSess = manualSess
+    driveSamples = manualSamples
+    renderSessions()
+    document.getElementById('dmap-lbl').textContent = `📂 ${manualSess.name}`
+    document.getElementById('drv-analysis').style.display = 'block'
+    document.getElementById('drv-analysis-title').textContent = `Drive Analysis — ${manualSess.name}`
+    document.getElementById('da-samples').textContent = manualSess.sample_count ?? '—'
+    document.getElementById('da-dist').textContent = '—'
+    document.getElementById('da-rsrp').textContent = manualSess.avg_rsrp != null ? n(manualSess.avg_rsrp,0)+' dBm' : '—'
+    document.getElementById('da-rsrp').style.color = rsrpColor(manualSess.avg_rsrp)
+    document.getElementById('da-ho').textContent = '—'
+    document.getElementById('da-dl').textContent = '—'
+    document.getElementById('da-dur').textContent = '—'
+    paintMap()
+    renderSamples()
+    if (driveSamples.length) renderDriveRules(driveSamples, activeSess)
+    return
+  }
   activeSess=sessAll.find(s=>s.id===id)
   if(!activeSess) return
   renderSessions()
@@ -2227,7 +2456,7 @@ function paintMap() {
     document.getElementById('dmap').parentElement.style.position='relative'
     document.getElementById('dmap').after(overlay)
   }
-  if(!sampledSessionIds.has(activeSess?.id)){
+  if(activeSess?.id!=='manual'&&!sampledSessionIds.has(activeSess?.id)){
     overlay.style.display='flex'
     const cnt=activeSess?.sample_count??0
     const rsrp=activeSess?.avg_rsrp!=null?`avg RSRP ${n(activeSess.avg_rsrp,0)} dBm`:'no signal data'
@@ -2906,6 +3135,15 @@ function initCovMap(){
       'line-opacity':0.15,'line-width':0.5
     }})
 
+    // ── Coverage gap layers ──
+    mapCov.addSource('cov-gaps',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+    mapCov.addLayer({id:'gap-untested-fill',type:'fill',source:'cov-gaps',layout:{visibility:'none'},
+      filter:['==',['get','gapType'],'untested'],
+      paint:{'fill-color':'#f97316','fill-opacity':0.4}})
+    mapCov.addLayer({id:'gap-weak-fill',type:'fill',source:'cov-gaps',layout:{visibility:'none'},
+      filter:['==',['get','gapType'],'underperforming'],
+      paint:{'fill-color':'#ef4444','fill-opacity':0.45}})
+
     // ── Hexbin fill (bottom) ──
     mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:{
       'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
@@ -3253,12 +3491,76 @@ function clearSimulation() {
   document.getElementById('sim-status').textContent = ''
 }
 
+// ── Gap Analysis ─────────────────────────────────
+function runGapAnalysis() {
+  const src = mapCov.getSource('sim-coverage')
+  if (!src || !src._data || !src._data.features || !src._data.features.length) {
+    document.getElementById('gap-status').textContent = '⚠ Run simulation first'
+    return
+  }
+  const simFeatures = src._data.features
+  // Pre-build measured hex set
+  const measuredHexMap = {}
+  covDriveSamples.forEach(s => {
+    if (s.latitude == null || s.longitude == null) return
+    const hid = h3.latLngToCell(+s.latitude, +s.longitude, simH3Res)
+    if (!measuredHexMap[hid]) measuredHexMap[hid] = []
+    measuredHexMap[hid].push(s.rsrp)
+  })
+  const untestedFeats = [], weakFeats = []
+  simFeatures.forEach(f => {
+    const hid = f.properties.h3id || f.properties.hexId
+    const simRsrp = f.properties.rsrp
+    const boundary = h3.cellToBoundary(hid).map(([lat,lng]) => [lng, lat])
+    boundary.push(boundary[0])
+    const geom = {type:'Polygon', coordinates:[boundary]}
+    if (!measuredHexMap[hid]) {
+      untestedFeats.push({type:'Feature', geometry:geom, properties:{gapType:'untested', h3id:hid}})
+    } else {
+      const vals = measuredHexMap[hid].filter(v => v != null)
+      if (vals.length) {
+        const avgMeas = vals.reduce((a,b) => a+b, 0) / vals.length
+        if (simRsrp - avgMeas > 15) {
+          weakFeats.push({type:'Feature', geometry:geom, properties:{gapType:'underperforming', h3id:hid, simRsrp, measRsrp:avgMeas}})
+        }
+      }
+    }
+  })
+  const allFeats = [...untestedFeats, ...weakFeats]
+  mapCov.getSource('cov-gaps').setData({type:'FeatureCollection', features:allFeats})
+  mapCov.setLayoutProperty('gap-untested-fill', 'visibility', 'visible')
+  mapCov.setLayoutProperty('gap-weak-fill',     'visibility', 'visible')
+  document.getElementById('gap-status').textContent = `${untestedFeats.length} untested hexes, ${weakFeats.length} underperforming`
+}
+document.getElementById('gap-analysis-btn').addEventListener('click', runGapAnalysis)
+
+// ── Sim vs Measured Compare ───────────────────────
+let simCompareOn = false
+function toggleSimCompare() {
+  simCompareOn = !simCompareOn
+  const btn = document.getElementById('sim-compare-btn')
+  if (simCompareOn) {
+    mapCov.setPaintProperty('hex-fill', 'fill-opacity', 0.7)
+    mapCov.setPaintProperty('sim-fill', 'fill-opacity', 0.35)
+    btn.textContent = '📊 Hide Measured Overlay'
+    document.getElementById('sim-status').textContent = '🔵 Hexbins = measured · 🟢 Fill = simulated'
+  } else {
+    mapCov.setPaintProperty('hex-fill', 'fill-opacity', 0.55)
+    mapCov.setPaintProperty('sim-fill', 'fill-opacity', 0.45)
+    btn.textContent = '📊 Show Measured Overlay'
+    document.getElementById('sim-status').textContent = ''
+  }
+}
+document.getElementById('sim-compare-btn').addEventListener('click', toggleSimCompare)
+
 document.getElementById('sim-run-btn').addEventListener('click', runSimulation)
 document.getElementById('sim-clear-btn').addEventListener('click', clearSimulation)
 document.getElementById('lyr-sim').addEventListener('change', e => {
   const v = e.target.checked ? 'visible' : 'none'
   mapCov.setLayoutProperty('sim-fill',    'visibility', v)
   mapCov.setLayoutProperty('sim-outline', 'visibility', v)
+  mapCov.setLayoutProperty('gap-untested-fill', 'visibility', v)
+  mapCov.setLayoutProperty('gap-weak-fill',     'visibility', v)
 })
 document.querySelectorAll('[data-simres]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('[data-simres]').forEach(x => x.classList.remove('on'))
