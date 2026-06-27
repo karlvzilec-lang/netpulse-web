@@ -848,15 +848,9 @@ td.r,th.r{text-align:right}
 
   <div style="font-size:12px;color:var(--mu);margin-bottom:12px"><span id="cx-count">—</span> records loaded</div>
 
-  <div class="g g2">
-    <div class="card">
-      <div class="ch"><span class="ch-t">CX Score Trend</span><span class="ch-s">Overall score over time</span></div>
-      <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-trend"></canvas></div></div>
-    </div>
-    <div class="card">
-      <div class="ch"><span class="ch-t">Experience by Operator</span></div>
-      <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-op"></canvas></div></div>
-    </div>
+  <div class="card mb">
+    <div class="ch"><span class="ch-t">Experience by Operator</span><span class="ch-s">Video · Games · Voice avg score</span></div>
+    <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-op"></canvas></div></div>
   </div>
 
   <div class="card mb">
@@ -1168,6 +1162,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 // ── State ─────────────────────────────────────────
 let nxAll = [], osAll = [], cxAll = [], sessAll = [], gamingAll = []
+let _cxOsRows = [], _cxCxRows = []
 let driveSamples = [], activeSess = null
 let map = null, mapReady = false
 let sampledSessionIds = new Set()   // session IDs that have actual drive_samples rows
@@ -1211,6 +1206,8 @@ window.goPage = function(tbodyId, newPage, wrapId) {
     'tb-recent': ()=>renderRecent(),
     'tb-net':    ()=>renderNetwork(),
     'tb-gaming': ()=>renderNetwork(),
+    'tb-os':     ()=>paginate('tb-os',_cxOsRows,r=>{const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—';return`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${r.technology||'—'}</td><td><span class="badge buk">${r.test_mode||'—'}</span></td><td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td><td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td><td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td><td style="color:var(--cy)">${cq}</td><td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td><td style="color:var(--bl)">${n(r.download_speed_mbps)}</td><td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td><td>${r.province||'—'}</td></tr>`}),
+    'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,r=>`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${r.technology||'—'}</td><td><span class="badge buk">${r.coverage_type||'—'}</span></td><td style="color:var(--gr)">${r.video_xp_score??'—'}</td><td style="color:var(--bl)">${r.gaming_xp_score??'—'}</td><td style="color:var(--pu)">${r.voiceapp_xp_score??'—'}</td><td>${r.dl_speed_score??'—'}</td><td>${r.ul_speed_score??'—'}</td><td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td><td>${r.province||'—'}</td></tr>`),
     'tb-samples':()=>{ if(activeSess) selectSession(activeSess.id) },
   }
   if(rerender[tbodyId]) rerender[tbodyId]()
@@ -1348,24 +1345,54 @@ function filterCx(data, {cov,tech,op,prov}={}) {
   })
 }
 
-// ── Gauge SVG (pure SVG, cross-browser) ──────────
-// r=40, circumference = 251.33
-function gaugeSVG(score, color, label, sub) {
+// ── Gauge SVG — modern half-arc speedometer ──────
+function gaugeSVG(score, color, label) {
   const s = Math.max(0, Math.min(100, +score || 0))
-  const circ = 251.33
-  const fill = (s/100) * circ
+  const band = scoreBand(s)
+  // Half-arc: cx=60,cy=60,r=46; arc spans 180° (left to right along bottom semicircle)
+  // Start angle = 180° (left), end = 0° (right), sweep CCW for "fill from left"
+  // We draw on viewBox 0 0 120 72 so the flat side of the D is at bottom
+  const R = 46, cx = 60, cy = 60
+  const startAngle = Math.PI        // 180°
+  const endAngle   = 0              // 0°
+  const angle = startAngle - (s/100) * Math.PI  // fills left→right
+  const trackX1 = cx + R * Math.cos(startAngle), trackY1 = cy + R * Math.sin(startAngle)
+  const trackX2 = cx + R * Math.cos(endAngle),   trackY2 = cy + R * Math.sin(endAngle)
+  const fillX2  = cx + R * Math.cos(angle),      fillY2  = cy + R * Math.sin(angle)
+  const largeArc = s > 50 ? 1 : 0
+  // Needle tip
+  const needleAngle = startAngle - (s/100) * Math.PI
+  const nx = cx + (R-2) * Math.cos(needleAngle), ny = cy + (R-2) * Math.sin(needleAngle)
   return `
   <div class="gauge-wrap">
-    <svg viewBox="0 0 100 100" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="40" fill="none" stroke="#21262d" stroke-width="9"/>
-      <circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="9"
-        stroke-dasharray="${fill.toFixed(1)} ${circ}"
-        stroke-linecap="round" transform="rotate(-90 50 50)"/>
-      <text x="50" y="46" text-anchor="middle" fill="#e6edf3" font-size="22" font-weight="700" font-family="system-ui">${Math.round(s)}</text>
-      <text x="50" y="60" text-anchor="middle" fill="#8b949e" font-size="10" font-family="system-ui">/100</text>
+    <svg viewBox="0 0 120 72" width="140" height="84" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gfill-${Math.round(s)}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="${color}"/>
+        </linearGradient>
+      </defs>
+      <!-- Track -->
+      <path d="M ${trackX1.toFixed(1)} ${trackY1.toFixed(1)} A ${R} ${R} 0 0 1 ${trackX2.toFixed(1)} ${trackY2.toFixed(1)}"
+        fill="none" stroke="#21262d" stroke-width="10" stroke-linecap="round"/>
+      <!-- Fill -->
+      <path d="M ${trackX1.toFixed(1)} ${trackY1.toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${fillX2.toFixed(1)} ${fillY2.toFixed(1)}"
+        fill="none" stroke="url(#gfill-${Math.round(s)})" stroke-width="10" stroke-linecap="round"/>
+      <!-- Tick marks: 0,25,50,75,100 -->
+      ${[0,25,50,75,100].map(v=>{
+        const a = Math.PI - (v/100)*Math.PI
+        const x1=(cx+(R-14)*Math.cos(a)).toFixed(1), y1=(cy+(R-14)*Math.sin(a)).toFixed(1)
+        const x2=(cx+(R-7)*Math.cos(a)).toFixed(1),  y2=(cy+(R-7)*Math.sin(a)).toFixed(1)
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#30363d" stroke-width="1.5"/>`
+      }).join('')}
+      <!-- Score label -->
+      <text x="60" y="55" text-anchor="middle" fill="#e6edf3" font-size="24" font-weight="800" font-family="system-ui,sans-serif" letter-spacing="-1">${Math.round(s)}</text>
+      <text x="60" y="66" text-anchor="middle" fill="#8b949e" font-size="8" font-family="system-ui,sans-serif">/100</text>
+      <!-- Needle dot -->
+      <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="3" fill="${color}"/>
     </svg>
     <div class="gauge-lbl">${label}</div>
-    <div class="gauge-sub" style="color:${color};font-weight:600">${scoreBand(s).label}</div>
+    <div class="gauge-sub" style="color:${color};font-weight:700;font-size:11px">${band.label}</div>
   </div>`
 }
 
@@ -2407,14 +2434,6 @@ function renderCX() {
     `
   }
 
-  // CX trend chart (last 60)
-  const slice=[...os].reverse().slice(-60)
-  chCxTrend.data.labels=slice.map(r=>hms(r.tested_at))
-  chCxTrend.data.datasets[0].data=slice.map(r=>r.video_experience)
-  chCxTrend.data.datasets[1].data=slice.map(r=>r.games_experience)
-  chCxTrend.data.datasets[2].data=slice.map(r=>r.voice_app_experience)
-  chCxTrend.update('none')
-
   // By operator
   const ops=['Cellcard','Metfone','Smart']
   const avg=(data,col)=>data.length?data.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/data.length:0
@@ -2425,8 +2444,9 @@ function renderCX() {
   chCxOp.data.datasets[2].data=osByOp.map(d=>avg(d,'voice_app_experience'))
   chCxOp.update('none')
 
-  // OS table
-  document.getElementById('tb-os').innerHTML=os.slice(0,60).map(r=>{
+  // OS table — paginated
+  _cxOsRows = os
+  paginate('tb-os', os, r=>{
     const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—'
     return `<tr>
       <td>${hms(r.tested_at)}</td>
@@ -2442,10 +2462,12 @@ function renderCX() {
       <td style="color:var(--bl)">${n(r.download_speed_mbps)}</td>
       <td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td>
       <td>${r.province||'—'}</td>
-    </tr>`}).join('')
+    </tr>`
+  })
 
-  // CX log table
-  document.getElementById('tb-cx').innerHTML=cx.slice(0,60).map(r=>`
+  // CX log table — paginated
+  _cxCxRows = cx
+  paginate('tb-cx', cx, r=>`
     <tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -2459,7 +2481,7 @@ function renderCX() {
       <td>${r.ul_speed_score??'—'}</td>
       <td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td>
       <td>${r.province||'—'}</td>
-    </tr>`).join('')
+    </tr>`)
 }
 
 // ── Render: Drive sessions ────────────────────────
@@ -3038,7 +3060,21 @@ function setConn(s){
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {
+  pages['tb-recent']=0
+  // Frame 1: above-fold exec content (user sees immediately)
+  requestAnimationFrame(()=>{
+    renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix()
+    // Frame 2: secondary exec panels
+    requestAnimationFrame(()=>{
+      renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards()
+      // Frame 3: charts and tables (heaviest work, deferred)
+      requestAnimationFrame(()=>{
+        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()
+      })
+    })
+  })
+}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
