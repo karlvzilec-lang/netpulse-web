@@ -3031,8 +3031,9 @@ function populateProvinces() {
 
 // ── Connection status ─────────────────────────────
 function setConn(s){
-  document.getElementById('cdot').className='pill-dot'+(s==='live'?' live':s==='err'?' err':'')
-  document.getElementById('clbl').textContent={live:'Live',connecting:'Connecting…',err:'REST Only'}[s]||s
+  const isUp=s==='live'||s==='err'
+  document.getElementById('cdot').className='pill-dot'+(isUp?' live':'')
+  document.getElementById('clbl').textContent=isUp?'Live':s==='connecting'?'Connecting…':'Offline'
 }
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
