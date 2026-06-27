@@ -89,6 +89,29 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pgr-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--s1);color:var(--tx);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
 .pgr-btn:hover:not(:disabled){background:var(--s2)}
 .pgr-btn:disabled{opacity:.35;cursor:default}
+/* OpenSignal competitive matrix */
+.os-matrix-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--bd);margin-bottom:18px;background:var(--s1)}
+.os-matrix{width:100%;border-collapse:collapse;min-width:680px}
+.os-matrix th,.os-matrix td{border:1px solid var(--bd)}
+.os-grp-hd{text-align:center;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#fff;padding:9px 6px}
+.os-grp-overall{background:#0f4c5c}
+.os-grp-coverage{background:#92400e}
+.os-grp-consistency{background:#581c87}
+.os-metric-hd{background:var(--s2);padding:8px 6px;text-align:center;vertical-align:bottom;min-width:88px;max-width:100px}
+.os-metric-icon{font-size:20px;display:block;margin-bottom:6px}
+.os-metric-lbl{font-size:8.5px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;line-height:1.25;writing-mode:vertical-lr;transform:rotate(180deg);height:72px;margin:0 auto;display:flex;align-items:center;justify-content:center;text-align:center}
+.os-op-cell{background:var(--s1);padding:10px 16px;white-space:nowrap;position:sticky;left:0;z-index:1;border-right:2px solid var(--bd);min-width:120px}
+.os-op-badge{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;flex-shrink:0;margin-right:10px}
+.os-op-name{font-size:12px;font-weight:700;color:var(--tx)}
+.os-cell{padding:10px 6px;text-align:center;background:var(--s1);vertical-align:middle}
+.os-cell-win{background:rgba(13,148,136,.09)}
+.os-badge-ring{width:58px;height:58px;border-radius:50%;background:rgba(13,148,136,.13);border:2.5px solid #0d9488;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 4px}
+.os-badge-ring.joint{border-style:dashed;background:rgba(13,148,136,.06)}
+.os-badge-txt{font-size:7px;font-weight:900;color:#0d9488;text-transform:uppercase;letter-spacing:.3px;line-height:1.2;text-align:center}
+.os-badge-val{font-size:10px;color:var(--mu);font-weight:600}
+.os-score-hd{display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--s2);border-radius:10px;margin-bottom:14px;border:1px solid var(--bd);flex-wrap:wrap}
+.os-score-period{font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.os-score-title{font-size:16px;font-weight:800;color:var(--tx);flex:1}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:8px 11px;text-align:left;color:var(--mu);font-weight:500;border-bottom:1px solid var(--bd);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
 td{padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:middle}
@@ -486,59 +509,52 @@ td.r,th.r{text-align:right}
 
   <!-- Overview -->
   <div class="stp on" id="st-overview">
-    <!-- ══ EXECUTIVE STATUS BANNER ══ -->
-    <div class="exec-status-banner esb-neutral exec-view" id="esb-banner">
-      <div class="esb-score-ring" id="esb-ring" style="border-color:var(--bd)">
-        <div class="esb-score-num" id="esb-score">—</div>
-        <div class="esb-score-lbl">/ 100</div>
+    <!-- ══ MOBILE NETWORK EXPERIENCE MATRIX (OpenSignal-style) ══ -->
+    <div class="exec-view" id="os-matrix-section">
+      <!-- Report header -->
+      <div class="os-score-hd">
+        <div>
+          <div class="os-score-period" id="os-period">Mobile Network Experience Report</div>
+          <div class="os-score-title">Cambodia · Operator Comparison</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div style="font-size:26px;font-weight:900;color:var(--bl)" id="os-health-num">—</div>
+            <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px">Health Score</div>
+          </div>
+          <div id="os-health-badge" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;background:var(--s2);color:var(--mu)">LOADING</div>
+        </div>
       </div>
-      <div class="esb-body">
-        <div class="esb-verdict" id="esb-verdict">Calculating network health…</div>
-        <div class="esb-sub" id="esb-sub">Composite of download speed, signal quality, and customer experience</div>
-        <span class="esb-badge" id="esb-badge" style="background:var(--s2);color:var(--mu)">LOADING</span>
+      <!-- Competitive matrix -->
+      <div class="os-matrix-wrap">
+        <table class="os-matrix">
+          <thead>
+            <tr>
+              <th style="background:var(--s2);border:1px solid var(--bd);padding:9px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;min-width:120px"></th>
+              <th colspan="4" class="os-grp-hd os-grp-overall">Overall Experience</th>
+              <th colspan="2" class="os-grp-hd os-grp-coverage">Coverage</th>
+              <th colspan="2" class="os-grp-hd os-grp-consistency">Consistency</th>
+            </tr>
+            <tr>
+              <th style="background:var(--s2);border:1px solid var(--bd)"></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">⬇</span><div class="os-metric-lbl">Download Speed Experience</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">⬆</span><div class="os-metric-lbl">Upload Speed Experience</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">🎮</span><div class="os-metric-lbl">Games Experience</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">▶</span><div class="os-metric-lbl">Video Experience</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">📡</span><div class="os-metric-lbl">Coverage Experience</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">📶</span><div class="os-metric-lbl">Time on 4G</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">🏅</span><div class="os-metric-lbl">Consistent Quality</div></th>
+              <th class="os-metric-hd"><span class="os-metric-icon">🛡</span><div class="os-metric-lbl">Reliability Experience</div></th>
+            </tr>
+          </thead>
+          <tbody id="os-matrix-body">
+            <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--mu);font-size:12px">Loading operator data…</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="esb-facts" id="esb-facts">
-        <div class="esb-fact"><div class="esb-fact-v" id="esb-dl" style="color:var(--bl)">—</div><div class="esb-fact-l">DL Mbps</div></div>
-        <div class="esb-fact"><div class="esb-fact-v" id="esb-covpct" style="color:var(--gr)">—</div><div class="esb-fact-l">Good+ Signal</div></div>
-        <div class="esb-fact"><div class="esb-fact-v" id="esb-cx" style="color:var(--yw)">—</div><div class="esb-fact-l">CX Score</div></div>
-        <div class="esb-fact"><div class="esb-fact-v" id="esb-ping" style="color:var(--mu)">—</div><div class="esb-fact-l">ms Latency</div></div>
-      </div>
-    </div>
-
-    <!-- ══ HERO KPI GRID (Exec) ══ -->
-    <div class="hero-grid exec-view">
-      <div class="hero-card">
-        <div class="hero-card-accent" style="background:linear-gradient(90deg,#1f6feb,#58a6ff)"></div>
-        <div class="hero-card-label">Download Speed</div>
-        <div class="hero-card-val" id="hk-dl" style="color:var(--bl)">—</div>
-        <div class="hero-card-unit">Mbps average</div>
-        <div class="hero-card-trend" id="hk-dl-t"></div>
-        <div class="hero-card-bench" id="hk-dl-b"></div>
-        <span class="rag hero-card-rag" id="hk-dl-rag"></span>
-      </div>
-      <div class="hero-card">
-        <div class="hero-card-accent" style="background:linear-gradient(90deg,#1a7f3f,#3fb950)"></div>
-        <div class="hero-card-label">Coverage Quality</div>
-        <div class="hero-card-val" id="hk-cov" style="color:var(--gr)">—</div>
-        <div class="hero-card-unit">% tests with Good or better signal</div>
-        <div class="covq-bar"><div class="covq-fill" id="hk-cov-bar" style="background:var(--gr);width:0%"></div></div>
-        <span class="rag hero-card-rag" id="hk-cov-rag"></span>
-      </div>
-      <div class="hero-card">
-        <div class="hero-card-accent" style="background:linear-gradient(90deg,#9e6a03,#d29922)"></div>
-        <div class="hero-card-label">Customer Experience</div>
-        <div class="hero-card-val" id="hk-cx" style="color:var(--yw)">—</div>
-        <div class="hero-card-unit">OpenSignal index, out of 10</div>
-        <div class="hero-card-trend" id="hk-cx-t"></div>
-        <span class="rag hero-card-rag" id="hk-cx-rag"></span>
-      </div>
-      <div class="hero-card">
-        <div class="hero-card-accent" style="background:linear-gradient(90deg,#6e40c9,#a371f7)"></div>
-        <div class="hero-card-label">Network Latency</div>
-        <div class="hero-card-val" id="hk-ping" style="color:var(--pu)">—</div>
-        <div class="hero-card-unit">ms round-trip time</div>
-        <div class="hero-card-trend" id="hk-ping-t"></div>
-        <span class="rag hero-card-rag" id="hk-ping-rag"></span>
+      <!-- Footnote -->
+      <div style="font-size:10px;color:var(--mu);margin-bottom:18px;padding:0 2px">
+        Winner = highest score per metric. Joint Winner = within 3% of top. Metrics computed from drive test and speed test samples in selected period.
       </div>
     </div>
 
@@ -554,10 +570,16 @@ td.r,th.r{text-align:right}
       <div id="act-list"><div style="padding:16px;text-align:center;color:var(--mu);font-size:12px">Loading…</div></div>
     </div>
 
-    <!-- ══ CONSISTENT QUALITY (OpenSignal 6-threshold model, confirmed 3-0) ══ -->
-    <div class="exec-view" id="cq-panel" style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Consistent Quality Thresholds · OpenSignal Model</div>
-      <div id="cq-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"></div>
+    <!-- hidden compat stubs for JS that reads these IDs -->
+    <div style="display:none">
+      <span id="esb-score"></span><span id="esb-badge"></span><span id="esb-verdict"></span><span id="esb-sub"></span>
+      <div id="esb-ring"></div><div id="esb-facts"></div><span id="esb-dl"></span><span id="esb-covpct"></span><span id="esb-cx"></span><span id="esb-ping"></span>
+      <div id="hk-dl"></div><div id="hk-cov"></div><div id="hk-cx"></div><div id="hk-ping"></div>
+      <div id="hk-dl-t"></div><div id="hk-dl-b"></div><span id="hk-dl-rag"></span>
+      <div id="hk-cov-bar"></div><span id="hk-cov-rag"></span>
+      <div id="hk-cx-t"></div><span id="hk-cx-rag"></span>
+      <div id="hk-ping-t"></div><span id="hk-ping-rag"></span>
+      <div id="cq-grid"></div>
     </div>
 
     <!-- hidden exec-card kept for JS compat -->
@@ -1824,6 +1846,141 @@ function renderConsistentQuality() {
   }).join('')
 }
 
+// ── Render: OpenSignal-style competitive matrix ────
+function renderOSMatrix() {
+  const OPERATORS = [
+    {key:'Cellcard', initial:'C', color:'#f97316'},
+    {key:'Metfone',  initial:'M', color:'#ef4444'},
+    {key:'Smart',    initial:'S', color:'#22c55e'},
+  ]
+  const avgOf = (arr, col) => arr.length ? arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length : null
+
+  // Compute per-operator metrics from nxAll filtered by date/tech/prov but NOT by op
+  const opData = {}
+  for(const op of OPERATORS) {
+    const rows = filterNx(nxAll, {date:F.dDate, op:op.key, tech:F.dTech, prov:F.dProv})
+    const rsrps = rows.map(r=>r.rsrp).filter(v=>v!=null)
+    const dl = avgOf(rows,'download_mbps')
+    const ul = avgOf(rows,'upload_mbps')
+    const ping = avgOf(rows,'ping_ms')
+    opData[op.key] = {
+      count: rows.length,
+      dl,
+      ul,
+      ping,
+      // Games: latency-based — lower ping = better UX, stored inverted so higher=better for winner logic
+      games: ping!=null ? Math.max(0, 200-ping) : null,
+      // Video: % samples with DL >= 10 Mbps
+      video: rows.length ? rows.filter(r=>(parseFloat(r.download_mbps)||0)>=10).length/rows.length*100 : null,
+      // Coverage: % samples RSRP >= -100 (Good+)
+      cov: rsrps.length ? rsrps.filter(v=>v>=-100).length/rsrps.length*100 : null,
+      // Time on 4G: % LTE samples
+      time4g: rows.length ? rows.filter(r=>{ const rat=(r.rat||'').toUpperCase(); return rat.includes('LTE')||rat==='4G'||rat.includes('NR') }).length/rows.length*100 : null,
+      // Consistent Quality: % samples meeting ALL thresholds (OpenSignal model)
+      cq: rows.length ? rows.filter(r=>{
+        const d=parseFloat(r.download_mbps)||0, u=parseFloat(r.upload_mbps)||0
+        const p=parseFloat(r.ping_ms)||999, rs=r.rsrp??-120
+        return d>=25&&u>=5&&p<100&&rs>=-100
+      }).length/rows.length*100 : null,
+      // Reliability: % samples RSRP >= -110
+      rel: rsrps.length ? rsrps.filter(v=>v>=-110).length/rsrps.length*100 : null,
+    }
+  }
+
+  // Metric definitions: getter returns the comparable value (higher=better for all after inversion)
+  const METRICS = [
+    {id:'dl',    get:d=>d.dl,    fmt:v=>n(v)+' Mbps'},
+    {id:'ul',    get:d=>d.ul,    fmt:v=>n(v)+' Mbps'},
+    {id:'games', get:d=>d.games, fmt:v=>n(v,0)+' ms'},
+    {id:'video', get:d=>d.video, fmt:v=>n(v,0)+'%'},
+    {id:'cov',   get:d=>d.cov,   fmt:v=>n(v,0)+'%'},
+    {id:'time4g',get:d=>d.time4g,fmt:v=>n(v,0)+'%'},
+    {id:'cq',    get:d=>d.cq,    fmt:v=>n(v,0)+'%'},
+    {id:'rel',   get:d=>d.rel,   fmt:v=>n(v,0)+'%'},
+  ]
+
+  // Determine winners per metric
+  METRICS.forEach(m => {
+    const vals = OPERATORS.map(op=>({op:op.key,v:m.get(opData[op.key])})).filter(x=>x.v!=null)
+    if(!vals.length){m.winners=[];return}
+    const best = Math.max(...vals.map(x=>x.v))
+    const tol = Math.max(Math.abs(best)*0.03, 0.1)
+    m.winners = vals.filter(x=>x.v>=best-tol).map(x=>x.op)
+  })
+
+  // Format display value per cell
+  const dispVal = (m, opKey) => {
+    const d = opData[opKey]
+    if(m.id==='games') { const p=d.ping; return p!=null?n(p,0)+' ms ping':'—' }
+    const v = m.get(d)
+    return v!=null ? m.fmt(v) : '—'
+  }
+
+  // Build rows HTML
+  const body = document.getElementById('os-matrix-body')
+  if(!body) return
+
+  body.innerHTML = OPERATORS.map(op => {
+    const d = opData[op.key]
+    const cells = METRICS.map(m => {
+      const v = m.get(d)
+      const isWinner = m.winners.includes(op.key)
+      const isJoint = isWinner && m.winners.length > 1
+      const label = dispVal(m, op.key)
+      if(v==null || d.count===0) {
+        return `<td class="os-cell"><span style="color:var(--bd);font-size:18px;font-weight:300">—</span></td>`
+      }
+      if(isWinner) {
+        return `<td class="os-cell os-cell-win">
+          <div class="os-badge-ring${isJoint?' joint':''}">
+            <div class="os-badge-txt">${isJoint?'JOINT<br>':''}WINNER</div>
+          </div>
+          <div class="os-badge-val">${label}</div>
+        </td>`
+      }
+      return `<td class="os-cell"><div class="os-badge-val" style="margin-top:0">${label}</div></td>`
+    }).join('')
+
+    return `<tr>
+      <td class="os-op-cell">
+        <div style="display:flex;align-items:center">
+          <div class="os-op-badge" style="background:${op.color}">${op.initial}</div>
+          <div>
+            <div class="os-op-name">${op.key}</div>
+            <div style="font-size:9px;color:var(--mu)">${d.count} tests</div>
+          </div>
+        </div>
+      </td>
+      ${cells}
+    </tr>`
+  }).join('')
+
+  // Update health score header using Cellcard (default/selected op)
+  const selOp = F.dOp==='all'?'Cellcard':F.dOp
+  const sd = opData[selOp]||opData['Cellcard']
+  if(sd && sd.count) {
+    const dlScore = Math.min(100,Math.max(0,(sd.dl||0)/50*100))
+    const rsrpProxy = Math.min(100,Math.max(0,(sd.cov||0)))
+    const cqScore = Math.min(100,Math.max(0,sd.cq||0))
+    const health = Math.round(dlScore*0.4+rsrpProxy*0.35+cqScore*0.25)
+    const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
+    if(hn) hn.textContent=health
+    if(hn) hn.style.color=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
+    if(hb){
+      const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
+      const bg=health>=70?'rgba(63,185,80,.2)':health>=50?'rgba(255,193,7,.2)':'rgba(244,67,54,.2)'
+      const clr=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
+      hb.textContent=lbl; hb.style.background=bg; hb.style.color=clr
+    }
+  }
+  // Update period label
+  const per=document.getElementById('os-period')
+  if(per){
+    const lbl={all:'All Time',week:'Last 7 Days',month:'Last 30 Days',quarter:'Last 90 Days',ytd:'Year to Date'}
+    per.textContent='Mobile Network Experience · '+(lbl[F.dDate]||'All Time')
+  }
+}
+
 // ── Render: SEV Live Counts (Technical) ───────────
 function renderSevLiveCounts() {
   const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
@@ -2795,7 +2952,7 @@ function setConn(s){
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {pages['tb-recent']=0;renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderOSMatrix();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
