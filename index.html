@@ -258,6 +258,73 @@ td.r,th.r{text-align:right}
 .psev5 .psev-num,.psev5 .psev-label{color:#94a3b8}
 /* ── Tech view hidden by default ── */
 .tech-only{display:none}
+/* ══ EXECUTIVE STATUS BANNER ══════════════════════ */
+.exec-status-banner{border-radius:14px;padding:22px 26px;margin-bottom:18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;transition:background .4s,border-color .4s}
+.esb-green{background:linear-gradient(135deg,rgba(0,230,118,.13) 0%,rgba(0,188,212,.06) 100%);border:1.5px solid rgba(0,230,118,.35)}
+.esb-amber{background:linear-gradient(135deg,rgba(255,193,7,.13) 0%,rgba(255,152,0,.06) 100%);border:1.5px solid rgba(255,193,7,.35)}
+.esb-red{background:linear-gradient(135deg,rgba(244,67,54,.14) 0%,rgba(255,87,34,.06) 100%);border:1.5px solid rgba(244,67,54,.35)}
+.esb-neutral{background:var(--s2);border:1px solid var(--bd)}
+.esb-score-ring{width:80px;height:80px;border-radius:50%;border:4px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .4s}
+.esb-score-num{font-size:26px;font-weight:900;line-height:1;letter-spacing:-1px}
+.esb-score-lbl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.esb-body{flex:1;min-width:180px}
+.esb-verdict{font-size:18px;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
+.esb-sub{font-size:11px;line-height:1.55;color:var(--mu)}
+.esb-badge{display:inline-block;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-top:6px}
+.esb-facts{display:flex;gap:16px;flex-wrap:wrap;border-left:1px solid var(--bd);padding-left:20px}
+.esb-fact{text-align:center}
+.esb-fact-v{font-size:20px;font-weight:800;line-height:1.1}
+.esb-fact-l{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+/* ══ HERO KPI CARDS (Executive) ════════════════════ */
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:18px}
+.hero-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;transition:border-color .15s,transform .15s}
+.hero-card:hover{transform:translateY(-1px);border-color:#4d5562}
+.hero-card-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.hero-card-label{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+.hero-card-val{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1.5px;margin:4px 0}
+.hero-card-unit{font-size:11px;color:var(--mu)}
+.hero-card-trend{font-size:11px;font-weight:600;margin-top:2px}
+.hero-card-rag{position:absolute;top:14px;right:14px}
+.hero-card-bench{font-size:10px;color:var(--mu);margin-top:4px;padding-top:6px;border-top:1px solid var(--bd)}
+/* ══ ACTIONS REQUIRED PANEL ════════════════════════ */
+.act-panel{background:var(--s1);border:1px solid var(--bd);border-radius:10px;margin-bottom:18px;overflow:hidden}
+.act-header{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--s2)}
+.act-title{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.act-cnt{font-size:11px;color:var(--mu)}
+.act-row{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px}
+.act-row:last-child{border-bottom:none}
+.act-sev{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;flex-shrink:0;letter-spacing:-.3px}
+.act-sev1{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.35);color:#f44336}
+.act-sev2{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.35);color:#ff9800}
+.act-sev3{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.35);color:#ffc107}
+.act-sev4{background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.25);color:#94a3b8}
+.act-sev5{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);color:#3fb950}
+.act-row-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+.act-row-body{flex:1}
+.act-row-title{font-size:12px;font-weight:700;margin-bottom:2px}
+.act-row-detail{font-size:11px;opacity:.8;line-height:1.5}
+.act-ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);color:#00e676}
+.act-body{flex:1}
+.act-main{font-size:12px;font-weight:600;margin-bottom:1px}
+.act-detail{font-size:11px;color:var(--mu)}
+.act-sla{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;flex-shrink:0}
+/* ══ TECHNICAL SEV LIVE COUNTS ══════════════════════ */
+.sev-live-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.sev-live-card{border-radius:8px;padding:10px 8px;text-align:center}
+.sev-live-num{font-size:26px;font-weight:900;line-height:1;margin-bottom:2px}
+.sev-live-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.sev-live-desc{font-size:9px;opacity:.75;margin-top:2px;line-height:1.3}
+/* ══ TAB AUDIENCE BADGES ════════════════════════════ */
+.tab-aud{font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;margin-left:2px;vertical-align:middle}
+.tab-aud-exec{background:rgba(31,111,235,.2);color:#58a6ff}
+.tab-aud-eng{background:rgba(148,163,184,.15);color:#94a3b8}
+/* ══ CHART BENCHMARK LINE ═══════════════════════════ */
+.chart-bench-note{font-size:10px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:4px 16px 0}
+.bench-dash{width:18px;height:2px;background:#8b949e;display:inline-block;vertical-align:middle}
+/* ══ COVERAGE QUALITY SCORE ═════════════════════════ */
+.covq-bar{height:6px;border-radius:3px;background:var(--s2);margin:4px 0;overflow:hidden}
+.covq-fill{height:100%;border-radius:3px;transition:width .6s}
+@media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}.esb-facts{border-left:none;padding-left:0}}
 </style>
 </head>
 <body>
@@ -280,23 +347,23 @@ td.r,th.r{text-align:right}
 <div class="tabs">
   <button class="tab-btn on" data-tab="dash">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>
-    Experience Dashboard
+    Executive Summary <span class="tab-aud tab-aud-exec">EXEC</span>
   </button>
   <button class="tab-btn" data-tab="net">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1 11l3-4 2 2 4-6 3 4 2-3v6H1v1z"/></svg>
-    Network
+    Network Detail <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
   <button class="tab-btn" data-tab="cx">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.9 3.8L14 5.7l-3 2.9.7 4.1L8 10.5l-3.7 2.2.7-4.1L2 5.7l4.1-.9L8 1z"/></svg>
-    CX Rating
+    Customer Experience <span class="tab-aud tab-aud-exec">EXEC</span>
   </button>
   <button class="tab-btn" data-tab="drv">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6" r="1.2"/><path d="M8 10v6"/></svg>
-    Drive Test
+    Drive Test <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
   <button class="tab-btn" data-tab="cov">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-    Coverage Map
+    Coverage Map <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
 </div>
 
@@ -413,18 +480,109 @@ td.r,th.r{text-align:right}
 
   <!-- Overview -->
   <div class="stp on" id="st-overview">
-    <!-- PART 1 — Executive section header -->
-    <div class="view-hdr exec-view">
-      <span class="view-hdr-badge vhb-exec">Part 1 · Executive</span>
-      <span class="view-hdr-title">Decision-Ready Summary</span>
-      <div class="view-hdr-line"></div>
-      <span style="font-size:10px;color:var(--mu)">Plain-language network health for leadership</span>
+    <!-- ══ EXECUTIVE STATUS BANNER ══ -->
+    <div class="exec-status-banner esb-neutral exec-view" id="esb-banner">
+      <div class="esb-score-ring" id="esb-ring" style="border-color:var(--bd)">
+        <div class="esb-score-num" id="esb-score">—</div>
+        <div class="esb-score-lbl">/ 100</div>
+      </div>
+      <div class="esb-body">
+        <div class="esb-verdict" id="esb-verdict">Calculating network health…</div>
+        <div class="esb-sub" id="esb-sub">Composite of download speed, signal quality, and customer experience</div>
+        <span class="esb-badge" id="esb-badge" style="background:var(--s2);color:var(--mu)">LOADING</span>
+      </div>
+      <div class="esb-facts" id="esb-facts">
+        <div class="esb-fact"><div class="esb-fact-v" id="esb-dl" style="color:var(--bl)">—</div><div class="esb-fact-l">DL Mbps</div></div>
+        <div class="esb-fact"><div class="esb-fact-v" id="esb-covpct" style="color:var(--gr)">—</div><div class="esb-fact-l">Good+ Signal</div></div>
+        <div class="esb-fact"><div class="esb-fact-v" id="esb-cx" style="color:var(--yw)">—</div><div class="esb-fact-l">CX Score</div></div>
+        <div class="esb-fact"><div class="esb-fact-v" id="esb-ping" style="color:var(--mu)">—</div><div class="esb-fact-l">ms Latency</div></div>
+      </div>
     </div>
 
-    <div class="exec-card exec-view">
-      <div class="exec-score">Overall Network Score · OpenSignal Experience Index</div>
-      <div><span class="exec-big" id="ex-score">—</span> <span class="exec-rating" id="ex-rating"></span> <span style="font-size:12px;color:var(--mu)">out of 10</span></div>
-      <div class="exec-stats" id="ex-stats"></div>
+    <!-- ══ HERO KPI GRID (Exec) ══ -->
+    <div class="hero-grid exec-view">
+      <div class="hero-card">
+        <div class="hero-card-accent" style="background:linear-gradient(90deg,#1f6feb,#58a6ff)"></div>
+        <div class="hero-card-label">Download Speed</div>
+        <div class="hero-card-val" id="hk-dl" style="color:var(--bl)">—</div>
+        <div class="hero-card-unit">Mbps average</div>
+        <div class="hero-card-trend" id="hk-dl-t"></div>
+        <div class="hero-card-bench" id="hk-dl-b"></div>
+        <span class="rag hero-card-rag" id="hk-dl-rag"></span>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-accent" style="background:linear-gradient(90deg,#1a7f3f,#3fb950)"></div>
+        <div class="hero-card-label">Coverage Quality</div>
+        <div class="hero-card-val" id="hk-cov" style="color:var(--gr)">—</div>
+        <div class="hero-card-unit">% tests with Good or better signal</div>
+        <div class="covq-bar"><div class="covq-fill" id="hk-cov-bar" style="background:var(--gr);width:0%"></div></div>
+        <span class="rag hero-card-rag" id="hk-cov-rag"></span>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-accent" style="background:linear-gradient(90deg,#9e6a03,#d29922)"></div>
+        <div class="hero-card-label">Customer Experience</div>
+        <div class="hero-card-val" id="hk-cx" style="color:var(--yw)">—</div>
+        <div class="hero-card-unit">OpenSignal index, out of 10</div>
+        <div class="hero-card-trend" id="hk-cx-t"></div>
+        <span class="rag hero-card-rag" id="hk-cx-rag"></span>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-accent" style="background:linear-gradient(90deg,#6e40c9,#a371f7)"></div>
+        <div class="hero-card-label">Network Latency</div>
+        <div class="hero-card-val" id="hk-ping" style="color:var(--pu)">—</div>
+        <div class="hero-card-unit">ms round-trip time</div>
+        <div class="hero-card-trend" id="hk-ping-t"></div>
+        <span class="rag hero-card-rag" id="hk-ping-rag"></span>
+      </div>
+    </div>
+
+    <!-- ══ ACTIONS REQUIRED (Exec) ══ -->
+    <div class="act-panel exec-view" id="act-panel">
+      <div class="act-header">
+        <span class="act-title">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1 6H7L8 1zm0 9a1 1 0 100 2 1 1 0 000-2z"/><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          Actions &amp; Attention Required
+        </span>
+        <span class="act-cnt" id="act-cnt">computing…</span>
+      </div>
+      <div id="act-list"><div style="padding:16px;text-align:center;color:var(--mu);font-size:12px">Loading…</div></div>
+    </div>
+
+    <!-- hidden exec-card kept for JS compat -->
+    <div style="display:none">
+      <span id="ex-score"></span><span id="ex-rating"></span><div id="ex-stats"></div>
+    </div>
+
+    <!-- ══ SEV LIVE COUNTS (Tech-only) ══ -->
+    <div class="tech-only" id="sev-live-section">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Live Issue Severity Counts</div>
+      <div class="sev-live-grid">
+        <div class="sev-live-card" style="background:rgba(244,67,54,.13);border:1px solid rgba(244,67,54,.3)">
+          <div class="sev-live-num" id="slc-1" style="color:#f44336">0</div>
+          <div class="sev-live-label" style="color:#f44336">SEV 1</div>
+          <div class="sev-live-desc">Critical · &lt;1h SLA</div>
+        </div>
+        <div class="sev-live-card" style="background:rgba(255,87,34,.12);border:1px solid rgba(255,87,34,.3)">
+          <div class="sev-live-num" id="slc-2" style="color:#ff5722">0</div>
+          <div class="sev-live-label" style="color:#ff5722">SEV 2</div>
+          <div class="sev-live-desc">High · &lt;4h SLA</div>
+        </div>
+        <div class="sev-live-card" style="background:rgba(255,152,0,.12);border:1px solid rgba(255,152,0,.3)">
+          <div class="sev-live-num" id="slc-3" style="color:#ff9800">0</div>
+          <div class="sev-live-label" style="color:#ff9800">SEV 3</div>
+          <div class="sev-live-desc">Medium · &lt;24h SLA</div>
+        </div>
+        <div class="sev-live-card" style="background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.3)">
+          <div class="sev-live-num" id="slc-4" style="color:#ffc107">0</div>
+          <div class="sev-live-label" style="color:#ffc107">SEV 4</div>
+          <div class="sev-live-desc">Low · &lt;72h SLA</div>
+        </div>
+        <div class="sev-live-card" style="background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.3)">
+          <div class="sev-live-num" id="slc-5" style="color:#64748b">0</div>
+          <div class="sev-live-label" style="color:#64748b">SEV 5</div>
+          <div class="sev-live-desc">Info · Monitor</div>
+        </div>
+      </div>
     </div>
 
     <!-- PART 2 — Technical section (shown in tech view) -->
@@ -1314,6 +1472,181 @@ function renderExecSummary() {
   `
 }
 
+// ── Render: Executive Status Banner ───────────────
+function renderExecBanner() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const os=filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv})
+  const avgOf=(arr,col)=>arr.length?arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length:null
+  const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
+  const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
+  const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
+  const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
+  const cxRaw=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/3:null
+  const cxScore10=cxRaw!=null?cxRaw/10:null
+
+  // coverage quality: % of tests with rsrp >= -100 (Good or better)
+  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+
+  // health score: DL 40%, signal 35%, CX 25%
+  const dlScore=avgDl!=null?Math.min(100,Math.max(0,(avgDl/50)*100)):50
+  const rsrpScore=avgRsrp!=null?Math.min(100,Math.max(0,((avgRsrp+120)/40)*100)):50
+  const cxScoreN=cxScore10!=null?Math.min(100,Math.max(0,cxScore10*10)):50
+  const health=Math.round(dlScore*0.4+rsrpScore*0.35+cxScoreN*0.25)
+
+  const ring=document.getElementById('esb-ring'), banner=document.getElementById('esb-banner')
+  const scoreEl=document.getElementById('esb-score'), verdict=document.getElementById('esb-verdict')
+  const sub=document.getElementById('esb-sub'), badge=document.getElementById('esb-badge')
+  if(!ring)return
+  scoreEl.textContent=nx.length?health:'—'
+  let cls='esb-neutral', ringColor='var(--bd)', vText='No data', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
+  if(nx.length){
+    if(health>=70){cls='esb-green';ringColor='#00e676';vText='Network is Healthy';vSub='Performance meets operational benchmarks across all KPIs';bText='GOOD';bBg='rgba(0,230,118,.2)';bColor='#00e676'}
+    else if(health>=45){cls='esb-amber';ringColor='#ffc107';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='#ffc107'}
+    else{cls='esb-red';ringColor='#f44336';vText='Network Performance Critical';vSub='Multiple KPIs failing — immediate action required';bText='POOR';bBg='rgba(244,67,54,.2)';bColor='#f44336'}
+  }
+  banner.className=`exec-status-banner ${cls} exec-view`
+  ring.style.borderColor=ringColor
+  scoreEl.style.color=ringColor
+  verdict.textContent=vText; sub.textContent=vSub
+  badge.textContent=bText; badge.style.background=bBg; badge.style.color=bColor
+
+  const set=(id,val,unit='')=>{ const el=document.getElementById(id); if(el) el.textContent=val!=null?val+unit:'—' }
+  set('esb-dl', avgDl!=null?n(avgDl):'—')
+  set('esb-covpct', goodPct!=null?goodPct+'%':'—')
+  set('esb-cx', cxScore10!=null?cxScore10.toFixed(1)+'/10':'—')
+  set('esb-ping', avgPing!=null?n(avgPing,0)+' ms':'—')
+}
+
+// ── Render: Hero KPI Cards ─────────────────────────
+function renderHeroKPIs() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const os=filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv})
+  const avgOf=(arr,col)=>arr.length?arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length:null
+  const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
+  const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
+  const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
+  const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
+  const cxRaw=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/3:null
+  const cxScore10=cxRaw!=null?+(cxRaw/10).toFixed(1):null
+  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+
+  // trend: compare recent vs older half
+  const trendArrow=(arr,col,higher=true)=>{
+    if(arr.length<4)return''
+    const mid=Math.floor(arr.length/2)
+    const oldAvg=arr.slice(0,mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/mid
+    const newAvg=arr.slice(mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/(arr.length-mid)
+    const pct=oldAvg?Math.abs((newAvg-oldAvg)/oldAvg*100):0
+    const up=newAvg>oldAvg
+    const good=higher?up:!up
+    const arrow=up?'▲':'▼'
+    return `<span style="color:${good?'#3fb950':'#f44336'};font-size:11px">${arrow} ${pct.toFixed(1)}% vs prior period</span>`
+  }
+
+  const ragClass=(v,g,r,higher=true)=>{ if(v==null)return''; const ok=higher?(v>=g):(v<=g); const warn=higher?(v>=r):(v<=r); return ok?'rag-g':warn?'rag-a':'rag-r' }
+  const ragLbl=(v,g,r,higher=true)=>{ if(v==null)return''; const ok=higher?(v>=g):(v<=g); const warn=higher?(v>=r):(v<=r); return ok?'GOOD':warn?'FAIR':'POOR' }
+
+  const setCard=(valId,trendId,ragId,benchId,val,trend,ragCls,ragL,bench)=>{
+    const ve=document.getElementById(valId), te=document.getElementById(trendId), re=document.getElementById(ragId), be=document.getElementById(benchId)
+    if(ve)ve.textContent=val!=null?val:'—'
+    if(te)te.innerHTML=trend||''
+    if(re){re.textContent=ragL;re.className='rag hero-card-rag '+(ragCls?'rag-'+ragCls:'')}
+    if(be)be.textContent=bench||''
+  }
+
+  setCard('hk-dl','hk-dl-t','hk-dl-rag','hk-dl-b',
+    avgDl!=null?n(avgDl):null,
+    trendArrow(nx,'download_mbps'),
+    avgDl!=null?(avgDl>=25?'g':avgDl>=10?'a':'r'):'',
+    avgDl!=null?(avgDl>=25?'GOOD':avgDl>=10?'FAIR':'POOR'):'',
+    'Benchmark: 25 Mbps (GSMA target)')
+
+  const covPctRag=goodPct!=null?(goodPct>=80?'g':goodPct>=60?'a':'r'):''
+  const covBar=document.getElementById('hk-cov-bar')
+  if(covBar)covBar.style.width=(goodPct||0)+'%'
+  setCard('hk-cov',null,'hk-cov-rag',null,
+    goodPct!=null?goodPct+'%':null,'',covPctRag,
+    goodPct!=null?(goodPct>=80?'GOOD':goodPct>=60?'FAIR':'POOR'):'','')
+
+  setCard('hk-cx','hk-cx-t','hk-cx-rag',null,
+    cxScore10!=null?cxScore10+'/10':null,'',
+    cxScore10!=null?(cxScore10>=7?'g':cxScore10>=5?'a':'r'):'',
+    cxScore10!=null?(cxScore10>=7?'GOOD':cxScore10>=5?'FAIR':'POOR'):'','')
+
+  setCard('hk-ping','hk-ping-t','hk-ping-rag',null,
+    avgPing!=null?n(avgPing,0)+' ms':null,
+    trendArrow(nx,'ping_ms',false),
+    avgPing!=null?(avgPing<=50?'g':avgPing<=100?'a':'r'):'',
+    avgPing!=null?(avgPing<=50?'GOOD':avgPing<=100?'FAIR':'POOR'):'','')
+}
+
+// ── Render: Actions Required panel ────────────────
+function renderActionsRequired() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const os=filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv})
+  const avgOf=(arr,col)=>arr.length?arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length:null
+  const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
+  const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
+  const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
+  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+  const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
+  const cx=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/30:null
+
+  const actions=[]
+  if(avgDl!=null&&avgDl<10) actions.push({sev:1,icon:'🔴',title:'Download Speed Critical',detail:`Average ${n(avgDl)} Mbps — below minimum acceptable threshold (10 Mbps). Investigate RAN congestion and backhaul capacity.`})
+  else if(avgDl!=null&&avgDl<25) actions.push({sev:2,icon:'🟠',title:'Download Speed Below Target',detail:`Average ${n(avgDl)} Mbps — below GSMA 25 Mbps benchmark. Capacity upgrade or optimization recommended.`})
+  if(avgRsrp!=null&&avgRsrp<-110) actions.push({sev:1,icon:'🔴',title:'Signal Coverage Critical',detail:`Average RSRP ${n(avgRsrp,0)} dBm — poor coverage. Cell planning and power adjustment required urgently.`})
+  else if(avgRsrp!=null&&avgRsrp<-100) actions.push({sev:2,icon:'🟠',title:'Signal Coverage Below Threshold',detail:`Average RSRP ${n(avgRsrp,0)} dBm — marginal. Review antenna tilt and site configurations.`})
+  if(goodPct!=null&&goodPct<60) actions.push({sev:2,icon:'🟠',title:'Coverage Quality Insufficient',detail:`Only ${goodPct}% of test points have Good or better signal (target: ≥80%). Coverage expansion needed.`})
+  if(avgPing!=null&&avgPing>100) actions.push({sev:2,icon:'🟠',title:'High Latency Detected',detail:`Average latency ${n(avgPing,0)} ms exceeds 100 ms threshold. Review transport and core network routes.`})
+  else if(avgPing!=null&&avgPing>50) actions.push({sev:3,icon:'🟡',title:'Latency Above Target',detail:`Average ${n(avgPing,0)} ms — above 50 ms ITU-T target. Monitor for impact on real-time services.`})
+  if(cx!=null&&cx<5) actions.push({sev:2,icon:'🟠',title:'Customer Experience Score Low',detail:`CX score ${cx.toFixed(1)}/10 — users reporting poor experience. Review video and voice quality drivers.`})
+  if(!nx.length) actions.push({sev:3,icon:'🟡',title:'No Network Test Data Available',detail:'Apply filters or load data to generate action items.'})
+  if(!actions.length) actions.push({sev:5,icon:'✅',title:'All KPIs Within Target Range',detail:'No immediate actions required. Continue monitoring for trend changes.'})
+
+  const sevClass={1:'act-sev1',2:'act-sev2',3:'act-sev3',4:'act-sev4',5:'act-sev5'}
+  const list=document.getElementById('act-list'), cnt=document.getElementById('act-cnt')
+  if(!list)return
+  const urgent=actions.filter(a=>a.sev<=2).length
+  if(cnt) cnt.textContent=urgent?`${urgent} urgent item${urgent>1?'s':''}`:'All clear'
+  list.innerHTML=actions.map(a=>`
+    <div class="act-row ${sevClass[a.sev]||''}">
+      <div class="act-row-icon">${a.icon}</div>
+      <div class="act-row-body">
+        <div class="act-row-title">SEV${a.sev} — ${a.title}</div>
+        <div class="act-row-detail">${a.detail}</div>
+      </div>
+    </div>`).join('')
+}
+
+// ── Render: SEV Live Counts (Technical) ───────────
+function renderSevLiveCounts() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const avgOf=(arr,col)=>arr.length?arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length:null
+  const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
+  const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
+  const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
+  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+
+  let sev=[0,0,0,0,0]
+  if(avgDl!=null&&avgDl<10) sev[0]++
+  if(avgRsrp!=null&&avgRsrp<-110) sev[0]++
+  if(avgDl!=null&&avgDl>=10&&avgDl<25) sev[1]++
+  if(avgRsrp!=null&&avgRsrp>=-110&&avgRsrp<-100) sev[1]++
+  if(goodPct!=null&&goodPct<60) sev[1]++
+  if(avgPing!=null&&avgPing>100) sev[1]++
+  if(avgPing!=null&&avgPing>50&&avgPing<=100) sev[2]++
+  if(goodPct!=null&&goodPct>=60&&goodPct<80) sev[2]++
+  // SEV4/5: informational
+  if(nx.length>0&&nx.length<50) sev[3]++
+  sev[4]=Math.max(0, nx.length?1:0)
+
+  for(let i=1;i<=5;i++){
+    const el=document.getElementById('slc-'+i)
+    if(el) el.textContent=sev[i-1]
+  }
+}
+
 // ── Render: Awards ────────────────────────────────
 function renderAwards() {
   const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
@@ -2024,7 +2357,7 @@ function setConn(s){
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {renderKPIs();renderExecSummary();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
