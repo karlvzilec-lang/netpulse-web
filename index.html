@@ -1149,18 +1149,7 @@ function initDriveMap() {
         -80, '#00e676'
       ]
     }})
-  // Grade labels at zoom 15+ (A/B/C/D/F)
-  map.addLayer({id:'drv-grade',type:'symbol',source:'dots',
-    filter:['!',['has','point_count']],
-    minzoom:15,
-    layout:{
-      'text-field':['get','grade'],
-      'text-size':9,
-      'text-font':['Noto Sans Bold'],
-      'text-allow-overlap':true,
-      'text-ignore-placement':true
-    },
-    paint:{'text-color':'#fff','text-halo-color':'#000000','text-halo-width':1.2}})
+  // Grade labels removed — dots colored by RSRP are self-explanatory
 
   const drPopup = new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
   map.on('click','dots-layer',e=>{
@@ -1664,7 +1653,7 @@ function renderSessions() {
     const hasSamples=sampledSessionIds.has(s.id)
     const syncBadge=hasSamples
       ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
-      : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#8b949e18;color:#8b949e;border:1px solid #8b949e30">⏳ PENDING</span>`
+      : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#ff980018;color:#ff9800;border:1px solid #ff980030" title="GPS route data recorded on device but not yet uploaded to cloud">📱 NOT UPLOADED</span>`
     return `
     <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${s.id})">
       <div class="sess-dev" style="display:flex;justify-content:space-between;align-items:center">
@@ -1714,11 +1703,11 @@ window.pickSess = async function(id) {
     document.getElementById('drv-assessment').innerHTML=
       '<div style="color:var(--yw);font-size:11px;padding:8px 0">⚠ Drive samples are still uploading from the device. The session recorded '+(activeSess.sample_count||0)+' pts — check back shortly.</div>'
     document.getElementById('drv-verdict-icon').textContent='⏳'
-    document.getElementById('drv-verdict-label').textContent='PENDING'
-    document.getElementById('drv-verdict-label').style.color='var(--mu)'
-    document.getElementById('drv-verdict-sub').textContent='awaiting upload'
+    document.getElementById('drv-verdict-label').textContent='NOT UPLOADED'
+    document.getElementById('drv-verdict-label').style.color='#ff9800'
+    document.getElementById('drv-verdict-sub').textContent='GPS data on device only'
     document.getElementById('drv-verdict-pill').innerHTML=
-      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:rgba(139,148,158,.15);border:1px solid rgba(139,148,158,.3);color:var(--mu)">⏳ PENDING</span>'
+      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#ff9800">📱 NOT UPLOADED</span>'
   }
 }
 
@@ -1726,6 +1715,31 @@ window.pickSess = async function(id) {
 function paintMap() {
   if(!mapReady) return
   const valid=driveSamples.filter(s=>s.latitude!=null&&s.longitude!=null)
+
+  // Show/hide no-data overlay
+  let overlay=document.getElementById('dmap-no-data')
+  if(!overlay){
+    overlay=document.createElement('div')
+    overlay.id='dmap-no-data'
+    overlay.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,17,23,.82);backdrop-filter:blur(2px);z-index:10;pointer-events:none;gap:10px'
+    document.getElementById('dmap').parentElement.style.position='relative'
+    document.getElementById('dmap').after(overlay)
+  }
+  if(!sampledSessionIds.has(activeSess?.id)){
+    overlay.style.display='flex'
+    const cnt=activeSess?.sample_count??0
+    const rsrp=activeSess?.avg_rsrp!=null?`avg RSRP ${n(activeSess.avg_rsrp,0)} dBm`:'no signal data'
+    const rc=rsrpColor(activeSess?.avg_rsrp)
+    overlay.innerHTML=`<div style="font-size:32px">📱</div>
+      <div style="font-size:13px;font-weight:700;color:#e6edf3">GPS route not uploaded</div>
+      <div style="font-size:11px;color:#8b949e;text-align:center;max-width:260px">This session recorded <b style="color:#ff9800">${cnt.toLocaleString()} pts</b> on the device (${rsrp})<br>but the GPS data has not yet synced to the cloud.</div>
+      <div style="font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:6px 12px">Select a <span style="color:#00e676">✓ SYNCED</span> session to view route</div>`
+    map.getSource('dots').setData({type:'FeatureCollection',features:[]})
+    map.getSource('route').setData({type:'FeatureCollection',features:[]})
+    return
+  }
+  overlay.style.display='none'
+
   const feats=valid.map(s=>({
     type:'Feature',
     geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
@@ -1743,13 +1757,20 @@ function paintMap() {
   }
   map.getSource('route').setData({type:'FeatureCollection',features:segs})
 
-  const coords=feats.map(f=>f.geometry.coordinates)
-  if(coords.length===1){
-    map.flyTo({center:coords[0],zoom:16,duration:600})
-  } else if(coords.length>1){
-    const lngs=coords.map(c=>c[0]),lats=coords.map(c=>c[1])
-    map.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:60,maxZoom:17,duration:800})
+  if(valid.length<2){
+    overlay.style.display='flex'
+    const pt=valid[0]
+    const rc=rsrpColor(pt?.rsrp)
+    overlay.innerHTML=`<div style="font-size:32px">📍</div>
+      <div style="font-size:13px;font-weight:700;color:#e6edf3">Only 1 GPS point — no route</div>
+      <div style="font-size:11px;color:#8b949e;text-align:center;max-width:240px">This session has only 1 GPS sample uploaded. At least 2 points are needed to draw a route line.</div>`
+    if(valid.length===1) map.flyTo({center:[+valid[0].longitude,+valid[0].latitude],zoom:16,duration:600})
+    return
   }
+
+  const coords=feats.map(f=>f.geometry.coordinates)
+  const lngs=coords.map(c=>c[0]),lats=coords.map(c=>c[1])
+  map.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:60,maxZoom:17,duration:800})
 }
 
 // ── Render: Drive samples table ───────────────────
