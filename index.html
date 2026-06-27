@@ -202,6 +202,62 @@ td.r,th.r{text-align:right}
 .cov-fbar{padding:8px 14px;border-bottom:1px solid var(--bd)}
 .cov-fbar-lbl{font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .cov-chips{display:flex;gap:4px;flex-wrap:wrap}
+/* ── View mode toggle ── */
+.view-toggle{display:flex;background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:3px;margin-bottom:14px;width:fit-content}
+.vt-btn{padding:6px 16px;border:none;background:none;border-radius:6px;color:var(--mu);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
+.vt-btn.on{background:var(--pr);color:#fff}
+/* ── RAG status badges ── */
+.rag{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;margin-left:4px;vertical-align:middle;letter-spacing:.4px}
+.rag-g{background:rgba(0,230,118,.15);color:#00e676}
+.rag-a{background:rgba(255,193,7,.15);color:#ffc107}
+.rag-r{background:rgba(244,67,54,.15);color:#f44336}
+/* ── Trend indicator ── */
+.kcard-trend{font-size:10px;margin-top:2px;min-height:14px}
+.trend-up{color:#00e676}
+.trend-dn{color:#f44336}
+.trend-eq{color:var(--mu)}
+/* ── Network health banner ── */
+.health-banner{background:linear-gradient(135deg,rgba(31,111,235,.1) 0%,rgba(0,230,118,.07) 100%);border:1px solid var(--bd);border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.health-ring{width:68px;height:68px;border-radius:50%;border:4px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .3s}
+.health-ring-num{font-size:22px;font-weight:800;line-height:1}
+.health-ring-lbl{font-size:8px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.health-details{flex:1;min-width:160px}
+.health-title{font-size:13px;font-weight:700;margin-bottom:2px}
+.health-sub{font-size:11px;color:var(--mu);margin-bottom:6px}
+.health-status{font-size:11px;font-weight:700;padding:2px 10px;border-radius:4px;display:inline-block;letter-spacing:.5px}
+.health-drivers{display:flex;flex-direction:column;gap:3px;font-size:11px}
+/* ── Section dividers ── */
+.view-hdr{display:flex;align-items:center;gap:10px;margin:20px 0 14px}
+.view-hdr-badge{padding:3px 10px;border-radius:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.vhb-exec{background:rgba(31,111,235,.15);color:#58a6ff}
+.vhb-tech{background:rgba(148,163,184,.15);color:#94a3b8}
+.view-hdr-title{font-size:13px;font-weight:700}
+.view-hdr-line{flex:1;height:1px;background:var(--bd)}
+/* ── RSRP threshold reference table ── */
+.thresh-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.thresh-tbl th{padding:7px 12px;font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--bd);font-weight:600}
+.thresh-tbl td{padding:8px 12px;border-bottom:1px solid var(--bd)}
+.thresh-tbl tr:last-child td{border-bottom:none}
+.thresh-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+/* ── SEV priority matrix ── */
+.pmatrix{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+@media(max-width:700px){.pmatrix{grid-template-columns:1fr 1fr}}
+.psev{border-radius:8px;padding:10px 12px}
+.psev-num{font-size:22px;font-weight:800;line-height:1;margin-bottom:2px}
+.psev-label{font-size:11px;font-weight:700;margin-bottom:3px}
+.psev-desc{font-size:10px;line-height:1.4;opacity:.8}
+.psev1{background:rgba(244,67,54,.12);border:1px solid rgba(244,67,54,.3)}
+.psev2{background:rgba(255,152,0,.12);border:1px solid rgba(255,152,0,.3)}
+.psev3{background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.3)}
+.psev4{background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)}
+.psev5{background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.2)}
+.psev1 .psev-num,.psev1 .psev-label{color:#f44336}
+.psev2 .psev-num,.psev2 .psev-label{color:#ff9800}
+.psev3 .psev-num,.psev3 .psev-label{color:#ffc107}
+.psev4 .psev-num,.psev4 .psev-label{color:#00bcd4}
+.psev5 .psev-num,.psev5 .psev-label{color:#94a3b8}
+/* ── Tech view hidden by default ── */
+.tech-only{display:none}
 </style>
 </head>
 <body>
@@ -249,8 +305,23 @@ td.r,th.r{text-align:right}
 <!-- ══════════════ EXPERIENCE DASHBOARD ══════════════ -->
 <div class="tp on" id="tp-dash">
 
+  <!-- View mode toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+    <div class="view-toggle">
+      <button class="vt-btn on" data-view="exec" onclick="setDashView('exec')">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v2H2V3zm0 4h8v2H2V7zm0 4h5v2H2v-2z"/></svg>
+        Executive View
+      </button>
+      <button class="vt-btn" data-view="tech" onclick="setDashView('tech')">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3L2 8l3 5h1.5L4 8l2.5-5H5zm6 0l3 5-3 5h1.5L15 8l-2.5-5H11z"/></svg>
+        Technical View
+      </button>
+    </div>
+    <span style="font-size:11px;color:var(--mu)">Executive: decision-ready KPIs &amp; health score &nbsp;·&nbsp; Technical: RSRP thresholds, SEV matrix &amp; raw metrics</span>
+  </div>
+
   <!-- Dashboard filter bar -->
-  <div class="fbar" style="margin:-20px -20px 20px;padding:10px 20px">
+  <div class="fbar" style="margin:-4px -20px 20px;padding:10px 20px">
     <span class="fbar-label">Period</span>
     <button class="fchip on" data-df="all">All Time</button>
     <button class="fchip" data-df="week">This Week</button>
@@ -270,14 +341,66 @@ td.r,th.r{text-align:right}
 
   <!-- KPI row -->
   <div class="kgrid">
-    <div class="kcard kc-bl"><div class="kcard-lbl">Total Tests</div><div class="kcard-val" id="k-tot">—</div><div class="kcard-unit">speed tests</div></div>
-    <div class="kcard kc-bl"><div class="kcard-lbl">Avg Download</div><div class="kcard-val" style="color:var(--bl)" id="k-dl">—</div><div class="kcard-unit">Mbps</div></div>
-    <div class="kcard kc-gr"><div class="kcard-lbl">Avg Upload</div><div class="kcard-val" style="color:var(--gr)" id="k-ul">—</div><div class="kcard-unit">Mbps</div></div>
-    <div class="kcard kc-yw"><div class="kcard-lbl">Avg Latency</div><div class="kcard-val" style="color:var(--yw)" id="k-ping">—</div><div class="kcard-unit">ms</div></div>
-    <div class="kcard kc-bl"><div class="kcard-lbl">Avg RSRP</div><div class="kcard-val" id="k-rsrp">—</div><div class="kcard-unit">dBm</div></div>
-    <div class="kcard kc-pu"><div class="kcard-lbl">Drive Sessions</div><div class="kcard-val" style="color:var(--pu)" id="k-sess">—</div><div class="kcard-unit">recorded</div></div>
-    <div class="kcard kc-cy"><div class="kcard-lbl">CX Records</div><div class="kcard-val" style="color:var(--cy)" id="k-cx">—</div><div class="kcard-unit">logged</div></div>
-    <div class="kcard kc-or"><div class="kcard-lbl">Active Devices</div><div class="kcard-val" style="color:var(--or)" id="k-dev">—</div><div class="kcard-unit">last 24 h</div></div>
+    <div class="kcard kc-bl">
+      <div class="kcard-lbl">Speed Tests<span class="rag" id="rag-tot"></span></div>
+      <div class="kcard-val" id="k-tot">—</div>
+      <div class="kcard-unit">tests recorded</div>
+      <div class="kcard-trend" id="tr-tot"></div>
+    </div>
+    <div class="kcard kc-bl">
+      <div class="kcard-lbl">Download Speed<span class="rag" id="rag-dl"></span></div>
+      <div class="kcard-val" style="color:var(--bl)" id="k-dl">—</div>
+      <div class="kcard-unit">Mbps avg</div>
+      <div class="kcard-trend" id="tr-dl"></div>
+    </div>
+    <div class="kcard kc-gr">
+      <div class="kcard-lbl">Upload Speed<span class="rag" id="rag-ul"></span></div>
+      <div class="kcard-val" style="color:var(--gr)" id="k-ul">—</div>
+      <div class="kcard-unit">Mbps avg</div>
+      <div class="kcard-trend" id="tr-ul"></div>
+    </div>
+    <div class="kcard kc-yw">
+      <div class="kcard-lbl">Network Latency<span class="rag" id="rag-ping"></span></div>
+      <div class="kcard-val" style="color:var(--yw)" id="k-ping">—</div>
+      <div class="kcard-unit">ms round-trip</div>
+      <div class="kcard-trend" id="tr-ping"></div>
+    </div>
+    <div class="kcard kc-bl">
+      <div class="kcard-lbl"><span class="exec-lbl">Signal Quality</span><span class="tech-lbl" style="display:none">Avg RSRP</span><span class="rag" id="rag-rsrp"></span></div>
+      <div class="kcard-val" id="k-rsrp">—</div>
+      <div class="kcard-unit exec-lbl">dBm · signal strength</div>
+      <div class="kcard-unit tech-lbl" style="display:none">dBm</div>
+      <div class="kcard-trend" id="tr-rsrp"></div>
+    </div>
+    <div class="kcard kc-pu">
+      <div class="kcard-lbl">Drive Test Trips<span class="rag" id="rag-sess"></span></div>
+      <div class="kcard-val" style="color:var(--pu)" id="k-sess">—</div>
+      <div class="kcard-unit">sessions recorded</div>
+    </div>
+    <div class="kcard kc-cy">
+      <div class="kcard-lbl">CX Measurements<span class="rag" id="rag-cx"></span></div>
+      <div class="kcard-val" style="color:var(--cy)" id="k-cx">—</div>
+      <div class="kcard-unit">experience logs</div>
+    </div>
+    <div class="kcard kc-or">
+      <div class="kcard-lbl">Active Devices<span class="rag" id="rag-dev"></span></div>
+      <div class="kcard-val" style="color:var(--or)" id="k-dev">—</div>
+      <div class="kcard-unit">last 24 h</div>
+    </div>
+  </div>
+
+  <!-- Network Health Banner (Executive view only) -->
+  <div class="health-banner exec-view" id="health-banner">
+    <div class="health-ring" id="health-ring">
+      <div class="health-ring-num" id="health-score-num">—</div>
+      <div class="health-ring-lbl">/ 100</div>
+    </div>
+    <div class="health-details">
+      <div class="health-title">Network Health Score</div>
+      <div class="health-sub">Composite: Download Speed (40%) · Signal Quality (35%) · Customer Experience (25%)</div>
+      <div class="health-status" id="health-status-badge">Calculating…</div>
+    </div>
+    <div class="health-drivers" id="health-drivers" style="margin-left:auto;text-align:right"></div>
   </div>
 
   <!-- Sub-tabs -->
@@ -290,11 +413,88 @@ td.r,th.r{text-align:right}
 
   <!-- Overview -->
   <div class="stp on" id="st-overview">
-    <div class="exec-card">
-      <div class="exec-score">Overall Network Score</div>
-      <div><span class="exec-big" id="ex-score">—</span> <span class="exec-rating" id="ex-rating"></span></div>
+    <!-- PART 1 — Executive section header -->
+    <div class="view-hdr exec-view">
+      <span class="view-hdr-badge vhb-exec">Part 1 · Executive</span>
+      <span class="view-hdr-title">Decision-Ready Summary</span>
+      <div class="view-hdr-line"></div>
+      <span style="font-size:10px;color:var(--mu)">Plain-language network health for leadership</span>
+    </div>
+
+    <div class="exec-card exec-view">
+      <div class="exec-score">Overall Network Score · OpenSignal Experience Index</div>
+      <div><span class="exec-big" id="ex-score">—</span> <span class="exec-rating" id="ex-rating"></span> <span style="font-size:12px;color:var(--mu)">out of 10</span></div>
       <div class="exec-stats" id="ex-stats"></div>
     </div>
+
+    <!-- PART 2 — Technical section (shown in tech view) -->
+    <div class="view-hdr tech-only" id="tech-hdr">
+      <span class="view-hdr-badge vhb-tech">Part 2 · Technical</span>
+      <span class="view-hdr-title">Engineering Reference</span>
+      <div class="view-hdr-line"></div>
+      <span style="font-size:10px;color:var(--mu)">RSRP thresholds · SEV priority matrix · fix prioritization</span>
+    </div>
+
+    <!-- RSRP Signal Quality Threshold Table -->
+    <div class="g g2 tech-only" id="tech-ref-section">
+      <div class="card">
+        <div class="ch">
+          <span class="ch-t">RSRP Signal Quality Thresholds</span>
+          <span class="ch-s">ITU / 3GPP TS 36.133 reference</span>
+        </div>
+        <div class="cb" style="padding:0">
+          <table class="thresh-tbl">
+            <thead><tr><th>Grade</th><th>RSRP Range</th><th>SINR Range</th><th>User Impact</th></tr></thead>
+            <tbody>
+              <tr><td><span class="thresh-dot" style="background:#00e676"></span><strong style="color:#00e676">Excellent</strong></td><td>≥ −80 dBm</td><td>≥ 20 dB</td><td>Full throughput, VoLTE, 4K video</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#00bcd4"></span><strong style="color:#00bcd4">Good</strong></td><td>−90 to −80 dBm</td><td>13 – 20 dB</td><td>HD video, stable data, minor drops</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#ffc107"></span><strong style="color:#ffc107">Fair</strong></td><td>−100 to −90 dBm</td><td>0 – 13 dB</td><td>SD video, occasional buffering</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#ff9800"></span><strong style="color:#ff9800">Poor</strong></td><td>−110 to −100 dBm</td><td>−6 to 0 dB</td><td>Voice only, slow data, high retries</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#f44336"></span><strong style="color:#f44336">Critical</strong></td><td>&lt; −110 dBm</td><td>&lt; −6 dB</td><td>No service / dropped calls</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SEV Priority Matrix -->
+      <div class="card">
+        <div class="ch">
+          <span class="ch-t">Issue Severity &amp; Priority Matrix</span>
+          <span class="ch-s">For fix prioritization and escalation</span>
+        </div>
+        <div class="cb">
+          <div class="pmatrix">
+            <div class="psev psev1">
+              <div class="psev-num">SEV1</div>
+              <div class="psev-label">Critical</div>
+              <div class="psev-desc">Service outage · RSRP &lt;−110 &gt;10% area · resolve &lt;4 h</div>
+            </div>
+            <div class="psev psev2">
+              <div class="psev-num">SEV2</div>
+              <div class="psev-label">High</div>
+              <div class="psev-desc">Poor signal zone · DL &lt;5 Mbps · 24 h SLA</div>
+            </div>
+            <div class="psev psev3">
+              <div class="psev-num">SEV3</div>
+              <div class="psev-label">Medium</div>
+              <div class="psev-desc">Degraded performance · RSRP −100 to −90 · 72 h SLA</div>
+            </div>
+            <div class="psev psev4">
+              <div class="psev-num">SEV4</div>
+              <div class="psev-label">Low</div>
+              <div class="psev-desc">Marginal quality · optimization needed · next sprint</div>
+            </div>
+            <div class="psev psev5">
+              <div class="psev-num">SEV5</div>
+              <div class="psev-label">Informational</div>
+              <div class="psev-desc">Baseline monitoring · no immediate action</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Awards (both views) -->
     <div style="font-size:11px;color:var(--mu);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">🏆 Operator Awards</div>
     <div class="awards" id="awards-grid"></div>
     <div class="g g2">
@@ -989,6 +1189,74 @@ function initDriveMap() {
   })  // end map.on('load')
 }  // end initDriveMap
 
+// ── View mode ──────────────────────────────────────
+let dashView = 'exec'
+function setDashView(v) {
+  dashView = v
+  document.querySelectorAll('.vt-btn').forEach(b => b.classList.toggle('on', b.dataset.view === v))
+  const isTech = v === 'tech'
+  document.querySelectorAll('.exec-view').forEach(el => el.style.display = isTech ? 'none' : '')
+  document.querySelectorAll('.tech-only').forEach(el => el.style.display = isTech ? '' : 'none')
+  document.querySelectorAll('.exec-lbl').forEach(el => el.style.display = isTech ? 'none' : '')
+  document.querySelectorAll('.tech-lbl').forEach(el => el.style.display = isTech ? '' : 'none')
+}
+
+// ── Network health score (executive) ──────────────
+function renderHealthScore() {
+  const nx = filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv})
+  if (!nx.length) return
+  const avg = col => nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length
+  const avgDl   = avg('download_mbps')
+  const avgRsrp = avg('rsrp')
+  // DL: 50 Mbps = 100 points
+  const dlScore   = Math.min(100, Math.max(0, (avgDl / 50) * 100))
+  // RSRP: -80 = 100, -120 = 0
+  const rsrpScore = Math.min(100, Math.max(0, ((avgRsrp + 120) / 40) * 100))
+  // CX from OpenSignal (0-100 scale)
+  const os = filterOs ? filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv}) : []
+  let cxScore = 50
+  if (os && os.length) {
+    const osAvg = col => os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length
+    cxScore = (osAvg('video_experience')+osAvg('games_experience')+osAvg('voice_app_experience'))/3
+  }
+  const health = Math.round(dlScore*0.4 + rsrpScore*0.35 + cxScore*0.25)
+  const ring  = document.getElementById('health-ring')
+  const num   = document.getElementById('health-score-num')
+  const badge = document.getElementById('health-status-badge')
+  const drv   = document.getElementById('health-drivers')
+  if (!ring) return
+  num.textContent = health
+  let color, label, bg
+  if (health >= 75)      { color='#00e676'; label='GOOD';     bg='rgba(0,230,118,.15)' }
+  else if (health >= 50) { color='#ffc107'; label='FAIR';     bg='rgba(255,193,7,.15)' }
+  else                   { color='#f44336'; label='NEEDS ATTENTION'; bg='rgba(244,67,54,.15)' }
+  ring.style.borderColor = color
+  num.style.color = color
+  badge.textContent = label
+  badge.style.background = bg
+  badge.style.color = color
+  const dlC   = dlScore   >= 70 ? '#00e676' : dlScore   >= 40 ? '#ffc107' : '#f44336'
+  const rsrpC = rsrpScore >= 70 ? '#00e676' : rsrpScore >= 40 ? '#ffc107' : '#f44336'
+  const cxC   = cxScore   >= 70 ? '#00e676' : cxScore   >= 50 ? '#ffc107' : '#f44336'
+  drv.innerHTML = [
+    `<span style="color:${dlC}">↓ Download: ${n(avgDl)} Mbps</span>`,
+    `<span style="color:${rsrpC}">📶 Signal: ${n(avgRsrp,0)} dBm</span>`,
+    `<span style="color:${cxC}">★ CX: ${n(cxScore,1)} / 10</span>`
+  ].join('')
+}
+
+// ── RAG badge helper ──────────────────────────────
+function setRag(id, val, good, warn, higherIsBetter=true) {
+  const el = document.getElementById(id)
+  if (!el || val == null) return
+  let ok
+  if (higherIsBetter) ok = val >= good ? 'g' : val >= warn ? 'a' : 'r'
+  else                ok = val <= good ? 'g' : val <= warn ? 'a' : 'r'
+  const label = ok === 'g' ? 'GOOD' : ok === 'a' ? 'FAIR' : 'POOR'
+  el.className = 'rag rag-' + ok
+  el.textContent = label
+}
+
 // ── Render: KPI cards ─────────────────────────────
 function renderKPIs() {
   const nx = filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
@@ -1005,6 +1273,31 @@ function renderKPIs() {
   const cut=new Date(Date.now()-86400000).toISOString()
   const devs=new Set(nx.filter(r=>r.tested_at>cut).map(r=>r.device_id))
   document.getElementById('k-dev').textContent = devs.size
+  // RAG status badges
+  setRag('rag-dl',   avg('download_mbps'), 25,  10)
+  setRag('rag-ul',   avg('upload_mbps'),   10,   5)
+  setRag('rag-ping', avg('ping_ms'),       50, 100, false)
+  setRag('rag-rsrp', ar,                  -90,-100)
+  // Trend arrows (compare recent 30 vs prior 30)
+  const sorted = [...nx].sort((a,b)=>new Date(a.tested_at)-new Date(b.tested_at))
+  if (sorted.length >= 10) {
+    const half = Math.floor(sorted.length/2)
+    const prior = sorted.slice(0, half), recent = sorted.slice(half)
+    const avgC = (arr,col) => arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length
+    const arrow = (cur, prev, higher=true) => {
+      const diff = ((cur - prev) / Math.abs(prev||1)) * 100
+      if (Math.abs(diff) < 3) return '<span class="trend-eq">→ stable</span>'
+      const up = diff > 0
+      const good = higher ? up : !up
+      return `<span class="${good?'trend-up':'trend-dn'}">${up?'▲':'▼'} ${Math.abs(diff).toFixed(0)}%</span>`
+    }
+    document.getElementById('tr-dl').innerHTML   = arrow(avgC(recent,'download_mbps'), avgC(prior,'download_mbps'))
+    document.getElementById('tr-ul').innerHTML   = arrow(avgC(recent,'upload_mbps'),   avgC(prior,'upload_mbps'))
+    document.getElementById('tr-ping').innerHTML = arrow(avgC(recent,'ping_ms'),       avgC(prior,'ping_ms'), false)
+    document.getElementById('tr-rsrp').innerHTML = arrow(avgC(recent,'rsrp'),          avgC(prior,'rsrp'))
+  }
+  // Health score
+  renderHealthScore()
 }
 
 // ── Render: Executive summary ─────────────────────
