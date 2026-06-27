@@ -548,6 +548,12 @@ td.r,th.r{text-align:right}
       <div id="act-list"><div style="padding:16px;text-align:center;color:var(--mu);font-size:12px">Loading…</div></div>
     </div>
 
+    <!-- ══ CONSISTENT QUALITY (OpenSignal 6-threshold model, confirmed 3-0) ══ -->
+    <div class="exec-view" id="cq-panel" style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Consistent Quality Thresholds · OpenSignal Model</div>
+      <div id="cq-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"></div>
+    </div>
+
     <!-- hidden exec-card kept for JS compat -->
     <div style="display:none">
       <span id="ex-score"></span><span id="ex-rating"></span><div id="ex-stats"></div>
@@ -1498,11 +1504,14 @@ function renderExecBanner() {
   const sub=document.getElementById('esb-sub'), badge=document.getElementById('esb-badge')
   if(!ring)return
   scoreEl.textContent=nx.length?health:'—'
+  // 5-band naming aligned with OpenSignal Video Experience model (verified 2-1, Opensignal 2024)
   let cls='esb-neutral', ringColor='var(--bd)', vText='No data', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
   if(nx.length){
-    if(health>=70){cls='esb-green';ringColor='#00e676';vText='Network is Healthy';vSub='Performance meets operational benchmarks across all KPIs';bText='GOOD';bBg='rgba(0,230,118,.2)';bColor='#00e676'}
-    else if(health>=45){cls='esb-amber';ringColor='#ffc107';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='#ffc107'}
-    else{cls='esb-red';ringColor='#f44336';vText='Network Performance Critical';vSub='Multiple KPIs failing — immediate action required';bText='POOR';bBg='rgba(244,67,54,.2)';bColor='#f44336'}
+    if(health>=85){cls='esb-green';ringColor='#00e676';vText='Excellent Network Performance';vSub='All KPIs consistently exceed operational benchmarks';bText='EXCELLENT';bBg='rgba(0,230,118,.2)';bColor='#00e676'}
+    else if(health>=70){cls='esb-green';ringColor='#3fb950';vText='Good Network Performance';vSub='KPIs meeting benchmarks with minor optimization opportunities';bText='GOOD';bBg='rgba(63,185,80,.2)';bColor='#3fb950'}
+    else if(health>=50){cls='esb-amber';ringColor='#ffc107';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='#ffc107'}
+    else if(health>=30){cls='esb-red';ringColor='#ff9800';vText='Network Performance Poor';vSub='Multiple KPIs failing — prioritize corrective action';bText='POOR';bBg='rgba(255,152,0,.2)';bColor='#ff9800'}
+    else{cls='esb-red';ringColor='#f44336';vText='Network Performance Critical';vSub='Severe KPI failures — immediate intervention required';bText='CRITICAL';bBg='rgba(244,67,54,.2)';bColor='#f44336'}
   }
   banner.className=`exec-status-banner ${cls} exec-view`
   ring.style.borderColor=ringColor
@@ -1617,6 +1626,46 @@ function renderActionsRequired() {
         <div class="act-row-detail">${a.detail}</div>
       </div>
     </div>`).join('')
+}
+
+// ── Render: Consistent Quality Thresholds ─────────
+// OpenSignal 6-threshold composite model (confirmed 3-0 by deep research)
+function renderConsistentQuality() {
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const avg=(col)=>nx.length?nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length:null
+  const avgDl=avg('download_mbps'), avgUl=avg('upload_mbps'), avgPing=avg('ping_ms')
+
+  // Thresholds per OpenSignal Consistent Quality / Reliability Experience methodology
+  const checks=[
+    {label:'Download',    val:avgDl,   thresh:25,  unit:'Mbps', dir:'gte', note:'≥25 Mbps'},
+    {label:'Upload',      val:avgUl,   thresh:5,   unit:'Mbps', dir:'gte', note:'≥5 Mbps'},
+    {label:'Latency',     val:avgPing, thresh:100, unit:'ms',   dir:'lte', note:'<100 ms'},
+    {label:'Signal Good+',val:null,    thresh:null,unit:'%',    dir:'gte', note:'≥80%', id:'cq-cov'},
+    {label:'Tests Loaded',val:nx.length,thresh:1,  unit:'',    dir:'gte', note:'Data present'},
+  ]
+
+  // coverage quality from rendered hero KPI
+  const covEl=document.getElementById('hk-cov')
+  const covPct=covEl?parseInt(covEl.textContent):null
+  checks[3].val=covPct
+
+  const grid=document.getElementById('cq-grid')
+  if(!grid)return
+  grid.innerHTML=checks.map(c=>{
+    const pass=c.val!=null&&c.thresh!=null?(c.dir==='gte'?c.val>=c.thresh:c.val<=c.thresh):false
+    const nodata=c.val==null
+    const color=nodata?'var(--mu)':pass?'#3fb950':'#f44336'
+    const icon=nodata?'—':pass?'✓':'✗'
+    const displayVal=c.val!=null?(Number.isInteger(c.val)?c.val:c.val.toFixed(1)):''
+    return `<div style="background:var(--s1);border:1px solid ${nodata?'var(--bd)':pass?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)'};border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px;font-weight:900;color:${color};width:18px;text-align:center;flex-shrink:0">${icon}</span>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx)">${c.label}</div>
+        <div style="font-size:10px;color:${color}">${displayVal?displayVal+' '+c.unit:c.note}</div>
+        <div style="font-size:9px;color:var(--mu)">${c.note}</div>
+      </div>
+    </div>`
+  }).join('')
 }
 
 // ── Render: SEV Live Counts (Technical) ───────────
@@ -2137,26 +2186,64 @@ function renderDriveRules(samples, sess) {
   samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
   const tot=samples.length||1
 
-  document.getElementById('drv-grade-bars').innerHTML=
-    Object.entries(grades).map(([g,cnt])=>{
-      const pct=Math.round(cnt/tot*100)
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="width:14px;font-size:11px;font-weight:700;color:${GC[g]}">${g}</span>
-        <div style="flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:${GC[g]};border-radius:4px;transition:width .4s"></div>
-        </div>
-        <span style="font-size:11px;font-weight:600;color:${GC[g]};width:32px;text-align:right">${pct}%</span>
-        <span style="font-size:10px;color:var(--mu);width:28px">${cnt}</span>
-      </div>`
-    }).join('')
-
-  // Compute averages
+  // Compute averages + percentiles (ETSI TR 103 559 best practice: P10/P50/P90)
+  const pct=(arr,p)=>{ if(!arr.length)return null; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor((p/100)*(s.length-1))] }
   const sWithRsrp=samples.filter(s=>s.rsrp!=null)
   const sWithSinr=samples.filter(s=>s.sinr!=null)
   const sWithDl  =samples.filter(s=>s.download_mbps!=null)
-  const avgRsrp=sWithRsrp.length ? sWithRsrp.reduce((a,b)=>a+b.rsrp,0)/sWithRsrp.length : null
+  const rsrpVals=sWithRsrp.map(s=>s.rsrp), dlVals=sWithDl.map(s=>s.download_mbps)
+  const avgRsrp=rsrpVals.length ? rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length : null
   const avgSinr=sWithSinr.length ? sWithSinr.reduce((a,b)=>a+b.sinr,0)/sWithSinr.length : null
-  const avgDl  =sWithDl.length   ? sWithDl.reduce((a,b)=>a+b.download_mbps,0)/sWithDl.length : null
+  const avgDl  =dlVals.length   ? dlVals.reduce((a,b)=>a+b,0)/dlVals.length : null
+
+  // Percentile stats panel (standard in TEMS/VIAVI drive reports)
+  const rsrpP10=pct(rsrpVals,10), rsrpP50=pct(rsrpVals,50), rsrpP90=pct(rsrpVals,90)
+  const dlP10=pct(dlVals,10), dlP50=pct(dlVals,50), dlP90=pct(dlVals,90)
+  const rsrpColor=v=>v==null?'var(--mu)':v>=-90?'#00e676':v>=-100?'#ffc107':v>=-110?'#ff9800':'#f44336'
+  document.getElementById('drv-grade-bars').innerHTML=`
+    <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Signal Grade Distribution</div>
+    ${Object.entries(grades).map(([g,cnt])=>{
+      const pct2=Math.round(cnt/tot*100)
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="width:14px;font-size:11px;font-weight:700;color:${GC[g]}">${g}</span>
+        <div style="flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden">
+          <div style="width:${pct2}%;height:100%;background:${GC[g]};border-radius:4px;transition:width .4s"></div>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:${GC[g]};width:32px;text-align:right">${pct2}%</span>
+        <span style="font-size:10px;color:var(--mu);width:28px">${cnt}</span>
+      </div>`
+    }).join('')}
+    <div style="margin-top:12px;border-top:1px solid var(--bd);padding-top:10px">
+      <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">RSRP Percentile Bands · dBm (ETSI TR 103 559)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">P10 (Edge)</div>
+          <div style="font-size:14px;font-weight:700;color:${rsrpColor(rsrpP10)}">${rsrpP10!=null?rsrpP10.toFixed(0):'—'}</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">P50 (Median)</div>
+          <div style="font-size:14px;font-weight:700;color:${rsrpColor(rsrpP50)}">${rsrpP50!=null?rsrpP50.toFixed(0):'—'}</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">P90 (Best)</div>
+          <div style="font-size:14px;font-weight:700;color:${rsrpColor(rsrpP90)}">${rsrpP90!=null?rsrpP90.toFixed(0):'—'}</div>
+        </div>
+      </div>
+      ${dlVals.length?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:4px">
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">DL P10 Mbps</div>
+          <div style="font-size:14px;font-weight:700;color:var(--bl)">${dlP10!=null?dlP10.toFixed(1):'—'}</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">DL P50 Mbps</div>
+          <div style="font-size:14px;font-weight:700;color:var(--bl)">${dlP50!=null?dlP50.toFixed(1):'—'}</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:6px;padding:6px 4px">
+          <div style="font-size:9px;color:var(--mu)">DL P90 Mbps</div>
+          <div style="font-size:14px;font-weight:700;color:var(--bl)">${dlP90!=null?dlP90.toFixed(1):'—'}</div>
+        </div>
+      </div>`:''}
+    </div>`
   const abPct  =(grades.A+grades.B)/tot*100
   const distKm =sess.distance_km||0
   const hoRate =distKm>0 ? (sess.handover_count||0)/distKm : null
@@ -2357,7 +2444,7 @@ function setConn(s){
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
 // ── Refresh all views ─────────────────────────────
-function refreshDash() {renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
+function refreshDash() {renderKPIs();renderExecSummary();renderExecBanner();renderHeroKPIs();renderActionsRequired();renderConsistentQuality();renderSevLiveCounts();renderAwards();renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()}
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
