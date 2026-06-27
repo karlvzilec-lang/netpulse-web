@@ -2510,6 +2510,12 @@ function renderSessions() {
       : hasSamples
         ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
         : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#ff980018;color:#ff9800;border:1px solid #ff980030" title="GPS route data recorded on device but not yet uploaded to cloud">📱 NOT UPLOADED</span>`
+    const actionBtn = isManual || hasSamples
+      ? `<button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${isManual?'\'manual\'':s.id})">📄 Analyze &amp; Export PDF</button>`
+      : `<div style="display:flex;gap:6px;padding:0 10px 10px">
+          <button class="pdf-btn" style="flex:1;background:rgba(255,152,0,.12);border-color:rgba(255,152,0,.35);color:#ff9800" onclick="event.stopPropagation();recheckSession(${s.id})">↻ Check for GPS</button>
+          <button class="pdf-btn" style="flex:1" onclick="event.stopPropagation();document.getElementById('upload-panel').scrollIntoView({behavior:'smooth'})">↑ Upload GPS</button>
+        </div>`
     return `
     <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${isManual?'\'manual\'':s.id})">
       <div class="sess-dev" style="display:flex;justify-content:space-between;align-items:center">
@@ -2524,7 +2530,7 @@ function renderSessions() {
         ${s.avg_rsrp!=null?`<span class="sess-stat" style="color:${rsrpColor(Math.round(s.avg_rsrp))}">${n(s.avg_rsrp,0)} dBm</span>`:''}
       </div>
     </div>
-    <button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${s.id})">📄 Analyze &amp; Export PDF</button>`
+    ${actionBtn}`
   }).join('')
 }
 
@@ -2696,17 +2702,8 @@ window.pickSess = async function(id) {
   if(driveSamples.length){
     renderDriveRules(driveSamples, activeSess)
   } else {
-    // Session metadata exists but samples not yet uploaded from device
-    document.getElementById('drv-grade-bars').innerHTML=
-      '<div style="color:var(--mu);font-size:11px;padding:8px 0">No samples synced yet.<br>Sample count in session: '+(activeSess.sample_count||0)+'</div>'
-    document.getElementById('drv-assessment').innerHTML=
-      '<div style="color:var(--yw);font-size:11px;padding:8px 0">⚠ Drive samples are still uploading from the device. The session recorded '+(activeSess.sample_count||0)+' pts — check back shortly.</div>'
-    document.getElementById('drv-verdict-icon').textContent='⏳'
-    document.getElementById('drv-verdict-label').textContent='NOT UPLOADED'
-    document.getElementById('drv-verdict-label').style.color='#ff9800'
-    document.getElementById('drv-verdict-sub').textContent='GPS data on device only'
-    document.getElementById('drv-verdict-pill').innerHTML=
-      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#ff9800">📱 NOT UPLOADED</span>'
+    // GPS route not in cloud yet — render analysis from session metadata
+    renderMetadataAnalysis(activeSess)
   }
 }
 
@@ -2793,6 +2790,108 @@ function renderSamples() {
       <td class="mono" style="text-align:right">${s.pci??'—'}</td>
       <td style="color:var(--mu);font-size:10px">${s.event_type||'—'}</td>
     </tr>`})
+}
+
+// ── Metadata-only analysis for GPS-not-yet-uploaded sessions ──
+function renderMetadataAnalysis(sess) {
+  const rsrp = sess.avg_rsrp
+  const dl   = sess.avg_download_mbps
+  const ho   = sess.handover_count ?? 0
+  const km   = sess.distance_km ?? 0
+  const pts  = sess.sample_count ?? 0
+
+  // Signal grade from RSRP
+  const sigGrade = rsrp == null ? null : rsrp >= -80 ? 'Excellent' : rsrp >= -90 ? 'Good' : rsrp >= -100 ? 'Fair' : rsrp >= -110 ? 'Poor' : 'Critical'
+  const sigColor = rsrp == null ? 'var(--mu)' : rsrpColor(Math.round(rsrp))
+  const hoRate   = km > 0 ? (ho / km).toFixed(1) : null
+
+  // Grade bars from metadata
+  document.getElementById('drv-grade-bars').innerHTML = `
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+        <span style="color:var(--mu)">Signal (Avg RSRP)</span>
+        <span style="color:${sigColor};font-weight:700">${rsrp!=null?n(rsrp,0)+' dBm':'—'}</span>
+      </div>
+      <div style="height:6px;background:var(--s2);border-radius:3px">
+        <div style="height:6px;border-radius:3px;background:${sigColor};width:${rsrp!=null?Math.max(4,Math.min(100,((rsrp+120)/40)*100)).toFixed(0):0}%"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+        <span style="color:var(--mu)">Download Speed</span>
+        <span style="color:var(--bl);font-weight:700">${dl!=null?n(dl)+' Mbps':'—'}</span>
+      </div>
+      <div style="height:6px;background:var(--s2);border-radius:3px">
+        <div style="height:6px;border-radius:3px;background:var(--bl);width:${dl!=null?Math.max(4,Math.min(100,(dl/50)*100)).toFixed(0):0}%"></div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-top:10px">
+      ${pts} pts recorded · ${km>0?n(km,1)+' km':'—'} driven<br>
+      ${ho} handovers${hoRate?' ('+hoRate+'/km)':''}
+      <div style="margin-top:6px;padding:6px 8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.25);border-radius:6px;color:#ff9800;font-size:9px;line-height:1.5">
+        GPS route not yet synced from device.<br>
+        <button onclick="recheckSession(${sess.id})" style="margin-top:4px;padding:2px 8px;background:rgba(255,152,0,.2);border:1px solid rgba(255,152,0,.4);border-radius:4px;color:#ff9800;font-size:9px;cursor:pointer;font-weight:700">↻ Check Again</button>
+        <button onclick="document.getElementById('upload-panel').scrollIntoView({behavior:'smooth'})" style="margin-top:4px;margin-left:4px;padding:2px 8px;background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);border-radius:4px;color:var(--bl);font-size:9px;cursor:pointer;font-weight:700">↑ Upload CSV/GPX</button>
+      </div>
+    </div>`
+
+  // Assessment from metadata rules
+  const rules = []
+  if (rsrp != null) {
+    if (rsrp >= -90)       rules.push({ok:true,  txt:`Signal ${sigGrade} (${n(rsrp,0)} dBm) — meets drive quality threshold`})
+    else if (rsrp >= -100) rules.push({ok:null,   txt:`Signal ${sigGrade} (${n(rsrp,0)} dBm) — marginal, monitor closely`})
+    else                   rules.push({ok:false,  txt:`Signal ${sigGrade} (${n(rsrp,0)} dBm) — coverage issue on this route`})
+  }
+  if (dl != null) {
+    if (dl >= 25)  rules.push({ok:true,  txt:`Download ${n(dl)} Mbps — above GSMA 25 Mbps benchmark`})
+    else if (dl >= 10) rules.push({ok:null, txt:`Download ${n(dl)} Mbps — below target, congestion possible`})
+    else           rules.push({ok:false, txt:`Download ${n(dl)} Mbps — below minimum acceptable threshold`})
+  }
+  if (ho > 0 && km > 0) {
+    const hoPer = ho / km
+    if (hoPer > 3)   rules.push({ok:false, txt:`High handover rate (${hoRate}/km) — poor cell planning on route`})
+    else if (hoPer > 1.5) rules.push({ok:null, txt:`Moderate handovers (${hoRate}/km) — acceptable for urban route`})
+    else             rules.push({ok:true,  txt:`Low handover rate (${hoRate}/km) — stable cell coverage`})
+  }
+  if (!rules.length) rules.push({ok:null, txt:'Insufficient metadata for rule assessment'})
+
+  document.getElementById('drv-assessment').innerHTML = rules.map(r=>`
+    <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;font-size:10px;line-height:1.4">
+      <span style="font-weight:900;color:${r.ok===true?'#3fb950':r.ok===false?'#f44336':'#ffc107'};flex-shrink:0">${r.ok===true?'✓':r.ok===false?'✗':'!'}</span>
+      <span style="color:var(--tx)">${r.txt}</span>
+    </div>`).join('')
+
+  // Verdict from RSRP and DL
+  const scores = [rsrp!=null?(rsrp>=-90?100:rsrp>=-100?60:30):null, dl!=null?(dl>=25?100:dl>=10?60:30):null].filter(v=>v!=null)
+  const avg = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : null
+  const [icon,label,color,sub] = avg==null ? ['📱','NO GPS DATA','#ff9800','Upload to analyze']
+    : avg>=80 ? ['✅','GOOD',   '#3fb950','Route quality acceptable']
+    : avg>=55 ? ['⚠️','FAIR',   '#ffc107','Some issues detected']
+    :           ['❌','POOR',   '#f44336','Coverage problems on route']
+
+  document.getElementById('drv-verdict-icon').textContent=icon
+  document.getElementById('drv-verdict-label').textContent=label
+  document.getElementById('drv-verdict-label').style.color=color
+  document.getElementById('drv-verdict-sub').textContent=sub
+  document.getElementById('drv-verdict-pill').innerHTML=
+    `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${color}22;border:1px solid ${color}44;color:${color}">📊 Metadata Only</span>`
+}
+
+// ── Re-check if GPS samples have been uploaded since page load ──
+window.recheckSession = async function(id) {
+  const btn = event.target
+  const origText = btn.textContent
+  btn.textContent = 'Checking…'
+  btn.disabled = true
+  const {data} = await db.from('drive_samples').select('session_id').eq('session_id',id).limit(1)
+  if (data && data.length) {
+    sampledSessionIds.add(id)
+    renderSessions()
+    pickSess(id)
+  } else {
+    btn.textContent = 'No GPS yet'
+    setTimeout(()=>{ btn.textContent=origText; btn.disabled=false }, 2000)
+  }
 }
 
 // ── Rule-based Drive Analysis ─────────────────────
