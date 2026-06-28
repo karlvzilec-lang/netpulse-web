@@ -5,18 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>NetPulse Web — Live Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<script defer src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*:focus-visible{outline:2px solid #58a6ff;outline-offset:2px;border-radius:3px}
+@keyframes spin{to{transform:rotate(360deg)}}
 :root{
   --bg:#0d1117;--s1:#161b22;--s2:#1c2128;--bd:#30363d;
-  --pr:#1f6feb;--tx:#e6edf3;--mu:#8b949e;
+  --pr:#1f6feb;--tx:#e6edf3;--mu:#9da8b4;
   --gr:#3fb950;--yw:#d29922;--or:#db6d28;--re:#f85149;--pu:#a371f7;--bl:#58a6ff;--cy:#39d353;
   --r-ex:#00e676;--r-go:#00bcd4;--r-fa:#ffc107;--r-po:#ff9800;--r-cr:#f44336;
 }
@@ -42,13 +46,13 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .tab-btn:hover{color:var(--tx);background:rgba(255,255,255,.04)}
 .tab-btn.on{color:var(--tx);font-weight:700;border-bottom-color:var(--pr)}
 /* ── Filter bar ── */
-.fbar{background:var(--s1);border-bottom:1px solid var(--bd);padding:10px 20px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:sticky;top:0;z-index:10}
+.fbar{background:var(--s1);border-bottom:1px solid var(--bd);padding:10px 20px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:sticky;top:52px;z-index:10}
 .fbar-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .fbar-label{font-size:9.5px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:0 4px 0 2px;white-space:nowrap}
 .fchip{padding:5px 13px;border-radius:20px;border:1px solid var(--bd);background:none;color:var(--mu);font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1}
 .fchip:hover{border-color:rgba(88,166,255,.5);color:var(--tx)}
 .fchip.on{background:rgba(31,111,235,.15);border-color:rgba(31,111,235,.5);color:#58a6ff;font-weight:600}
-.fdrop{padding:5px 10px;border-radius:20px;border:1px solid var(--bd);background:var(--s1);color:var(--mu);font-size:11.5px;cursor:pointer;outline:none;appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.fdrop{padding:5px 10px;border-radius:20px;border:1px solid var(--bd);background:var(--s1);color:var(--mu);font-size:11.5px;cursor:pointer;appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
 .fdrop:focus{border-color:rgba(31,111,235,.5);color:var(--tx)}
 .fbar-sep{width:1px;height:20px;background:var(--bd);margin:0 4px}
 .fbar-div{width:1px;height:16px;background:var(--bd);margin:0 6px;flex-shrink:0;align-self:center}
@@ -172,8 +176,8 @@ tr:hover td{background:var(--s2)}
 .op-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;font-size:8px;font-weight:800;color:#fff;letter-spacing:0;flex-shrink:0;vertical-align:middle;margin-right:3px}
 .op-logo-wrap{display:inline-flex;align-items:center;gap:3px}
 .drv-date-wrap{display:flex;align-items:center;gap:4px;margin-left:4px}
-.drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer;outline:none}
-.drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;outline:none;min-width:130px}
+.drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer}
+.drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;min-width:130px}
 /* ── Session list cards ── */
 .sess-list{height:480px;overflow-y:auto}
 .sess-item{padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
@@ -263,7 +267,7 @@ td.r,th.r{text-align:right}
 .ltog input:checked+.lslid:before{transform:translateX(16px);background:#58a6ff}
 .map-pills{position:absolute;bottom:28px;left:8px;display:flex;gap:5px;z-index:10;pointer-events:none}
 .mpill{background:rgba(13,17,23,.85);border:1px solid var(--bd);border-radius:12px;padding:2px 10px;font-size:11px;color:var(--mu);backdrop-filter:blur(4px)}
-.tok-in{width:100%;padding:5px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px;outline:none}
+.tok-in{width:100%;padding:5px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px}
 .tok-in:focus{border-color:var(--pr)}
 .sb-btn{display:block;width:100%;padding:6px 0;margin-top:5px;background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.25);border-radius:4px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
 .sb-btn:hover{background:rgba(31,111,235,.22)}
@@ -417,24 +421,24 @@ td.r,th.r{text-align:right}
 </nav>
 
 <!-- TABS -->
-<div class="tabs">
-  <button class="tab-btn on" data-tab="dash">
+<div class="tabs" role="tablist">
+  <button class="tab-btn on" data-tab="dash" role="tab" aria-selected="true">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>
     Executive Summary <span class="tab-aud tab-aud-exec">EXEC</span>
   </button>
-  <button class="tab-btn" data-tab="net">
+  <button class="tab-btn" data-tab="net" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1 11l3-4 2 2 4-6 3 4 2-3v6H1v1z"/></svg>
     Network Detail <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
-  <button class="tab-btn" data-tab="cx">
+  <button class="tab-btn" data-tab="cx" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.9 3.8L14 5.7l-3 2.9.7 4.1L8 10.5l-3.7 2.2.7-4.1L2 5.7l4.1-.9L8 1z"/></svg>
     Customer Experience <span class="tab-aud tab-aud-exec">EXEC</span>
   </button>
-  <button class="tab-btn" data-tab="drv">
+  <button class="tab-btn" data-tab="drv" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6" r="1.2"/><path d="M8 10v6"/></svg>
     Drive Test <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
-  <button class="tab-btn" data-tab="cov">
+  <button class="tab-btn" data-tab="cov" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
     Coverage Map <span class="tab-aud tab-aud-eng">ENG</span>
   </button>
@@ -679,7 +683,7 @@ td.r,th.r{text-align:right}
         </div>
         <div class="cb" style="padding:0">
           <table class="thresh-tbl">
-            <thead><tr><th>Grade</th><th>RSRP Range</th><th>SINR Range</th><th>User Impact</th></tr></thead>
+            <thead><tr><th scope="col">Grade</th><th scope="col">RSRP Range</th><th scope="col">SINR Range</th><th scope="col">User Impact</th></tr></thead>
             <tbody>
               <tr><td><span class="thresh-dot" style="background:#00e676"></span><strong style="color:#00e676">Excellent</strong></td><td>≥ −80 dBm</td><td>≥ 20 dB</td><td>Full throughput, VoLTE, 4K video</td></tr>
               <tr><td><span class="thresh-dot" style="background:#00bcd4"></span><strong style="color:#00bcd4">Good</strong></td><td>−90 to −80 dBm</td><td>13 – 20 dB</td><td>HD video, stable data, minor drops</td></tr>
@@ -744,7 +748,7 @@ td.r,th.r{text-align:right}
     </div>
     <div class="card mb">
       <div class="ch"><span class="ch-t">Recent Tests</span><span class="live-tag">LIVE</span></div>
-      <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>RAT</th><th>↓ DL</th><th>↑ UL</th><th>Ping</th><th>RSRP</th><th>Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">RSRP</th><th scope="col">Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
     </div>
   </div>
 
@@ -752,11 +756,11 @@ td.r,th.r{text-align:right}
   <div class="stp" id="st-rankings">
     <div class="card mb">
       <div class="ch"><span class="ch-t">Operator Rankings</span><span class="ch-s">All metrics · filtered period</span></div>
-      <div class="tw"><table><thead><tr><th>Rank</th><th>Operator</th><th>Tests</th><th>↓ DL (Mbps)</th><th>↑ UL (Mbps)</th><th>Ping (ms)</th><th>RSRP (dBm)</th><th>Jitter</th><th>Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th><th scope="col">RSRP (dBm)</th><th scope="col">Jitter</th><th scope="col">Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
     </div>
     <div class="card mb">
       <div class="ch"><span class="ch-t">OpenSignal Experience Rankings</span><span class="ch-s">By operator</span></div>
-      <div class="tw"><table><thead><tr><th>Rank</th><th>Operator</th><th>Tests</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>Consistent Quality</th><th>Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Quality</th><th scope="col">Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
     </div>
   </div>
 
@@ -831,16 +835,16 @@ td.r,th.r{text-align:right}
   </div>
   <div class="card mb">
     <div class="ch"><span class="ch-t">Speed Test Log</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>RAT</th><th>Bands</th><th>↓ DL</th><th>↑ UL</th><th>Ping</th><th>Jitter</th><th>RSRP</th><th>SINR</th><th>PCI</th><th>Province</th><th>Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">Bands</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">Jitter</th><th scope="col">RSRP</th><th scope="col">SINR</th><th scope="col">PCI</th><th scope="col">Province</th><th scope="col">Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
   </div>
   <div class="card mb">
     <div class="ch"><span class="ch-t">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
-    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Game</th><th>Avg Ping</th><th>Min Ping</th><th>Max Ping</th><th>Jitter</th><th>Packet Loss</th><th>OpenSignal Score</th><th>Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Game</th><th scope="col">Avg Ping</th><th scope="col">Min Ping</th><th scope="col">Max Ping</th><th scope="col">Jitter</th><th scope="col">Packet Loss</th><th scope="col">OpenSignal Score</th><th scope="col">Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
   <div class="g g2">
     <div class="card mb">
       <div class="ch"><span class="ch-t">Province Performance Ranking</span><span class="ch-s">Avg DL · UL · Ping · RSRP by province</span></div>
-      <div class="tw"><table><thead><tr><th>Province</th><th class="r">Tests</th><th class="r">↓ DL Mbps</th><th class="r">↑ UL Mbps</th><th class="r">Ping ms</th><th class="r">RSRP dBm</th><th>Grade</th></tr></thead><tbody id="tb-prov-rank"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Province</th><th class="r">Tests</th><th class="r">↓ DL Mbps</th><th class="r">↑ UL Mbps</th><th class="r">Ping ms</th><th class="r">RSRP dBm</th><th scope="col">Grade</th></tr></thead><tbody id="tb-prov-rank"></tbody></table></div>
     </div>
     <div class="card mb">
       <div class="ch"><span class="ch-t">Hourly Performance Pattern</span><span class="ch-s">Avg download speed by hour of day</span></div>
@@ -896,12 +900,12 @@ td.r,th.r{text-align:right}
 
   <div class="card mb">
     <div class="ch"><span class="ch-t">OpenSignal Scores</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Tech</th><th>Mode</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>Consistent Q</th><th>Reliability</th><th>↓ DL</th><th>↑ UL</th><th>Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Mode</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Q</th><th scope="col">Reliability</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
   </div>
 
   <div class="card mb">
     <div class="ch"><span class="ch-t">CX Experience Log</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th>Time</th><th>Device</th><th>Operator</th><th>Tech</th><th>Coverage</th><th>Video XP</th><th>Games XP</th><th>Voice XP</th><th>DL Score</th><th>UL Score</th><th>Overall</th><th>Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Coverage</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">DL Score</th><th scope="col">UL Score</th><th scope="col">Overall</th><th scope="col">Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
   </div>
 </div>
 
@@ -962,6 +966,7 @@ td.r,th.r{text-align:right}
     <div class="ch">
       <span class="ch-t" id="drv-analysis-title">Drive Analysis</span>
       <button id="pdf-export-btn" style="padding:6px 14px;background:rgba(31,111,235,.2);border:1px solid rgba(31,111,235,.4);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer">📄 Export PDF</button>
+      <button id="drv-close-btn" onclick="closeDrvAnalysis()" style="margin-left:8px;background:none;border:none;color:var(--mu);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;line-height:1" aria-label="Close session analysis">×</button>
     </div>
     <!-- Verdict banner (full-width, TEMS/VIAVI standard — above KPIs) -->
     <div class="drv-verdict-banner" id="drv-verdict-banner">
@@ -1020,7 +1025,7 @@ td.r,th.r{text-align:right}
 
   <div class="card">
     <div class="ch"><span class="ch-t">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
-    <div class="tw"><table><thead><tr><th class="r">#</th><th>Time</th><th class="r">Lat</th><th class="r">Lng</th><th>RAT</th><th>Operator</th><th>Grade</th><th>RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th>Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
 </div>
 
@@ -1170,7 +1175,7 @@ td.r,th.r{text-align:right}
         <button class="sb-btn" id="load-sb-sites-btn" style="margin-bottom:4px">🗄️ Load from Supabase</button>
         <div class="tow-st" id="sb-sites-status"></div>
         <div style="font-size:10px;color:var(--mu);margin:6px 0 6px;border-top:1px solid var(--bd);padding-top:6px">OpenCelliD fallback</div>
-        <input class="tok-in" id="ocid-token" type="text" placeholder="Paste free API token…">
+        <input class="tok-in" id="ocid-token" type="password" placeholder="Paste free API token…">
         <button class="sb-btn" id="load-towers-btn">📡 Load Cell Sites</button>
         <button class="sb-btn g" id="csv-btn" style="margin-top:4px">📂 Upload towers.csv</button>
         <input type="file" id="tower-csv-input" accept=".csv" style="display:none">
@@ -1223,6 +1228,7 @@ td.r,th.r{text-align:right}
 //  Supabase project: bauiffaqfboqlqnmxffc
 // ═══════════════════════════════════════════════════
 
+function h(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 const SB_URL = 'https://bauiffaqfboqlqnmxffc.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhdWlmZmFxZmJvcWxxbm14ZmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMjc5ODAsImV4cCI6MjA5NjgwMzk4MH0.jG2VkYTt5xkej4xYiQwEroYGVhQ6P48JrzTvekuHe1M'
 
@@ -1251,7 +1257,11 @@ function paginate(tbodyId, allRows, renderRow, wrapId) {
   const start = pages[tbodyId] * PAGE_SIZE
   const slice = allRows.slice(start, start + PAGE_SIZE)
 
-  document.getElementById(tbodyId).innerHTML = slice.map(renderRow).join('')
+  if(allRows.length===0){
+    document.getElementById(tbodyId).innerHTML=`<tr><td colspan="99" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>`
+  }else{
+    document.getElementById(tbodyId).innerHTML=slice.map(renderRow).join('')
+  }
 
   // find or create paginator below the table wrapper
   const wrap = wrapId ? document.getElementById(wrapId) : document.getElementById(tbodyId).closest('.tw')
@@ -1535,6 +1545,8 @@ const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
   if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
+  const dmapEl=document.getElementById('dmap')
+  if(dmapEl)dmapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
   map = new maplibregl.Map({
     container:'dmap',
     style:'https://tiles.openfreemap.org/styles/liberty',
@@ -1551,6 +1563,7 @@ function initDriveMap() {
   map.getCanvas().addEventListener('webglcontextrestored',()=>{ map.setStyle(map.getStyle()) },false)
 
   map.on('load',()=>{
+    if(dmapEl)dmapEl.innerHTML=''
     mapReady=true
 
   // Route — RSRP-colored segments (CellMapper style: each 2-pt segment colored by signal strength)
@@ -1630,7 +1643,7 @@ function initDriveMap() {
       <div style="font-family:system-ui;font-size:12px;color:#e6edf3">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #30363d">
           <span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:800;background:${sevColor}22;color:${sevColor};border:1px solid ${sevColor}44">${sevLabel}</span>
-          <span style="color:${sevColor};font-weight:700;font-size:11px">${p.issue||''}</span>
+          <span style="color:${sevColor};font-weight:700;font-size:11px">${h(p.issue)||''}</span>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:11px">
           <tr><td style="color:#8b949e;padding:2px 0;width:50%">RSRP</td><td style="font-weight:600;color:${p.rsrp<-110?'#f44336':p.rsrp<-100?'#ff9800':'#ffc107'}">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
@@ -1639,7 +1652,7 @@ function initDriveMap() {
           <tr><td style="color:#8b949e;padding:2px 0">PCI</td><td class="mono">${p.pci!=null?p.pci:'—'}</td></tr>
           <tr><td style="color:#8b949e;padding:2px 0">eNB / Cell</td><td class="mono">${p.enb!=null?p.enb:'—'}</td></tr>
           <tr><td style="color:#8b949e;padding:2px 0">DL Speed</td><td style="color:#58a6ff">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">RAT</td><td>${p.rat||'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">RAT</td><td>${h(p.rat)||'—'}</td></tr>
           <tr><td style="color:#8b949e;padding:2px 0">Location</td><td class="mono" style="font-size:9px">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</td></tr>
           <tr><td style="color:#8b949e;padding:2px 0">Time</td><td style="color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
         </table>
@@ -1656,7 +1669,7 @@ function initDriveMap() {
       <div style="font-family:system-ui;font-size:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <div style="width:30px;height:30px;border-radius:50%;background:${gc}22;border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
-          <div><div style="font-weight:600;color:#e6edf3">${p.operator||'—'}</div><div style="color:#8b949e;font-size:10px">${p.rat||'—'}</div></div>
+          <div><div style="font-weight:600;color:#e6edf3">${h(p.operator)||'—'}</div><div style="color:#8b949e;font-size:10px">${h(p.rat)||'—'}</div></div>
         </div>
         <table style="width:100%;border-collapse:collapse">
           <tr><td style="color:#8b949e;padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
@@ -2423,7 +2436,7 @@ function renderRecent() {
       <td style="color:var(--gr)">${n(r.upload_mbps)}</td>
       <td style="color:var(--yw)">${n(r.ping_ms,0)}</td>
       <td>${rsrpPill(r.rsrp)}</td>
-      <td style="color:var(--mu)">${r.province||'—'}</td>
+      <td style="color:var(--mu)">${h(r.province)||'—'}</td>
     </tr>`)
 }
 
@@ -2448,7 +2461,7 @@ function renderNetwork() {
       <td class="mono">${sid(r.device_id)}</td>
       <td style="font-weight:600">${normOp(r.operator)}</td>
       <td>${ratBadge(r.rat)}</td>
-      <td style="color:var(--mu)">${r.bands||'—'}</td>
+      <td style="color:var(--mu)">${h(r.bands)||'—'}</td>
       <td style="color:var(--bl);font-weight:600">${n(r.download_mbps)}</td>
       <td style="color:var(--gr)">${n(r.upload_mbps)}</td>
       <td>${n(r.ping_ms,0)}</td>
@@ -2456,8 +2469,8 @@ function renderNetwork() {
       <td>${rsrpPill(r.rsrp)}</td>
       <td class="mono">${n(r.sinr,0)}</td>
       <td class="mono">${r.pci??'—'}</td>
-      <td>${r.province||'—'}</td>
-      <td style="color:var(--mu)">${r.indoor_outdoor||'—'}</td>
+      <td>${h(r.province)||'—'}</td>
+      <td style="color:var(--mu)">${h(r.indoor_outdoor)||'—'}</td>
     </tr>`)
 
   paginate('tb-gaming', gamingAll, r=>`
@@ -2576,7 +2589,7 @@ function renderCX() {
       <td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td>
       <td style="color:var(--bl)">${n(r.download_speed_mbps)}</td>
       <td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td>
-      <td>${r.province||'—'}</td>
+      <td>${h(r.province)||'—'}</td>
     </tr>`
   })
 
@@ -2595,7 +2608,7 @@ function renderCX() {
       <td>${r.dl_speed_score??'—'}</td>
       <td>${r.ul_speed_score??'—'}</td>
       <td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td>
-      <td>${r.province||'—'}</td>
+      <td>${h(r.province)||'—'}</td>
     </tr>`)
 }
 
@@ -2619,8 +2632,8 @@ function opLogoSpan(opName,opColor){
   const logo=OP_LOGOS[opName]
   const fb=`this.style.display='none'`
   const imgStyle=`height:12px;max-width:44px;object-fit:contain;opacity:.85${logo?.filter?';filter:'+logo.filter:''}`
-  const img=logo?`<img src="${logo.src}" alt="${opName}" style="${imgStyle}" onerror="${fb}">`:''
-  return `<span class="sess-stat" style="color:${opColor};display:inline-flex;align-items:center;gap:4px">${img}<span style="font-size:10px">${opName}</span></span>`
+  const img=logo?`<img src="${logo.src}" alt="${h(opName)}" style="${imgStyle}" onerror="${fb}">`:''
+  return `<span class="sess-stat" style="color:${opColor};display:inline-flex;align-items:center;gap:4px">${img}<span style="font-size:10px">${h(opName)}</span></span>`
 }
 
 function renderSessions() {
@@ -2671,8 +2684,8 @@ function renderSessions() {
         : `<span class="sess-badge" style="background:#ff980014;color:#ff9800;border-color:#ff980032">📱 Pending</span>`
 
     const syncIcon=isManual||hasSamples
-      ? `<button class="sess-sync-btn synced" title="Already synced" onclick="event.stopPropagation()">✓</button>`
-      : `<button class="sess-sync-btn" title="Check for GPS data" id="sync-btn-${s.id}" onclick="event.stopPropagation();recheckSession(${s.id})">↻</button>`
+      ? `<button class="sess-sync-btn synced" title="Already synced" aria-label="Already synced" onclick="event.stopPropagation()">✓</button>`
+      : `<button class="sess-sync-btn" title="Check for GPS data" aria-label="Sync session data" id="sync-btn-${s.id}" onclick="event.stopPropagation();recheckSession(${s.id})">↻</button>`
 
     const actionBtn=(isManual||hasSamples)
       ? `<button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${isManual?'\'manual\'':s.id})">📄 Analyze &amp; Export PDF</button>`
@@ -2683,7 +2696,7 @@ function renderSessions() {
       <div class="sess-dev">
         <div class="sess-dev-left">
           <span style="color:var(--mu);font-size:11px">${isManual?'📂':('📱 '+sid(s.device_id))}</span>
-          ${s.name?`<span style="color:var(--tx);font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>`:''}
+          ${s.name?`<span style="color:var(--tx);font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(s.name)}</span>`:''}
           ${syncBadge}
         </div>
         ${syncIcon}
@@ -2873,6 +2886,12 @@ window.pickSess = async function(id) {
     renderMetadataAnalysis(activeSess)
   }
 }
+
+function closeDrvAnalysis(){
+  document.getElementById('drv-analysis').style.display='none'
+  activeSess=null
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrvAnalysis()})
 
 // ── Render: Drive map ─────────────────────────────
 function paintMap() {
@@ -3272,9 +3291,18 @@ function computeDriveRules(samples, sess) {
 }
 
 // ── PDF Export ────────────────────────────────────
+function showToast(msg,type='info'){
+  const t=document.createElement('div')
+  t.setAttribute('role','alert')
+  t.setAttribute('aria-live','assertive')
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f6feb;color:#e6edf3;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none'
+  t.textContent=msg
+  document.body.appendChild(t)
+  setTimeout(()=>t.remove(),4000)
+}
 window.exportPDF = async function(sessId) {
   const sess=sessAll.find(s=>s.id===sessId)
-  if(!sess){alert('Select session first');return}
+  if(!sess){showToast('Select a session first');return}
   let samples=driveSamples
   if(!samples.length||activeSess?.id!==sessId){
     const {data}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true})
@@ -3605,12 +3633,24 @@ function autoPickDriveSession(){
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
+  document.querySelectorAll('.tab-btn').forEach(x=>x.setAttribute('aria-selected','false'))
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
   b.classList.add('on')
+  b.setAttribute('aria-selected','true')
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
   if(b.dataset.tab==='drv') setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
   if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
+  history.pushState({tab:b.dataset.tab},'','#'+b.dataset.tab)
 }))
+
+window.addEventListener('popstate',e=>{
+  const t=e.state?.tab||(location.hash.slice(1))||'dash'
+  const btn=document.querySelector(`.tab-btn[data-tab="${t}"]`)
+  if(btn)btn.click()
+})
+// Restore tab from URL hash on load
+const initTab=location.hash.slice(1)
+if(initTab){const b=document.querySelector(`.tab-btn[data-tab="${initTab}"]`);if(b)b.click()}
 
 // Sub-tabs
 document.querySelectorAll('.stab').forEach(b=>b.addEventListener('click',()=>{
@@ -3851,6 +3891,8 @@ function renderCovMap(){
 // ── Init coverage map (lazy, on first tab click) ──
 function initCovMap(){
   if(mapCov){ setTimeout(()=>mapCov.resize(),50); return }
+  const covMapEl=document.getElementById('cov-map')
+  if(covMapEl)covMapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
   mapCov=new maplibregl.Map({
     container:'cov-map',
     style:'https://tiles.openfreemap.org/styles/liberty',
@@ -3866,6 +3908,7 @@ function initCovMap(){
   mapCov.getCanvas().addEventListener('webglcontextrestored',()=>{ mapCov.setStyle(mapCov.getStyle()) },false)
 
   mapCov.on('load',async()=>{
+    if(covMapEl)covMapEl.innerHTML=''
     mapCovReady=true
 
     // Sources
@@ -3986,7 +4029,7 @@ function initCovMap(){
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <div style="width:30px;height:30px;border-radius:50%;background:${gc}22;border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
-            <div><div style="font-weight:600;color:#e6edf3">${p.operator||'—'}</div><div style="color:#8b949e;font-size:10px">${p.rat||'—'}</div></div>
+            <div><div style="font-weight:600;color:#e6edf3">${h(p.operator)||'—'}</div><div style="color:#8b949e;font-size:10px">${h(p.rat)||'—'}</div></div>
           </div>
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="color:#8b949e;padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
@@ -4048,11 +4091,11 @@ function initCovMap(){
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <div style="width:10px;height:10px;border-radius:50%;background:#FF7900"></div>
-            <b style="color:#e6edf3">${p.name||'Reseller'}</b>
+            <b style="color:#e6edf3">${h(p.name)||'Reseller'}</b>
           </div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">Site ID</td><td style="text-align:right">${p.site_id||'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Source</td><td style="text-align:right;font-size:10px">${p.source_file||'—'}</td></tr>
+            <tr><td style="color:#8b949e;padding:2px 0">Site ID</td><td style="text-align:right">${h(p.site_id)||'—'}</td></tr>
+            <tr><td style="color:#8b949e;padding:2px 0">Source</td><td style="text-align:right;font-size:10px">${h(p.source_file)||'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     })
