@@ -3328,33 +3328,46 @@ window.exportPDF = async function(sessId) {
   samples.forEach(s=>{if(s.rat)ratCounts[s.rat]=(ratCounts[s.rat]||0)+1})
   const domRat=Object.entries(ratCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'LTE'
   const conThresh=/NR|5G/.test(domRat)?20:/2G|EDGE|GPRS/.test(domRat)?0.5:5
+  const NET_ISSUE_ORDER=['Signal Gap','Poor Handover','Congestion','Overlap','Mobility']
+  const NET_ISSUE_COLORS={'Signal Gap':[244,67,54],'Poor Handover':[255,87,34],'Congestion':[255,152,0],'Overlap':[255,193,7],'Mobility':[0,188,212]}
   const issueSamples=samples.map((s,i)=>{
-    const tags=[]
-    if(s.rsrp!=null&&s.rsrp<-110) tags.push('Signal Gap')
-    if(s.download_mbps!=null&&s.download_mbps<conThresh) tags.push('Congestion')
-    if(i>0&&s.rsrp!=null&&samples[i-1].rsrp!=null&&(samples[i-1].rsrp-s.rsrp)>12) tags.push('Poor Handover')
+    const net=[],exp=[]
+    if(s.rsrp!=null&&s.rsrp<-110) net.push('Signal Gap')
+    if(i>0&&s.rsrp!=null&&samples[i-1].rsrp!=null&&(samples[i-1].rsrp-s.rsrp)>12) net.push('Poor Handover')
+    if(s.download_mbps!=null&&s.download_mbps<conThresh) net.push('Congestion')
     const win=samples.slice(Math.max(0,i-5),Math.min(samples.length,i+6))
-    const pciWin=new Set(win.map(w=>w.pci).filter(v=>v!=null))
-    if(pciWin.size>=3) tags.push('Overlap')
-    if(i>1&&s.pci&&samples[i-2].pci&&samples[i-1].pci&&s.pci===samples[i-2].pci&&s.pci!==samples[i-1].pci) tags.push('Mobility')
-    if(s.download_mbps!=null&&s.download_mbps<5) tags.push('Video Exp')
-    if(s.sinr!=null&&s.sinr<5) tags.push('Game Exp')
-    if(s.rsrp!=null&&s.rsrp<-100) tags.push('Voice Exp')
-    return tags.length?{...s,_tags:tags}:null
+    if(new Set(win.map(w=>w.pci).filter(v=>v!=null)).size>=3) net.push('Overlap')
+    if(i>1&&s.pci&&samples[i-2].pci&&samples[i-1].pci&&s.pci===samples[i-2].pci&&s.pci!==samples[i-1].pci) net.push('Mobility')
+    if(s.download_mbps!=null&&s.download_mbps<5) exp.push('Video')
+    if(s.sinr!=null&&s.sinr<5) exp.push('Game')
+    if(s.rsrp!=null&&s.rsrp<-100) exp.push('Voice')
+    const primary=NET_ISSUE_ORDER.find(k=>net.includes(k))||net[0]
+    return (net.length||exp.length)?{...s,_net:net,_exp:exp,_primary:primary,_order:NET_ISSUE_ORDER.indexOf(primary)}:null
   }).filter(Boolean)
 
-  // Issue samples table — Lat/Lng only for flagged points
+  // Sort by primary network issue group
+  issueSamples.sort((a,b)=>a._order-b._order||new Date(a.sampled_at)-new Date(b.sampled_at))
+
+  // Issue locations table
   if(doc.lastAutoTable&&doc.lastAutoTable.finalY>270){doc.addPage();yy=14}
   doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text(`ISSUE LOCATIONS (${issueSamples.length} of ${samples.length} samples)`,M,yy); yy+=3
+  doc.text(`ISSUE LOCATIONS  (${issueSamples.length} of ${samples.length} samples)`,M,yy); yy+=3
   if(!issueSamples.length){
     doc.setTextColor(0,230,118); doc.setFontSize(8); doc.setFont('helvetica','normal')
     doc.text('No issues detected across all 8 dimensions.',M,yy+6); yy+=12
   } else {
-    doc.autoTable({
-      startY:yy,
-      head:[['#','Time','Latitude','Longitude','RAT','RSRP','SINR','PCI','DL Mbps','Issues']],
-      body:issueSamples.slice(0,300).map((s,i)=>[
+    let lastGroup=null
+    const body=[]
+    const groupRows=new Set()
+    issueSamples.slice(0,300).forEach((s,i)=>{
+      const grp=s._primary||'—'
+      if(grp!==lastGroup){
+        groupRows.add(body.length)
+        body.push([{content:grp,colSpan:9,styles:{fillColor:NET_ISSUE_COLORS[grp]||[48,54,61],textColor:[255,255,255],fontStyle:'bold',fontSize:7,cellPadding:2}}])
+        lastGroup=grp
+      }
+      const expStr=s._exp.length?s._exp.join(' · '):'—'
+      body.push([
         i+1,
         s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'—',
         s.latitude!=null?n(s.latitude,5):'—',
@@ -3363,13 +3376,17 @@ window.exportPDF = async function(sessId) {
         s.rsrp!=null?s.rsrp+' dBm':'—',
         s.sinr!=null?n(s.sinr,1):'—',
         s.pci??'—',
-        s.download_mbps!=null?n(s.download_mbps):'—',
-        s._tags.join(', '),
-      ]),
+        expStr,
+      ])
+    })
+    doc.autoTable({
+      startY:yy,
+      head:[['#','Time','Latitude','Longitude','RAT','RSRP','SINR','PCI','Experience KPI']],
+      body,
       styles:{fontSize:6.5,cellPadding:1.8,textColor:[230,237,243],fillColor:[22,27,34],lineColor:[48,54,61],lineWidth:.3},
-      headStyles:{fillColor:[28,33,40],textColor:[139,148,158],fontStyle:'bold'},
+      headStyles:{fillColor:[28,33,40],textColor:[139,148,158],fontStyle:'bold',fontSize:7},
       alternateRowStyles:{fillColor:[28,33,40]},
-      columnStyles:{9:{cellWidth:42,textColor:[255,152,0]}},
+      columnStyles:{8:{textColor:[0,188,212]}},
       margin:{left:M,right:M},
     })
   }
