@@ -1519,14 +1519,13 @@ function initDriveMap() {
     layout:{'text-field':'{point_count_abbreviated}','text-size':11,
       'text-font':['Noto Sans Bold'],'text-allow-overlap':true},
     paint:{'text-color':'#fff'}})
-  // Individual dots (zoom 13+, CellMapper style)
+  // Individual dots — small, no border (TEMS/CellMapper professional style)
   map.addLayer({id:'dots-layer',type:'circle',source:'dots',
     filter:['!',['has','point_count']],
     paint:{
-      'circle-radius':['interpolate',['linear'],['zoom'],9,5,15,9],
-      'circle-stroke-width':1.5,
-      'circle-stroke-color':'#1e293b',
-      'circle-opacity':['case',['==',['get','active'],1],0.9,0.6],
+      'circle-radius':['interpolate',['linear'],['zoom'],10,1.5,13,3,16,5,19,7],
+      'circle-stroke-width':0,
+      'circle-opacity':['interpolate',['linear'],['zoom'],10,0.7,16,0.85],
       'circle-color':['step',['get','rsrp'],
         '#f44336',
         -110,'#ff9800',
@@ -1535,7 +1534,51 @@ function initDriveMap() {
         -80, '#00e676'
       ]
     }})
-  // Grade labels removed — dots colored by RSRP are self-explanatory
+  // ── Issue Flags layer — marks problem spots with severity color + label ──
+  map.addSource('flags',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+  // Outer glow ring
+  map.addLayer({id:'flag-glow',type:'circle',source:'flags',paint:{
+    'circle-radius':12,'circle-opacity':0.18,
+    'circle-color':['case',['==',['get','sev'],1],'#f44336',['==',['get','sev'],2],'#ff9800','#ffc107']
+  }})
+  // Solid pin circle
+  map.addLayer({id:'flag-pin',type:'circle',source:'flags',paint:{
+    'circle-radius':6,
+    'circle-stroke-width':1.5,'circle-stroke-color':'#fff',
+    'circle-color':['case',['==',['get','sev'],1],'#f44336',['==',['get','sev'],2],'#ff9800','#ffc107']
+  }})
+  // Label (issue code letter)
+  map.addLayer({id:'flag-lbl',type:'symbol',source:'flags',layout:{
+    'text-field':['get','code'],'text-size':8,'text-allow-overlap':true,
+    'text-font':['Noto Sans Bold']
+  },paint:{'text-color':'#fff','text-halo-color':'rgba(0,0,0,.4)','text-halo-width':1}})
+
+  const flagPopup = new maplibregl.Popup({closeButton:true,maxWidth:'280px',className:'flag-popup'})
+  map.on('click','flag-pin',e=>{
+    const p=e.features[0].properties
+    const sevColor=p.sev===1?'#f44336':p.sev===2?'#ff9800':'#ffc107'
+    const sevLabel=p.sev===1?'SEV 1 — Critical':p.sev===2?'SEV 2 — Major':'SEV 3 — Minor'
+    flagPopup.setLngLat(e.lngLat).setHTML(`
+      <div style="font-family:system-ui;font-size:12px;color:#e6edf3">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #30363d">
+          <span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:800;background:${sevColor}22;color:${sevColor};border:1px solid ${sevColor}44">${sevLabel}</span>
+          <span style="color:${sevColor};font-weight:700;font-size:11px">${p.issue||''}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <tr><td style="color:#8b949e;padding:2px 0;width:50%">RSRP</td><td style="font-weight:600;color:${p.rsrp<-110?'#f44336':p.rsrp<-100?'#ff9800':'#ffc107'}">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">RSSI</td><td>${p.rssi!=null?p.rssi+' dBm':'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">SINR</td><td style="color:${p.sinr<0?'#f44336':p.sinr<5?'#ff9800':'#3fb950'}">${p.sinr!=null?p.sinr+' dB':'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">PCI</td><td class="mono">${p.pci!=null?p.pci:'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">eNB / Cell</td><td class="mono">${p.enb!=null?p.enb:'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">DL Speed</td><td style="color:#58a6ff">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">RAT</td><td>${p.rat||'—'}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">Location</td><td class="mono" style="font-size:9px">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</td></tr>
+          <tr><td style="color:#8b949e;padding:2px 0">Time</td><td style="color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
+        </table>
+      </div>`).addTo(map)
+  })
+  map.on('mouseenter','flag-pin',()=>map.getCanvas().style.cursor='crosshair')
+  map.on('mouseleave','flag-pin',()=>map.getCanvas().style.cursor='')
 
   const drPopup = new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
   map.on('click','dots-layer',e=>{
@@ -2753,6 +2796,52 @@ function paintMap() {
   }
   map.getSource('route').setData({type:'FeatureCollection',features:segs})
 
+  // ── Issue flags: flag only problem spots with cell info ──
+  const flagFeats = []
+  const RSRP_SEV1 = -110, RSRP_SEV2 = -100, SINR_SEV1 = -3, SINR_SEV2 = 3
+  const DL_SEV1 = 2, DL_SEV2 = 5
+  for (let i = 0; i < valid.length; i++) {
+    const s = valid[i]
+    const issues = [], sev1 = [], sev2 = [], sev3 = []
+    // Signal gap (RSRP critical)
+    if (s.rsrp != null && s.rsrp < RSRP_SEV1) sev1.push('SIG')
+    else if (s.rsrp != null && s.rsrp < RSRP_SEV2) sev2.push('SIG')
+    // SINR interference / pilot pollution
+    if (s.sinr != null && s.sinr < SINR_SEV1) sev1.push('INT')
+    else if (s.sinr != null && s.sinr < SINR_SEV2) sev2.push('INT')
+    // Sudden RSRP drop vs previous → poor handover
+    if (i > 0 && s.rsrp != null && valid[i-1].rsrp != null) {
+      const drop = valid[i-1].rsrp - s.rsrp
+      if (drop > 20) sev1.push('HO')
+      else if (drop > 12) sev2.push('HO')
+    }
+    // Congestion — DL well below expected
+    if (s.download_mbps != null && s.download_mbps < DL_SEV1) sev2.push('CON')
+    else if (s.download_mbps != null && s.download_mbps < DL_SEV2) sev3.push('CON')
+    // Determine worst severity for this point
+    const allIssues = [...new Set([...sev1,...sev2,...sev3])]
+    if (!allIssues.length) continue
+    const sev = sev1.length ? 1 : sev2.length ? 2 : 3
+    const code = (sev1[0]||sev2[0]||sev3[0]||'').slice(0,2)
+    const issueNames = {SIG:'Signal Gap',INT:'Interference/Overlap',HO:'Poor Handover',CON:'Congestion'}
+    const issueLabel = allIssues.map(k=>issueNames[k]||k).join(', ')
+    // Deduplicate: skip if a flag was placed within last 5 samples with same issue
+    const recent = flagFeats.slice(-5)
+    if (recent.some(f=>f.properties.code===code && Math.abs(f.geometry.coordinates[0]-(+s.longitude))<0.0005)) continue
+    flagFeats.push({
+      type:'Feature',
+      geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
+      properties:{
+        sev, code, issue:issueLabel,
+        rsrp:s.rsrp??null, rssi:s.rssi??null, sinr:s.sinr??null,
+        pci:s.pci??null, enb:s.enb_id??s.enb??null,
+        dl:s.download_mbps??null, rat:s.rat||null,
+        lat:s.latitude, lng:s.longitude, at:s.sampled_at
+      }
+    })
+  }
+  if (map.getSource('flags')) map.getSource('flags').setData({type:'FeatureCollection',features:flagFeats})
+
   if(valid.length<2){
     overlay.style.display='flex'
     const pt=valid[0]
@@ -2974,57 +3063,176 @@ function renderDriveRules(samples, sess) {
   const is4G=domRat.includes('LTE')||domRat.includes('4G')
   const dlThresh=is5G?{go:50,fa:20}:is4G?{go:10,fa:5}:{go:1,fa:0.5}
 
-  // Assessment rules (mirrors app criteria)
+  // ── Extended analysis computations ──────────────
+  // Signal Gap: consecutive samples below -110 dBm
+  let gapRun=0, maxGapRun=0, inGap=false
+  const gapPts = samples.filter(s=>{
+    const bad = s.rsrp==null || s.rsrp<-110
+    if(bad){if(!inGap){inGap=true;gapRun=0};gapRun++}
+    else if(inGap){maxGapRun=Math.max(maxGapRun,gapRun);inGap=false}
+    return bad
+  }).length
+  if(inGap) maxGapRun=Math.max(maxGapRun,gapRun)
+  const gapPct = gapPts/tot*100
+
+  // Pilot Pollution / Overlap Signals: unique PCIs per km (>3/km = interference risk)
+  const pciSet = new Set(samples.map(s=>s.pci).filter(v=>v!=null))
+  const uniquePCIs = pciSet.size
+  const pciDensity = distKm>0 ? uniquePCIs/distKm : null
+
+  // Handover analysis: sudden RSRP drops >12 dBm between consecutive samples
+  let abruptDrops=0, pingPong=0
+  const pciSeq = samples.map(s=>s.pci).filter(v=>v!=null)
+  for(let i=1;i<samples.length;i++){
+    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null){
+      if(samples[i-1].rsrp-samples[i].rsrp>12) abruptDrops++
+    }
+    if(i>1&&samples[i].pci&&samples[i-2].pci&&samples[i-1].pci){
+      if(samples[i].pci===samples[i-2].pci&&samples[i].pci!==samples[i-1].pci) pingPong++
+    }
+  }
+
+  // Congestion: % of DL samples below technology threshold
+  const congestPct = dlVals.length ? dlVals.filter(v=>v<dlThresh.fa).length/dlVals.length*100 : null
+
+  // RSRP standard deviation → signal stability
+  const rsrpMean = avgRsrp || 0
+  const rsrpStd = rsrpVals.length>1 ? Math.sqrt(rsrpVals.reduce((s,v)=>s+Math.pow(v-rsrpMean,2),0)/rsrpVals.length) : null
+
+  // Mobility Experience (3GPP TS 36.304): signal stability + handover success
+  // Score 0-100: high std-dev + high HO rate = poor mobility
+  const mobScore = (()=>{
+    let s=100
+    if(rsrpStd!=null){ if(rsrpStd>15)s-=35; else if(rsrpStd>8)s-=15 }
+    if(hoRate!=null){ if(hoRate>4)s-=35; else if(hoRate>2)s-=15 }
+    if(abruptDrops>5)s-=20; else if(abruptDrops>2)s-=10
+    if(pingPong>3)s-=15
+    return Math.max(0,s)
+  })()
+
+  // Video Experience (ITU-T P.1203 / OpenSignal Video XP model)
+  // Based on throughput: ≥15 Mbps=Excellent, ≥5=Good, ≥2=Fair, <2=Poor
+  const vidPct = dlVals.length ? {
+    excellent: dlVals.filter(v=>v>=15).length/dlVals.length*100,
+    good:      dlVals.filter(v=>v>=5&&v<15).length/dlVals.length*100,
+    fair:      dlVals.filter(v=>v>=2&&v<5).length/dlVals.length*100,
+    poor:      dlVals.filter(v=>v<2).length/dlVals.length*100,
+  } : null
+  const vidScore = vidPct ? Math.round(vidPct.excellent*1+vidPct.good*.75+vidPct.fair*.4) : null
+
+  // Game Experience (GSMA TS.43 Gaming XP): estimated from SINR (proxy for latency)
+  // SINR ≥13=Excellent, ≥5=Good, ≥0=Fair, <0=Poor (high interference = packet loss)
+  const gameVals = sWithSinr.map(s=>s.sinr)
+  const gamePct = gameVals.length ? {
+    excellent: gameVals.filter(v=>v>=13).length/gameVals.length*100,
+    good:      gameVals.filter(v=>v>=5&&v<13).length/gameVals.length*100,
+    fair:      gameVals.filter(v=>v>=0&&v<5).length/gameVals.length*100,
+    poor:      gameVals.filter(v=>v<0).length/gameVals.length*100,
+  } : null
+  const gameScore = gamePct ? Math.round(gamePct.excellent*1+gamePct.good*.75+gamePct.fair*.4) : null
+
+  // VoiceApp Experience (3GPP TS 36.133 RSRP voice thresholds):
+  // RSRP ≥-90=Excellent, ≥-100=Good, ≥-110=Marginal, <-110=Drop risk
+  const voicePct = rsrpVals.length ? {
+    excellent: rsrpVals.filter(v=>v>=-90).length/rsrpVals.length*100,
+    good:      rsrpVals.filter(v=>v>=-100&&v<-90).length/rsrpVals.length*100,
+    marginal:  rsrpVals.filter(v=>v>=-110&&v<-100).length/rsrpVals.length*100,
+    drop:      rsrpVals.filter(v=>v<-110).length/rsrpVals.length*100,
+  } : null
+  const voiceScore = voicePct ? Math.round(voicePct.excellent*1+voicePct.good*.75+voicePct.marginal*.3) : null
+
+  // ── Assessment rules ─────────────────────────────
+  const ICON={pass:'✅',warn:'⚠️',fail:'❌'}
+  const COL ={pass:'var(--gr)',warn:'var(--yw)',fail:'#f44336'}
+
+  const mkScore=(score,label)=>`<span style="font-weight:700">${label}</span> <span style="color:var(--mu);font-size:10px">(${score!=null?score+'%':'—'})</span>`
+
   const rules=[
     {
       label:'Signal Coverage',
       status:abPct>=70?'pass':abPct>=40?'warn':'fail',
-      detail:`${Math.round(abPct)}% A/B (Good+Excellent)`
+      detail:`${Math.round(abPct)}% Good+ (A/B grade)`
+    },
+    {
+      label:'Signal Gap',
+      status:gapPct<5?'pass':gapPct<20?'warn':'fail',
+      detail:gapPct>0?`${gapPct.toFixed(0)}% pts below −110 dBm · max run: ${maxGapRun}`:'No gaps detected'
     },
     {
       label:'Avg RSRP',
       status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail',
-      detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm`:'No data'
+      detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm (σ=${rsrpStd!=null?rsrpStd.toFixed(1):'—'})`:'No data'
     },
     {
-      label:'Download Speed',
-      status:avgDl==null?'warn':avgDl>=dlThresh.go?'pass':avgDl>=dlThresh.fa?'warn':'fail',
-      detail:avgDl!=null?`${avgDl.toFixed(1)} Mbps`:'No data'
-    },
-    {
-      label:'SINR Quality',
+      label:'SINR / Interference',
       status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail',
       detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'
     },
     {
-      label:'Handover Rate',
-      status:hoRate==null?'warn':hoRate<=2?'pass':hoRate<=4?'warn':'fail',
-      detail:hoRate!=null?`${hoRate.toFixed(1)}/km`:`${sess.handover_count||0} total`
+      label:'Overlap / Pilot Pollution',
+      status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail',
+      detail:pciDensity!=null?`${uniquePCIs} PCIs · ${pciDensity.toFixed(1)}/km density`:`${uniquePCIs} unique PCIs`
+    },
+    {
+      label:'Congestion',
+      status:congestPct==null?'warn':congestPct<10?'pass':congestPct<30?'warn':'fail',
+      detail:congestPct!=null?`${congestPct.toFixed(0)}% samples below ${dlThresh.fa} Mbps threshold`:'No DL data'
+    },
+    {
+      label:'Poor Handover',
+      status:(abruptDrops===0&&pingPong===0)?'pass':(abruptDrops>5||pingPong>3)?'fail':'warn',
+      detail:`${abruptDrops} abrupt drops · ${pingPong} ping-pong events · ${hoRate!=null?hoRate.toFixed(1)+'/km':'—'}`
+    },
+    {
+      label:'Mobility Experience',
+      status:mobScore>=80?'pass':mobScore>=55?'warn':'fail',
+      detail:`Score ${mobScore}/100 — ${mobScore>=80?'Smooth mobility':mobScore>=55?'Some interruptions':'Frequent disruptions'}`
+    },
+    {
+      label:'Video Experience',
+      status:vidScore==null?'warn':vidScore>=70?'pass':vidScore>=40?'warn':'fail',
+      detail:vidPct!=null?`${vidPct.excellent.toFixed(0)}% HD · ${vidPct.good.toFixed(0)}% SD · ${vidPct.poor.toFixed(0)}% buffering`:'No DL data'
+    },
+    {
+      label:'Game Experience',
+      status:gameScore==null?'warn':gameScore>=70?'pass':gameScore>=40?'warn':'fail',
+      detail:gamePct!=null?`${gamePct.excellent.toFixed(0)}% Excellent · ${gamePct.poor.toFixed(0)}% Poor SINR`:'No SINR data'
+    },
+    {
+      label:'VoiceApp Experience',
+      status:voiceScore==null?'warn':voiceScore>=70?'pass':voiceScore>=40?'warn':'fail',
+      detail:voicePct!=null?`${voicePct.excellent.toFixed(0)}% Excellent · ${voicePct.drop.toFixed(0)}% drop risk`:'No signal data'
+    },
+    {
+      label:'Download Speed',
+      status:avgDl==null?'warn':avgDl>=dlThresh.go?'pass':avgDl>=dlThresh.fa?'warn':'fail',
+      detail:avgDl!=null?`${avgDl.toFixed(1)} Mbps avg (P10: ${dlP10!=null?dlP10.toFixed(1):'—'})`:'No data'
     },
   ]
 
-  const ICON={pass:'✅',warn:'⚠️',fail:'❌'}
-  const COL ={pass:'var(--gr)',warn:'var(--yw)',fail:'var(--re)'}
   document.getElementById('drv-assessment').innerHTML=rules.map(r=>`
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:12px">${ICON[r.status]}</span>
-      <span style="font-size:11px;color:var(--mu);flex:1">${r.label}</span>
-      <span style="font-size:11px;font-weight:600;color:${COL[r.status]}">${r.detail}</span>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;padding:4px 0;border-bottom:1px solid var(--bd)">
+      <span style="font-size:11px;flex-shrink:0;margin-top:1px">${ICON[r.status]}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:${COL[r.status]}">${r.label}</div>
+        <div style="font-size:10px;color:var(--mu);margin-top:1px;line-height:1.4">${r.detail}</div>
+      </div>
     </div>`).join('')
 
   // Overall session verdict
   const fails=rules.filter(r=>r.status==='fail').length
   const warns=rules.filter(r=>r.status==='warn').length
   let verdict,vColor,vIcon
-  if(fails===0&&warns===0){verdict='EXCELLENT';vColor='var(--gr)';vIcon='🏆'}
-  else if(fails===0&&warns<=1){verdict='GOOD';vColor='var(--bl)';vIcon='✅'}
-  else if(fails<=1){verdict='FAIR';vColor='var(--yw)';vIcon='⚠️'}
-  else{verdict='POOR';vColor='var(--re)';vIcon='❌'}
+  if(fails===0&&warns===0){verdict='EXCELLENT';vColor='#00e676';vIcon='🏆'}
+  else if(fails===0&&warns<=2){verdict='GOOD';vColor='var(--bl)';vIcon='✅'}
+  else if(fails<=2){verdict='FAIR';vColor='var(--yw)';vIcon='⚠️'}
+  else{verdict='POOR';vColor='#f44336';vIcon='❌'}
 
   document.getElementById('drv-verdict-icon').textContent=vIcon
   document.getElementById('drv-verdict-label').textContent=verdict
   document.getElementById('drv-verdict-label').style.color=vColor
-  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples`
+  const flagCount=document.querySelectorAll('.flag-popup').length
+  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
 
   // Also update the pill in the card header
   const pill=document.getElementById('drv-verdict-pill')
