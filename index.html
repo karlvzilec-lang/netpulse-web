@@ -165,9 +165,12 @@ tr:hover td{background:var(--s2)}
 .dchip{padding:3px 10px;border-radius:14px;border:1px solid var(--bd);background:none;color:var(--mu);font-size:11px;cursor:pointer;transition:all .15s;line-height:1.4;white-space:nowrap}
 .dchip:hover{border-color:rgba(88,166,255,.5);color:var(--tx)}
 .dchip.on{background:rgba(31,111,235,.15);border-color:rgba(31,111,235,.5);color:#58a6ff;font-weight:600}
-.dchip[data-drv-op="Cellcard"].on{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.5);color:#f97316}
-.dchip[data-drv-op="Metfone"].on{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);color:#ef4444}
-.dchip[data-drv-op="Smart"].on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#22c55e}
+.dchip[data-drv-op="Cellcard"].on{background:rgba(255,121,0,.15);border-color:rgba(255,121,0,.5);color:#FF7900}
+.dchip[data-drv-op="Metfone"].on{background:rgba(219,26,33,.15);border-color:rgba(219,26,33,.5);color:#DB1A21}
+.dchip[data-drv-op="Smart"].on{background:rgba(0,150,57,.15);border-color:rgba(0,150,57,.5);color:#009639}
+.op-logo{height:14px;max-width:52px;object-fit:contain;vertical-align:middle;margin-right:3px;display:inline-block;opacity:.9}
+.op-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;font-size:8px;font-weight:800;color:#fff;letter-spacing:0;flex-shrink:0;vertical-align:middle;margin-right:3px}
+.op-logo-wrap{display:inline-flex;align-items:center;gap:3px}
 .drv-date-wrap{display:flex;align-items:center;gap:4px;margin-left:4px}
 .drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer;outline:none}
 .drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;outline:none;min-width:130px}
@@ -942,9 +945,9 @@ td.r,th.r{text-align:right}
         <div class="drv-frow">
           <span class="drv-flbl">Operator</span>
           <button class="dchip on" data-drv-op="all">All</button>
-          <button class="dchip" data-drv-op="Cellcard">Cellcard</button>
-          <button class="dchip" data-drv-op="Metfone">Metfone</button>
-          <button class="dchip" data-drv-op="Smart">Smart</button>
+          <button class="dchip" data-drv-op="Cellcard" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
+          <button class="dchip" data-drv-op="Metfone" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
+          <button class="dchip" data-drv-op="Smart" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
           <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
           <span class="drv-flbl" style="min-width:auto">Device</span>
           <select id="drv-device-sel" class="drv-device-sel"><option value="all">All Devices</option></select>
@@ -1053,8 +1056,8 @@ td.r,th.r{text-align:right}
         </div>
         <div class="layer-row">
           <label class="ltog"><input type="checkbox" id="lyr-resellers"><span class="lslid"></span></label>
-          <div class="layer-dot" style="background:#f97316"></div>
-          <div><div class="layer-iname">Reseller Sites</div><div class="layer-isub">Orange · from KMZ/KML</div></div>
+          <div class="layer-dot" style="background:#FF7900"></div>
+          <div><div class="layer-iname">Reseller Sites</div><div class="layer-isub">Amber · from KMZ/KML</div></div>
         </div>
       </div>
 
@@ -1149,7 +1152,7 @@ td.r,th.r{text-align:right}
         <button id="sim-run-btn" style="width:100%;padding:7px;background:rgba(31,111,235,.25);border:1px solid rgba(31,111,235,.5);border-radius:6px;color:var(--bl);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:4px">▶ Run Simulation</button>
         <button id="sim-clear-btn" style="width:100%;padding:5px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;display:none">✕ Clear</button>
         <button id="sim-compare-btn" style="width:100%;padding:6px;background:rgba(148,163,184,.15);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;margin-bottom:4px">📊 Show Measured Overlay</button>
-        <button id="gap-analysis-btn" style="width:100%;padding:6px;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4);border-radius:6px;color:#f97316;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:4px">🔍 Analyze Coverage Gaps</button>
+        <button id="gap-analysis-btn" style="width:100%;padding:6px;background:rgba(255,121,0,.15);border:1px solid rgba(255,121,0,.4);border-radius:6px;color:#FF7900;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:4px">🔍 Analyze Coverage Gaps</button>
         <div id="gap-status" style="font-size:10px;color:var(--mu);margin-top:4px"></div>
         <div id="sim-status" style="font-size:10px;color:var(--mu);margin-top:6px;min-height:14px"></div>
         <div class="sb-sec-hd" style="margin-top:10px">Simulation Legend</div>
@@ -1194,7 +1197,7 @@ td.r,th.r{text-align:right}
         <div class="sb-sec-hd" style="margin-top:12px">Cell Sites</div>
         <div class="leg-row"><div class="leg-circ" style="background:#2563eb;border-color:#2563eb"></div>4G/5G (NR) — Blue</div>
         <div class="leg-row"><div class="leg-circ" style="background:#16a34a;border-color:#16a34a"></div>4G LTE only — Green</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#f97316;border-color:#f97316"></div>Reseller — Orange</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#FF7900;border-color:#FF7900"></div>Reseller — Amber</div>
       </div>
     </div>
 
@@ -2000,9 +2003,9 @@ function renderConsistentQuality() {
 // ── Render: OpenSignal-style competitive matrix ────
 function renderOSMatrix() {
   const OPERATORS = [
-    {key:'Cellcard', color:'#f97316', initial:'C'},
-    {key:'Metfone',  color:'#ef4444', initial:'M'},
-    {key:'Smart',    color:'#22c55e', initial:'S'},
+    {key:'Cellcard', color:'#FF7900', initial:'C'},
+    {key:'Metfone',  color:'#DB1A21', initial:'M'},
+    {key:'Smart',    color:'#009639', initial:'S'},
   ]
 
   // Compute per-operator data — always use all operators regardless of F.dOp
@@ -2121,9 +2124,9 @@ const OS_DRILL_GROUPS = {
   ]
 }
 const OS_OPS = [
-  {key:'Cellcard',color:'#f97316',initial:'C'},
-  {key:'Metfone', color:'#ef4444',initial:'M'},
-  {key:'Smart',   color:'#22c55e',initial:'S'},
+  {key:'Cellcard',color:'#FF7900',initial:'C'},
+  {key:'Metfone', color:'#DB1A21',initial:'M'},
+  {key:'Smart',   color:'#009639',initial:'S'},
 ]
 let osDrillGroup='overall', osDrillMetric='dl'
 
@@ -2607,6 +2610,19 @@ function populateDrvDevices() {
   })
 }
 
+const OP_LOGOS={
+  Cellcard:{src:'https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png',filter:''},
+  Metfone: {src:'https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png',filter:''},
+  Smart:   {src:'https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png',filter:'brightness(0) invert(1)'}
+}
+function opLogoSpan(opName,opColor){
+  const logo=OP_LOGOS[opName]
+  const fb=`this.style.display='none'`
+  const imgStyle=`height:12px;max-width:44px;object-fit:contain;opacity:.85${logo?.filter?';filter:'+logo.filter:''}`
+  const img=logo?`<img src="${logo.src}" alt="${opName}" style="${imgStyle}" onerror="${fb}">`:''
+  return `<span class="sess-stat" style="color:${opColor};display:inline-flex;align-items:center;gap:4px">${img}<span style="font-size:10px">${opName}</span></span>`
+}
+
 function renderSessions() {
   const el=document.getElementById('sess-list')
 
@@ -2646,7 +2662,7 @@ function renderSessions() {
     const hasSamples=sampledSessionIds.has(s.id)
     const isManual=s.id==='manual'
     const opName=normOp(s.operator)
-    const opColor=opName==='Cellcard'?'#f97316':opName==='Metfone'?'#ef4444':opName==='Smart'?'#22c55e':'var(--mu)'
+    const opColor=opName==='Cellcard'?'#FF7900':opName==='Metfone'?'#DB1A21':opName==='Smart'?'#009639':'var(--mu)'
 
     const syncBadge=isManual
       ? `<span class="sess-badge" style="background:rgba(31,111,235,.18);color:var(--bl);border-color:rgba(31,111,235,.35)">📂 File</span>`
@@ -2678,7 +2694,7 @@ function renderSessions() {
         <span class="sess-stat" style="color:var(--bl)">📍 ${s.sample_count??'?'} pts</span>
         ${s.distance_km!=null?`<span class="sess-stat" style="color:var(--gr)">🛣 ${n(s.distance_km,1)} km</span>`:''}
         ${s.avg_rsrp!=null?`<span class="sess-stat" style="color:${rsrpColor(Math.round(s.avg_rsrp))}">${n(s.avg_rsrp,0)} dBm</span>`:''}
-        ${opName&&opName!=='Unknown'?`<span class="sess-stat" style="color:${opColor}">${opName}</span>`:''}
+        ${opName&&opName!=='Unknown'?opLogoSpan(opName,opColor):''}
       </div>
       ${actionBtn}
     </div>`
@@ -3360,70 +3376,90 @@ window.exportPDF = async function(sessId) {
   doc.text(`${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,W/2,yy+13.5,{align:'center'})
   yy+=20
 
-  // Classify issue samples
+  // Classify all samples for network issues (no experience KPI)
   const ratCounts={}
   samples.forEach(s=>{if(s.rat)ratCounts[s.rat]=(ratCounts[s.rat]||0)+1})
   const domRat=Object.entries(ratCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'LTE'
   const conThresh=/NR|5G/.test(domRat)?20:/2G|EDGE|GPRS/.test(domRat)?0.5:5
-  const NET_ISSUE_ORDER=['Signal Gap','Poor Handover','Congestion','Overlap','Mobility']
-  const NET_ISSUE_COLORS={'Signal Gap':[244,67,54],'Poor Handover':[255,87,34],'Congestion':[255,152,0],'Overlap':[255,193,7],'Mobility':[0,188,212]}
-  const issueSamples=samples.map((s,i)=>{
-    const net=[],exp=[]
-    if(s.rsrp!=null&&s.rsrp<-110) net.push('Signal Gap')
-    if(i>0&&s.rsrp!=null&&samples[i-1].rsrp!=null&&(samples[i-1].rsrp-s.rsrp)>12) net.push('Poor Handover')
-    if(s.download_mbps!=null&&s.download_mbps<conThresh) net.push('Congestion')
+  // LOC_ISSUES = show individual lat/lng row; SUMMARY_ISSUES = count-only in PCI header
+  const LOC_ISSUES=new Set(['Coverage Gap','Poor Handover','Ping-Pong'])
+  const ISSUE_COLORS={'Coverage Gap':[244,67,54],'Poor Handover':[255,87,34],'Ping-Pong':[0,188,212],'Congestion':[255,152,0],'Overlap':[255,193,7]}
+  const classified=samples.map((s,i)=>{
+    const issues=[]
+    if(s.rsrp!=null&&s.rsrp<-110) issues.push('Coverage Gap')
+    if(i>0&&s.rsrp!=null&&samples[i-1].rsrp!=null&&(samples[i-1].rsrp-s.rsrp)>12) issues.push('Poor Handover')
+    if(i>1&&s.pci!=null&&samples[i-2].pci!=null&&samples[i-1].pci!=null&&s.pci===samples[i-2].pci&&s.pci!==samples[i-1].pci) issues.push('Ping-Pong')
+    if(s.download_mbps!=null&&s.download_mbps<conThresh) issues.push('Congestion')
     const win=samples.slice(Math.max(0,i-5),Math.min(samples.length,i+6))
-    if(new Set(win.map(w=>w.pci).filter(v=>v!=null)).size>=3) net.push('Overlap')
-    if(i>1&&s.pci&&samples[i-2].pci&&samples[i-1].pci&&s.pci===samples[i-2].pci&&s.pci!==samples[i-1].pci) net.push('Mobility')
-    if(s.download_mbps!=null&&s.download_mbps<5) exp.push('Video')
-    if(s.sinr!=null&&s.sinr<5) exp.push('Game')
-    if(s.rsrp!=null&&s.rsrp<-100) exp.push('Voice')
-    const primary=NET_ISSUE_ORDER.find(k=>net.includes(k))||net[0]
-    return (net.length||exp.length)?{...s,_net:net,_exp:exp,_primary:primary,_order:NET_ISSUE_ORDER.indexOf(primary)}:null
+    if(new Set(win.map(w=>w.pci).filter(v=>v!=null)).size>=3) issues.push('Overlap')
+    return issues.length?{...s,_issues:issues}:null
   }).filter(Boolean)
 
-  // Sort by primary network issue group
-  issueSamples.sort((a,b)=>a._order-b._order||new Date(a.sampled_at)-new Date(b.sampled_at))
+  // Group by PCI
+  const pciMap=new Map()
+  classified.forEach(s=>{
+    const key=s.pci!=null?String(s.pci):'No PCI'
+    if(!pciMap.has(key)) pciMap.set(key,{pci:key,samples:[],lat:null,lng:null,issues:new Set()})
+    const g=pciMap.get(key)
+    g.samples.push(s)
+    s._issues.forEach(iss=>g.issues.add(iss))
+    if(g.lat==null&&s.latitude!=null){g.lat=s.latitude;g.lng=s.longitude}
+  })
+  // Sort PCI groups: most samples first
+  const pciGroups=[...pciMap.values()].sort((a,b)=>b.samples.length-a.samples.length)
 
-  // Issue locations table
-  if(doc.lastAutoTable&&doc.lastAutoTable.finalY>270){doc.addPage();yy=14}
+  // Issue summary table
+  if(doc.lastAutoTable&&doc.lastAutoTable.finalY>260){doc.addPage();yy=14}
   doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text(`ISSUE LOCATIONS  (${issueSamples.length} of ${samples.length} samples)`,M,yy); yy+=3
-  if(!issueSamples.length){
+  doc.text(`ISSUE SUMMARY BY PCI  (${classified.length} flagged samples · ${pciGroups.length} cells)`,M,yy); yy+=3
+  if(!pciGroups.length){
     doc.setTextColor(0,230,118); doc.setFontSize(8); doc.setFont('helvetica','normal')
-    doc.text('No issues detected across all 8 dimensions.',M,yy+6); yy+=12
+    doc.text('No network issues detected.',M,yy+6); yy+=12
   } else {
-    let lastGroup=null
     const body=[]
-    const groupRows=new Set()
-    issueSamples.slice(0,300).forEach((s,i)=>{
-      const grp=s._primary||'—'
-      if(grp!==lastGroup){
-        groupRows.add(body.length)
-        body.push([{content:grp,colSpan:9,styles:{fillColor:NET_ISSUE_COLORS[grp]||[48,54,61],textColor:[255,255,255],fontStyle:'bold',fontSize:7,cellPadding:2}}])
-        lastGroup=grp
-      }
-      const expStr=s._exp.length?s._exp.join(' · '):'—'
+    pciGroups.forEach(g=>{
+      const issueList=[...g.issues].join(' · ')||'—'
+      const siteLat=g.lat!=null?n(g.lat,5):'—'
+      const siteLng=g.lng!=null?n(g.lng,5):'—'
+      const issueCounts=[...g.issues].map(iss=>{
+        const cnt=g.samples.filter(s=>s._issues.includes(iss)).length
+        return `${iss}(${cnt})`
+      }).join('  ')
+      // PCI group header row
       body.push([
-        i+1,
-        s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'—',
-        s.latitude!=null?n(s.latitude,5):'—',
-        s.longitude!=null?n(s.longitude,5):'—',
-        s.rat||'—',
-        s.rsrp!=null?s.rsrp+' dBm':'—',
-        s.sinr!=null?n(s.sinr,1):'—',
-        s.pci??'—',
-        expStr,
+        {content:`PCI ${g.pci}`,styles:{fontStyle:'bold',textColor:[230,237,243],fontSize:7.5}},
+        {content:`${g.samples.length} samples`,styles:{textColor:[139,148,158],fontSize:6.5}},
+        {content:issueCounts,styles:{textColor:[255,193,7],fontSize:6,colSpan:2}},
+        {content:'',styles:{colSpan:0}},
+        {content:`Site: ${siteLat}, ${siteLng}`,styles:{textColor:[88,166,255],fontSize:6.5,colSpan:2}},
+        {content:'',styles:{colSpan:0}},
       ])
+      // Detail rows — only for LOC_ISSUES (Coverage Gap, Handover, Ping-Pong)
+      const locSamples=g.samples.filter(s=>s._issues.some(iss=>LOC_ISSUES.has(iss)))
+      locSamples.slice(0,20).forEach(s=>{
+        const locIssues=s._issues.filter(iss=>LOC_ISSUES.has(iss))
+        const topIss=locIssues[0]
+        const col=ISSUE_COLORS[topIss]||[139,148,158]
+        body.push([
+          {content:'',styles:{fillColor:[30,37,44]}},
+          {content:s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'—',styles:{textColor:[139,148,158],fontSize:6,fillColor:[30,37,44]}},
+          {content:s.latitude!=null?n(s.latitude,5):'—',styles:{textColor:[88,166,255],fontSize:6,fillColor:[30,37,44]}},
+          {content:s.longitude!=null?n(s.longitude,5):'—',styles:{textColor:[88,166,255],fontSize:6,fillColor:[30,37,44]}},
+          {content:locIssues.join(' + '),styles:{textColor:[col[0],col[1],col[2]],fontStyle:'bold',fontSize:6,fillColor:[30,37,44]}},
+          {content:s.rsrp!=null?s.rsrp+' dBm':'—',styles:{textColor:[139,148,158],fontSize:6,fillColor:[30,37,44]}},
+        ])
+      })
+      if(locSamples.length>20){
+        body.push([{content:`  … ${locSamples.length-20} more location events`,colSpan:6,styles:{textColor:[100,110,120],fontSize:6,fillColor:[22,27,34],cellPadding:1}}])
+      }
     })
     doc.autoTable({
       startY:yy,
-      head:[['#','Time','Latitude','Longitude','RAT','RSRP','SINR','PCI','Experience KPI']],
+      head:[['PCI','Samples','Issues','','Site Location','']],
       body,
-      styles:{fontSize:6.5,cellPadding:1.8,textColor:[230,237,243],fillColor:[22,27,34],lineColor:[48,54,61],lineWidth:.3},
+      styles:{fontSize:6.5,cellPadding:2,textColor:[230,237,243],fillColor:[22,27,34],lineColor:[48,54,61],lineWidth:.3},
       headStyles:{fillColor:[28,33,40],textColor:[139,148,158],fontStyle:'bold',fontSize:7},
-      alternateRowStyles:{fillColor:[28,33,40]},
-      columnStyles:{8:{textColor:[0,188,212]}},
+      columnStyles:{0:{cellWidth:18},1:{cellWidth:18},2:{cellWidth:38},3:{cellWidth:0},4:{cellWidth:38},5:{cellWidth:0}},
       margin:{left:M,right:M},
     })
   }
@@ -3863,10 +3899,10 @@ function initCovMap(){
     mapCov.addSource('cov-gaps',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
     mapCov.addLayer({id:'gap-untested-fill',type:'fill',source:'cov-gaps',layout:{visibility:'none'},
       filter:['==',['get','gapType'],'untested'],
-      paint:{'fill-color':'#f97316','fill-opacity':0.4}})
+      paint:{'fill-color':'#FF7900','fill-opacity':0.4}})
     mapCov.addLayer({id:'gap-weak-fill',type:'fill',source:'cov-gaps',layout:{visibility:'none'},
       filter:['==',['get','gapType'],'underperforming'],
-      paint:{'fill-color':'#ef4444','fill-opacity':0.45}})
+      paint:{'fill-color':'#DB1A21','fill-opacity':0.45}})
 
     // ── Hexbin fill (bottom) ──
     mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:{
@@ -3996,7 +4032,7 @@ function initCovMap(){
 
     // ── Reseller layer ──
     mapCov.addLayer({id:'res-dots',type:'circle',source:'cov-resellers',
-      paint:{'circle-radius':5,'circle-color':'#f97316','circle-stroke-width':1.5,
+      paint:{'circle-radius':5,'circle-color':'#FF7900','circle-stroke-width':1.5,
         'circle-stroke-color':'#fff','circle-opacity':.85}})
     mapCov.addLayer({id:'res-lbl',type:'symbol',source:'cov-resellers',minzoom:14,
       layout:{'text-field':['get','name'],'text-size':9,'text-offset':[0,1.2],
@@ -4011,7 +4047,7 @@ function initCovMap(){
       covPopup.setLngLat(e.lngLat).setHTML(`
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <div style="width:10px;height:10px;border-radius:50%;background:#f97316"></div>
+            <div style="width:10px;height:10px;border-radius:50%;background:#FF7900"></div>
             <b style="color:#e6edf3">${p.name||'Reseller'}</b>
           </div>
           <table style="width:100%;border-collapse:collapse">
