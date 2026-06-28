@@ -3077,24 +3077,15 @@ function renderDriveRules(samples, sess) {
   if (!samples.length) return
 
   // Grade distribution
-  const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
-  const grades={A:0,B:0,C:0,D:0,F:0}
-  samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
-  const tot=samples.length||1
-
-  // Compute averages + percentiles (ETSI TR 103 559 best practice: P10/P50/P90)
-  const pct=(arr,p)=>{ if(!arr.length)return null; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor((p/100)*(s.length-1))] }
-  const sWithRsrp=samples.filter(s=>s.rsrp!=null)
-  const sWithSinr=samples.filter(s=>s.sinr!=null)
-  const sWithDl  =samples.filter(s=>s.download_mbps!=null)
-  const rsrpVals=sWithRsrp.map(s=>s.rsrp), dlVals=sWithDl.map(s=>s.download_mbps)
-  const avgRsrp=rsrpVals.length ? rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length : null
-  const avgSinr=sWithSinr.length ? sWithSinr.reduce((a,b)=>a+b.sinr,0)/sWithSinr.length : null
-  const avgDl  =dlVals.length   ? dlVals.reduce((a,b)=>a+b,0)/dlVals.length : null
-
-  // Percentile stats panel (standard in TEMS/VIAVI drive reports)
-  const rsrpP10=pct(rsrpVals,10), rsrpP50=pct(rsrpVals,50), rsrpP90=pct(rsrpVals,90)
-  const dlP10=pct(dlVals,10), dlP50=pct(dlVals,50), dlP90=pct(dlVals,90)
+  const {rules,fails,warns,verdict:_v,vColor:_vc,vIcon:_vi,
+    grades,tot,GC,avgRsrp,avgSinr,avgDl,rsrpStd,
+    rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
+    abPct,distKm,hoRate,domRat,dlThresh,
+    gapPct,maxGapRun,uniquePCIs,pciDensity,
+    abruptDrops,pingPong,congestPct,mobScore,
+    vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore
+  } = computeDriveRules(samples, sess)
+  const dlVals = samples.filter(s=>s.download_mbps!=null).map(s=>s.download_mbps)
   const rsrpColor=v=>v==null?'var(--mu)':v>=-90?'#00e676':v>=-100?'#ffc107':v>=-110?'#ff9800':'#f44336'
   document.getElementById('drv-grade-bars').innerHTML=`
     <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Signal Grade Distribution</div>
@@ -3140,164 +3131,8 @@ function renderDriveRules(samples, sess) {
         </div>
       </div>`:''}
     </div>`
-  const abPct  =(grades.A+grades.B)/tot*100
-  const distKm =sess.distance_km||0
-  const hoRate =distKm>0 ? (sess.handover_count||0)/distKm : null
-
-  // Dominant RAT → speed thresholds
-  const ratMap={}
-  samples.forEach(s=>{ if(s.rat) ratMap[s.rat]=(ratMap[s.rat]||0)+1 })
-  const domRat=(Object.entries(ratMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'').toUpperCase()
-  const is5G=domRat.includes('NR')||domRat.includes('5G')
-  const is4G=domRat.includes('LTE')||domRat.includes('4G')
-  const dlThresh=is5G?{go:50,fa:20}:is4G?{go:10,fa:5}:{go:1,fa:0.5}
-
-  // ── Extended analysis computations ──────────────
-  // Signal Gap: consecutive samples below -110 dBm
-  let gapRun=0, maxGapRun=0, inGap=false
-  const gapPts = samples.filter(s=>{
-    const bad = s.rsrp==null || s.rsrp<-110
-    if(bad){if(!inGap){inGap=true;gapRun=0};gapRun++}
-    else if(inGap){maxGapRun=Math.max(maxGapRun,gapRun);inGap=false}
-    return bad
-  }).length
-  if(inGap) maxGapRun=Math.max(maxGapRun,gapRun)
-  const gapPct = gapPts/tot*100
-
-  // Pilot Pollution / Overlap Signals: unique PCIs per km (>3/km = interference risk)
-  const pciSet = new Set(samples.map(s=>s.pci).filter(v=>v!=null))
-  const uniquePCIs = pciSet.size
-  const pciDensity = distKm>0 ? uniquePCIs/distKm : null
-
-  // Handover analysis: sudden RSRP drops >12 dBm between consecutive samples
-  let abruptDrops=0, pingPong=0
-  const pciSeq = samples.map(s=>s.pci).filter(v=>v!=null)
-  for(let i=1;i<samples.length;i++){
-    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null){
-      if(samples[i-1].rsrp-samples[i].rsrp>12) abruptDrops++
-    }
-    if(i>1&&samples[i].pci&&samples[i-2].pci&&samples[i-1].pci){
-      if(samples[i].pci===samples[i-2].pci&&samples[i].pci!==samples[i-1].pci) pingPong++
-    }
-  }
-
-  // Congestion: % of DL samples below technology threshold
-  const congestPct = dlVals.length ? dlVals.filter(v=>v<dlThresh.fa).length/dlVals.length*100 : null
-
-  // RSRP standard deviation → signal stability
-  const rsrpMean = avgRsrp || 0
-  const rsrpStd = rsrpVals.length>1 ? Math.sqrt(rsrpVals.reduce((s,v)=>s+Math.pow(v-rsrpMean,2),0)/rsrpVals.length) : null
-
-  // Mobility Experience (3GPP TS 36.304): signal stability + handover success
-  // Score 0-100: high std-dev + high HO rate = poor mobility
-  const mobScore = (()=>{
-    let s=100
-    if(rsrpStd!=null){ if(rsrpStd>15)s-=35; else if(rsrpStd>8)s-=15 }
-    if(hoRate!=null){ if(hoRate>4)s-=35; else if(hoRate>2)s-=15 }
-    if(abruptDrops>5)s-=20; else if(abruptDrops>2)s-=10
-    if(pingPong>3)s-=15
-    return Math.max(0,s)
-  })()
-
-  // Video Experience (ITU-T P.1203 / OpenSignal Video XP model)
-  // Based on throughput: ≥15 Mbps=Excellent, ≥5=Good, ≥2=Fair, <2=Poor
-  const vidPct = dlVals.length ? {
-    excellent: dlVals.filter(v=>v>=15).length/dlVals.length*100,
-    good:      dlVals.filter(v=>v>=5&&v<15).length/dlVals.length*100,
-    fair:      dlVals.filter(v=>v>=2&&v<5).length/dlVals.length*100,
-    poor:      dlVals.filter(v=>v<2).length/dlVals.length*100,
-  } : null
-  const vidScore = vidPct ? Math.round(vidPct.excellent*1+vidPct.good*.75+vidPct.fair*.4) : null
-
-  // Game Experience (GSMA TS.43 Gaming XP): estimated from SINR (proxy for latency)
-  // SINR ≥13=Excellent, ≥5=Good, ≥0=Fair, <0=Poor (high interference = packet loss)
-  const gameVals = sWithSinr.map(s=>s.sinr)
-  const gamePct = gameVals.length ? {
-    excellent: gameVals.filter(v=>v>=13).length/gameVals.length*100,
-    good:      gameVals.filter(v=>v>=5&&v<13).length/gameVals.length*100,
-    fair:      gameVals.filter(v=>v>=0&&v<5).length/gameVals.length*100,
-    poor:      gameVals.filter(v=>v<0).length/gameVals.length*100,
-  } : null
-  const gameScore = gamePct ? Math.round(gamePct.excellent*1+gamePct.good*.75+gamePct.fair*.4) : null
-
-  // VoiceApp Experience (3GPP TS 36.133 RSRP voice thresholds):
-  // RSRP ≥-90=Excellent, ≥-100=Good, ≥-110=Marginal, <-110=Drop risk
-  const voicePct = rsrpVals.length ? {
-    excellent: rsrpVals.filter(v=>v>=-90).length/rsrpVals.length*100,
-    good:      rsrpVals.filter(v=>v>=-100&&v<-90).length/rsrpVals.length*100,
-    marginal:  rsrpVals.filter(v=>v>=-110&&v<-100).length/rsrpVals.length*100,
-    drop:      rsrpVals.filter(v=>v<-110).length/rsrpVals.length*100,
-  } : null
-  const voiceScore = voicePct ? Math.round(voicePct.excellent*1+voicePct.good*.75+voicePct.marginal*.3) : null
-
-  // ── Assessment rules ─────────────────────────────
   const ICON={pass:'✅',warn:'⚠️',fail:'❌'}
   const COL ={pass:'var(--gr)',warn:'var(--yw)',fail:'#f44336'}
-
-  const mkScore=(score,label)=>`<span style="font-weight:700">${label}</span> <span style="color:var(--mu);font-size:10px">(${score!=null?score+'%':'—'})</span>`
-
-  const rules=[
-    {
-      label:'Signal Coverage',
-      status:abPct>=70?'pass':abPct>=40?'warn':'fail',
-      detail:`${Math.round(abPct)}% Good+ (A/B grade)`
-    },
-    {
-      label:'Signal Gap',
-      status:gapPct<5?'pass':gapPct<20?'warn':'fail',
-      detail:gapPct>0?`${gapPct.toFixed(0)}% pts below −110 dBm · max run: ${maxGapRun}`:'No gaps detected'
-    },
-    {
-      label:'Avg RSRP',
-      status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail',
-      detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm (σ=${rsrpStd!=null?rsrpStd.toFixed(1):'—'})`:'No data'
-    },
-    {
-      label:'SINR / Interference',
-      status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail',
-      detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'
-    },
-    {
-      label:'Overlap / Pilot Pollution',
-      status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail',
-      detail:pciDensity!=null?`${uniquePCIs} PCIs · ${pciDensity.toFixed(1)}/km density`:`${uniquePCIs} unique PCIs`
-    },
-    {
-      label:'Congestion',
-      status:congestPct==null?'warn':congestPct<10?'pass':congestPct<30?'warn':'fail',
-      detail:congestPct!=null?`${congestPct.toFixed(0)}% samples below ${dlThresh.fa} Mbps threshold`:'No DL data'
-    },
-    {
-      label:'Poor Handover',
-      status:(abruptDrops===0&&pingPong===0)?'pass':(abruptDrops>5||pingPong>3)?'fail':'warn',
-      detail:`${abruptDrops} abrupt drops · ${pingPong} ping-pong events · ${hoRate!=null?hoRate.toFixed(1)+'/km':'—'}`
-    },
-    {
-      label:'Mobility Experience',
-      status:mobScore>=80?'pass':mobScore>=55?'warn':'fail',
-      detail:`Score ${mobScore}/100 — ${mobScore>=80?'Smooth mobility':mobScore>=55?'Some interruptions':'Frequent disruptions'}`
-    },
-    {
-      label:'Video Experience',
-      status:vidScore==null?'warn':vidScore>=70?'pass':vidScore>=40?'warn':'fail',
-      detail:vidPct!=null?`${vidPct.excellent.toFixed(0)}% HD · ${vidPct.good.toFixed(0)}% SD · ${vidPct.poor.toFixed(0)}% buffering`:'No DL data'
-    },
-    {
-      label:'Game Experience',
-      status:gameScore==null?'warn':gameScore>=70?'pass':gameScore>=40?'warn':'fail',
-      detail:gamePct!=null?`${gamePct.excellent.toFixed(0)}% Excellent · ${gamePct.poor.toFixed(0)}% Poor SINR`:'No SINR data'
-    },
-    {
-      label:'VoiceApp Experience',
-      status:voiceScore==null?'warn':voiceScore>=70?'pass':voiceScore>=40?'warn':'fail',
-      detail:voicePct!=null?`${voicePct.excellent.toFixed(0)}% Excellent · ${voicePct.drop.toFixed(0)}% drop risk`:'No signal data'
-    },
-    {
-      label:'Download Speed',
-      status:avgDl==null?'warn':avgDl>=dlThresh.go?'pass':avgDl>=dlThresh.fa?'warn':'fail',
-      detail:avgDl!=null?`${avgDl.toFixed(1)} Mbps avg (P10: ${dlP10!=null?dlP10.toFixed(1):'—'})`:'No data'
-    },
-  ]
 
   document.getElementById('drv-assessment').innerHTML=rules.map(r=>`
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;padding:4px 0;border-bottom:1px solid var(--bd)">
@@ -3308,24 +3143,93 @@ function renderDriveRules(samples, sess) {
       </div>
     </div>`).join('')
 
-  // Overall session verdict
+  // Verdict comes from computeDriveRules
+  document.getElementById('drv-verdict-icon').textContent=_vi
+  document.getElementById('drv-verdict-label').textContent=_v
+  document.getElementById('drv-verdict-label').style.color=_vc
+  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
+  const pill=document.getElementById('drv-verdict-pill')
+  pill.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${_vc}20;border:1px solid ${_vc}50;color:${_vc}">${_vi} ${_v}</span>`
+}
+
+// ── Shared drive rule computation (used by renderDriveRules + exportPDF) ──
+function computeDriveRules(samples, sess) {
+  const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
+  const grades={A:0,B:0,C:0,D:0,F:0}
+  samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
+  const tot=samples.length||1
+  const pct=(arr,p)=>{ if(!arr.length)return null; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor((p/100)*(s.length-1))] }
+  const sWithRsrp=samples.filter(s=>s.rsrp!=null)
+  const sWithSinr=samples.filter(s=>s.sinr!=null)
+  const sWithDl  =samples.filter(s=>s.download_mbps!=null)
+  const rsrpVals=sWithRsrp.map(s=>s.rsrp), dlVals=sWithDl.map(s=>s.download_mbps)
+  const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
+  const avgSinr=sWithSinr.length?sWithSinr.reduce((a,b)=>a+b.sinr,0)/sWithSinr.length:null
+  const avgDl  =dlVals.length  ?dlVals.reduce((a,b)=>a+b,0)/dlVals.length:null
+  const rsrpP10=pct(rsrpVals,10),rsrpP50=pct(rsrpVals,50),rsrpP90=pct(rsrpVals,90)
+  const dlP10=pct(dlVals,10),dlP50=pct(dlVals,50),dlP90=pct(dlVals,90)
+  const abPct=(grades.A+grades.B)/tot*100
+  const distKm=sess.distance_km||0
+  const hoRate=distKm>0?(sess.handover_count||0)/distKm:null
+  const ratMap={}
+  samples.forEach(s=>{if(s.rat)ratMap[s.rat]=(ratMap[s.rat]||0)+1})
+  const domRat=(Object.entries(ratMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'').toUpperCase()
+  const is5G=domRat.includes('NR')||domRat.includes('5G')
+  const is4G=domRat.includes('LTE')||domRat.includes('4G')
+  const dlThresh=is5G?{go:50,fa:20}:is4G?{go:10,fa:5}:{go:1,fa:0.5}
+  let gapRun=0,maxGapRun=0,inGap=false
+  const gapPts=samples.filter(s=>{
+    const bad=s.rsrp==null||s.rsrp<-110
+    if(bad){if(!inGap){inGap=true;gapRun=0};gapRun++}
+    else if(inGap){maxGapRun=Math.max(maxGapRun,gapRun);inGap=false}
+    return bad
+  }).length
+  if(inGap)maxGapRun=Math.max(maxGapRun,gapRun)
+  const gapPct=gapPts/tot*100
+  const pciSet=new Set(samples.map(s=>s.pci).filter(v=>v!=null))
+  const uniquePCIs=pciSet.size
+  const pciDensity=distKm>0?uniquePCIs/distKm:null
+  let abruptDrops=0,pingPong=0
+  for(let i=1;i<samples.length;i++){
+    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null&&samples[i-1].rsrp-samples[i].rsrp>12)abruptDrops++
+    if(i>1&&samples[i].pci&&samples[i-2].pci&&samples[i-1].pci&&samples[i].pci===samples[i-2].pci&&samples[i].pci!==samples[i-1].pci)pingPong++
+  }
+  const congestPct=dlVals.length?dlVals.filter(v=>v<dlThresh.fa).length/dlVals.length*100:null
+  const rsrpMean=avgRsrp||0
+  const rsrpStd=rsrpVals.length>1?Math.sqrt(rsrpVals.reduce((s,v)=>s+Math.pow(v-rsrpMean,2),0)/rsrpVals.length):null
+  const mobScore=(()=>{let s=100;if(rsrpStd!=null){if(rsrpStd>15)s-=35;else if(rsrpStd>8)s-=15};if(hoRate!=null){if(hoRate>4)s-=35;else if(hoRate>2)s-=15};if(abruptDrops>5)s-=20;else if(abruptDrops>2)s-=10;if(pingPong>3)s-=15;return Math.max(0,s)})()
+  const gameVals=sWithSinr.map(s=>s.sinr)
+  const vidPct=dlVals.length?{excellent:dlVals.filter(v=>v>=15).length/dlVals.length*100,good:dlVals.filter(v=>v>=5&&v<15).length/dlVals.length*100,fair:dlVals.filter(v=>v>=2&&v<5).length/dlVals.length*100,poor:dlVals.filter(v=>v<2).length/dlVals.length*100}:null
+  const vidScore=vidPct?Math.round(vidPct.excellent*1+vidPct.good*.75+vidPct.fair*.4):null
+  const gamePct=gameVals.length?{excellent:gameVals.filter(v=>v>=13).length/gameVals.length*100,good:gameVals.filter(v=>v>=5&&v<13).length/gameVals.length*100,fair:gameVals.filter(v=>v>=0&&v<5).length/gameVals.length*100,poor:gameVals.filter(v=>v<0).length/gameVals.length*100}:null
+  const gameScore=gamePct?Math.round(gamePct.excellent*1+gamePct.good*.75+gamePct.fair*.4):null
+  const voicePct=rsrpVals.length?{excellent:rsrpVals.filter(v=>v>=-90).length/rsrpVals.length*100,good:rsrpVals.filter(v=>v>=-100&&v<-90).length/rsrpVals.length*100,marginal:rsrpVals.filter(v=>v>=-110&&v<-100).length/rsrpVals.length*100,drop:rsrpVals.filter(v=>v<-110).length/rsrpVals.length*100}:null
+  const voiceScore=voicePct?Math.round(voicePct.excellent*1+voicePct.good*.75+voicePct.marginal*.3):null
+  const rules=[
+    {label:'Signal Coverage',   status:abPct>=70?'pass':abPct>=40?'warn':'fail', detail:`${Math.round(abPct)}% Good+ (A/B grade)`},
+    {label:'Signal Gap',        status:gapPct<5?'pass':gapPct<20?'warn':'fail',  detail:gapPct>0?`${gapPct.toFixed(0)}% pts below −110 dBm · max run: ${maxGapRun}`:'No gaps detected'},
+    {label:'Avg RSRP',          status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail', detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm (σ=${rsrpStd!=null?rsrpStd.toFixed(1):'—'})`:'No data'},
+    {label:'SINR / Interference',status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail', detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'},
+    {label:'Overlap / Pilot Pollution',status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail', detail:pciDensity!=null?`${uniquePCIs} PCIs · ${pciDensity.toFixed(1)}/km density`:`${uniquePCIs} unique PCIs`},
+    {label:'Congestion',        status:congestPct==null?'warn':congestPct<10?'pass':congestPct<30?'warn':'fail', detail:congestPct!=null?`${congestPct.toFixed(0)}% samples below ${dlThresh.fa} Mbps threshold`:'No DL data'},
+    {label:'Poor Handover',     status:(abruptDrops===0&&pingPong===0)?'pass':(abruptDrops>5||pingPong>3)?'fail':'warn', detail:`${abruptDrops} abrupt drops · ${pingPong} ping-pong · ${hoRate!=null?hoRate.toFixed(1)+'/km':'—'}`},
+    {label:'Mobility Experience',status:mobScore>=80?'pass':mobScore>=55?'warn':'fail', detail:`Score ${mobScore}/100 — ${mobScore>=80?'Smooth':mobScore>=55?'Some interruptions':'Frequent disruptions'}`},
+    {label:'Video Experience',  status:vidScore==null?'warn':vidScore>=70?'pass':vidScore>=40?'warn':'fail', detail:vidPct!=null?`${vidPct.excellent.toFixed(0)}% HD · ${vidPct.good.toFixed(0)}% SD · ${vidPct.poor.toFixed(0)}% buffering`:'No DL data'},
+    {label:'Game Experience',   status:gameScore==null?'warn':gameScore>=70?'pass':gameScore>=40?'warn':'fail', detail:gamePct!=null?`${gamePct.excellent.toFixed(0)}% Excellent · ${gamePct.poor.toFixed(0)}% Poor SINR`:'No SINR data'},
+    {label:'VoiceApp Experience',status:voiceScore==null?'warn':voiceScore>=70?'pass':voiceScore>=40?'warn':'fail', detail:voicePct!=null?`${voicePct.excellent.toFixed(0)}% Excellent · ${voicePct.drop.toFixed(0)}% drop risk`:'No signal data'},
+    {label:'Download Speed',    status:avgDl==null?'warn':avgDl>=dlThresh.go?'pass':avgDl>=dlThresh.fa?'warn':'fail', detail:avgDl!=null?`${avgDl.toFixed(1)} Mbps avg (P10: ${dlP10!=null?dlP10.toFixed(1):'—'})`:'No data'},
+  ]
   const fails=rules.filter(r=>r.status==='fail').length
   const warns=rules.filter(r=>r.status==='warn').length
   let verdict,vColor,vIcon
   if(fails===0&&warns===0){verdict='EXCELLENT';vColor='#00e676';vIcon='🏆'}
-  else if(fails===0&&warns<=2){verdict='GOOD';vColor='var(--bl)';vIcon='✅'}
-  else if(fails<=2){verdict='FAIR';vColor='var(--yw)';vIcon='⚠️'}
+  else if(fails===0&&warns<=2){verdict='GOOD';vColor='#58a6ff';vIcon='✅'}
+  else if(fails<=2){verdict='FAIR';vColor='#ffc107';vIcon='⚠️'}
   else{verdict='POOR';vColor='#f44336';vIcon='❌'}
-
-  document.getElementById('drv-verdict-icon').textContent=vIcon
-  document.getElementById('drv-verdict-label').textContent=verdict
-  document.getElementById('drv-verdict-label').style.color=vColor
-  const flagCount=document.querySelectorAll('.flag-popup').length
-  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
-
-  // Also update the pill in the card header
-  const pill=document.getElementById('drv-verdict-pill')
-  pill.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${vColor}20;border:1px solid ${vColor}50;color:${vColor}">${vIcon} ${verdict}</span>`
+  return {rules,fails,warns,verdict,vColor,vIcon,grades,tot,GC,
+    avgRsrp,avgSinr,avgDl,rsrpStd,rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
+    abPct,distKm,hoRate,domRat,dlThresh,gapPct,maxGapRun,uniquePCIs,pciDensity,
+    abruptDrops,pingPong,congestPct,mobScore,vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore}
 }
 
 // ── PDF Export ────────────────────────────────────
@@ -3395,22 +3299,43 @@ window.exportPDF = async function(sessId) {
     }catch(e){console.warn('map capture:',e)}
   }
 
-  // Rule-based assessment table in PDF
-  const gradeCounts={A:0,B:0,C:0,D:0,F:0}
-  samples.forEach(s=>{const g=rsrpGrade(s.rsrp);if(gradeCounts[g]!==undefined)gradeCounts[g]++})
-  const tot2=samples.length||1
+  // ── Rule-based assessment (from shared computeDriveRules) ──
+  const dr=computeDriveRules(samples,sess)
+  const statusColor={pass:[0,230,118],warn:[255,193,7],fail:[244,67,54]}
+  const statusLabel={pass:'PASS',warn:'WARN',fail:'FAIL'}
+
+  if(yy>230){doc.addPage();yy=14}
+  doc.setFillColor(28,33,40); doc.rect(M,yy,W-2*M,7,'F')
   doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text('SIGNAL GRADE DISTRIBUTION',M,yy); yy+=5
-  Object.entries(gradeCounts).forEach(([g,cnt])=>{
-    const pct=Math.round(cnt/tot2*100)
-    const cols={A:[0,230,118],B:[0,188,212],C:[255,193,7],D:[255,152,0],F:[244,67,54]}
-    const bw=(W-2*M-50)*pct/100
-    doc.setFillColor(...cols[g]); doc.rect(M+20,yy,Math.max(bw,0.5),4,'F')
-    doc.setTextColor(...cols[g]); doc.setFontSize(7)
-    doc.text(`${g}: ${cnt} (${pct}%)`,M+Math.max(bw,0.5)+22,yy+3)
-    doc.text(g,M+14,yy+3); yy+=6
+  doc.text('RULE-BASED ASSESSMENT',M+3,yy+5); yy+=9
+
+  // Two-column layout: left col rules 1-6, right col rules 7-12
+  const half=Math.ceil(dr.rules.length/2)
+  const colW=(W-2*M)/2-2
+  dr.rules.forEach((r,i)=>{
+    const cx=i<half?M:M+colW+4
+    const ry=yy+(i<half?i:i-half)*10
+    if(ry>280){/* page overflow guard — autoTable below handles wrapping */return}
+    const sc=statusColor[r.status]
+    doc.setFillColor(...sc); doc.circle(cx+3,ry+3.5,1.8,'F')
+    doc.setTextColor(230,237,243); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
+    doc.text(r.label,cx+7,ry+4)
+    doc.setTextColor(139,148,158); doc.setFontSize(6.5); doc.setFont('helvetica','normal')
+    doc.text(r.detail,cx+7,ry+8,{maxWidth:colW-10})
+    doc.setTextColor(...sc); doc.setFontSize(6); doc.setFont('helvetica','bold')
+    doc.text(statusLabel[r.status],cx+colW-8,ry+4,{align:'right'})
   })
-  yy+=4
+  yy+=half*10+6
+
+  // Verdict banner
+  const vc={EXCELLENT:[0,230,118],GOOD:[88,166,255],FAIR:[255,193,7],POOR:[244,67,54]}[dr.verdict]||[139,148,158]
+  doc.setFillColor(...vc.map(v=>Math.round(v*.15+22))); doc.roundedRect(M,yy,W-2*M,14,2,2,'F')
+  doc.setDrawColor(...vc); doc.setLineWidth(.4); doc.roundedRect(M,yy,W-2*M,14,2,2,'S')
+  doc.setTextColor(...vc); doc.setFontSize(11); doc.setFont('helvetica','bold')
+  doc.text(`${dr.verdict}`,W/2,yy+9,{align:'center'})
+  doc.setTextColor(139,148,158); doc.setFontSize(7); doc.setFont('helvetica','normal')
+  doc.text(`${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,W/2,yy+13.5,{align:'center'})
+  yy+=20
 
   // Classify issue samples
   const ratCounts={}
