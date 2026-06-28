@@ -158,13 +158,32 @@ tr:hover td{background:var(--s2)}
 .op-card-key{font-size:11px;color:var(--mu)}
 .op-card-val{font-size:12px;font-weight:600}
 /* ── Session sidebar ── */
+/* ── Drive Test filter bar ── */
+.drv-fbar{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;flex-direction:column;gap:7px;background:var(--s1)}
+.drv-frow{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.drv-flbl{font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.6px;min-width:46px;flex-shrink:0}
+.dchip{padding:3px 10px;border-radius:14px;border:1px solid var(--bd);background:none;color:var(--mu);font-size:11px;cursor:pointer;transition:all .15s;line-height:1.4;white-space:nowrap}
+.dchip:hover{border-color:rgba(88,166,255,.5);color:var(--tx)}
+.dchip.on{background:rgba(31,111,235,.15);border-color:rgba(31,111,235,.5);color:#58a6ff;font-weight:600}
+.dchip[data-drv-op="Cellcard"].on{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.5);color:#f97316}
+.dchip[data-drv-op="Metfone"].on{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);color:#ef4444}
+.dchip[data-drv-op="Smart"].on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#22c55e}
+.drv-date-wrap{display:flex;align-items:center;gap:4px;margin-left:4px}
+.drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer;outline:none}
+.drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;outline:none;min-width:130px}
+/* ── Session list cards ── */
 .sess-list{height:480px;overflow-y:auto}
-.sess-item{padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.sess-item{padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
 .sess-item:hover,.sess-item.sel{background:var(--s2)}
-.sess-dev{font-size:12px;font-weight:600}
+.sess-dev{font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.sess-dev-left{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden}
 .sess-meta{font-size:11px;color:var(--mu);margin-top:2px}
 .sess-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 .sess-stat{font-size:11px}
+.sess-sync-btn{flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1px solid var(--bd);background:none;color:var(--mu);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
+.sess-sync-btn:hover{border-color:rgba(255,152,0,.6);color:#ff9800;background:rgba(255,152,0,.1)}
+.sess-sync-btn.synced{color:#00e67699;border-color:transparent;cursor:default;font-size:12px}
+.sess-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;border:1px solid;white-space:nowrap}
 .pdf-btn{display:block;width:calc(100% - 28px);margin:8px 14px;padding:7px;background:rgba(31,111,235,.15);border:1px solid rgba(31,111,235,.3);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
 .pdf-btn:hover{background:rgba(31,111,235,.25)}
 /* ── CX Latest result ── */
@@ -887,6 +906,31 @@ td.r,th.r{text-align:right}
     </div>
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
       <div class="ch"><span class="ch-t">Sessions</span><span class="ch-s" id="sess-cnt">0</span></div>
+      <!-- Drive test filters -->
+      <div class="drv-fbar">
+        <div class="drv-frow">
+          <span class="drv-flbl">Date</span>
+          <button class="dchip on" data-ddate="all">All</button>
+          <button class="dchip" data-ddate="today">Today</button>
+          <button class="dchip" data-ddate="7">7d</button>
+          <button class="dchip" data-ddate="30">30d</button>
+          <div class="drv-date-wrap">
+            <input type="date" id="drv-date-from" class="drv-date-in" title="From date">
+            <span style="font-size:10px;color:var(--mu)">–</span>
+            <input type="date" id="drv-date-to" class="drv-date-in" title="To date">
+          </div>
+        </div>
+        <div class="drv-frow">
+          <span class="drv-flbl">Operator</span>
+          <button class="dchip on" data-drv-op="all">All</button>
+          <button class="dchip" data-drv-op="Cellcard">Cellcard</button>
+          <button class="dchip" data-drv-op="Metfone">Metfone</button>
+          <button class="dchip" data-drv-op="Smart">Smart</button>
+          <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
+          <span class="drv-flbl" style="min-width:auto">Device</span>
+          <select id="drv-device-sel" class="drv-device-sel"><option value="all">All Devices</option></select>
+        </div>
+      </div>
       <div class="sess-list" id="sess-list"><div class="empty">Loading sessions…</div></div>
     </div>
   </div>
@@ -1226,6 +1270,8 @@ const F = {
   nOp:'all', nTech:'all', nProv:'all',
   // CX
   cCov:'all', cTech:'all', cOp:'all', cProv:'all',
+  // Drive Test
+  drvDate:'all', drvFrom:null, drvTo:null, drvOp:'all', drvDevice:'all',
 }
 
 // ── Helpers ───────────────────────────────────────
@@ -2532,38 +2578,80 @@ function renderCX() {
 }
 
 // ── Render: Drive sessions ────────────────────────
+function populateDrvDevices() {
+  const sel=document.getElementById('drv-device-sel')
+  if(!sel) return
+  const existing=new Set([...sel.options].map(o=>o.value))
+  const devices=[...new Set(sessAll.map(s=>s.device_id).filter(Boolean))].sort()
+  devices.forEach(d=>{
+    if(!existing.has(d)){const o=document.createElement('option');o.value=d;o.textContent=sid(d);sel.appendChild(o)}
+  })
+}
+
 function renderSessions() {
   const el=document.getElementById('sess-list')
-  // Sessions with actual GPS rows float to top; within each group keep start_time DESC
-  const sorted=[...sessAll].sort((a,b)=>{
-    const aHas=sampledSessionIds.has(a.id)?1:0, bHas=sampledSessionIds.has(b.id)?1:0
-    if(aHas!==bHas) return bHas-aHas
+
+  // Apply filters
+  const now=new Date()
+  let filtered=[...sessAll]
+  if(F.drvDate==='today'){
+    const midnight=new Date(now); midnight.setHours(0,0,0,0)
+    filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=midnight)
+  } else if(F.drvDate==='7'){
+    const cut=new Date(now-7*864e5); filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=cut)
+  } else if(F.drvDate==='30'){
+    const cut=new Date(now-30*864e5); filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=cut)
+  } else if(F.drvDate==='custom'){
+    if(F.drvFrom) filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=new Date(F.drvFrom))
+    if(F.drvTo)   filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)<=new Date(F.drvTo+'T23:59:59'))
+  }
+  if(F.drvOp!=='all') filtered=filtered.filter(s=>normOp(s.operator)===F.drvOp||!s.operator)
+  if(F.drvDevice!=='all') filtered=filtered.filter(s=>s.device_id===F.drvDevice)
+
+  // Synced sessions float to top, then newest first
+  filtered.sort((a,b)=>{
+    const aH=sampledSessionIds.has(a.id)?1:0, bH=sampledSessionIds.has(b.id)?1:0
+    if(aH!==bH) return bH-aH
     return new Date(b.start_time)-new Date(a.start_time)
   })
-  const syncedCnt=sorted.filter(s=>sampledSessionIds.has(s.id)).length
-  document.getElementById('sess-cnt').textContent=`${sessAll.length} sessions · ${syncedCnt} synced`
+
+  const syncedCnt=sessAll.filter(s=>sampledSessionIds.has(s.id)).length
+  document.getElementById('sess-cnt').textContent=`${filtered.length}${filtered.length!==sessAll.length?' / '+sessAll.length:''} sessions · ${syncedCnt} synced`
+
   if(!sessAll.length){el.innerHTML='<div class="empty">No sessions recorded yet</div>';return}
-  el.innerHTML=sorted.map(s=>{
+  if(!filtered.length){el.innerHTML='<div class="empty" style="padding:20px;text-align:center;color:var(--mu);font-size:12px">No sessions match current filters</div>';return}
+
+  el.innerHTML=filtered.map(s=>{
     const dur=s.end_time&&s.start_time?Math.round((new Date(s.end_time)-new Date(s.start_time))/60000)+'min':'Active'
     const isSel=activeSess&&activeSess.id===s.id
     const hasSamples=sampledSessionIds.has(s.id)
     const isManual=s.id==='manual'
+    const opName=normOp(s.operator)
+    const opColor=opName==='Cellcard'?'#f97316':opName==='Metfone'?'#ef4444':opName==='Smart'?'#22c55e':'var(--mu)'
+
     const syncBadge=isManual
-      ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(31,111,235,.2);color:var(--bl);border:1px solid rgba(31,111,235,.4)">📂 Uploaded File</span>`
+      ? `<span class="sess-badge" style="background:rgba(31,111,235,.18);color:var(--bl);border-color:rgba(31,111,235,.35)">📂 File</span>`
       : hasSamples
-        ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#00e67622;color:#00e676;border:1px solid #00e67644">✓ SYNCED</span>`
-        : `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;background:#ff980018;color:#ff9800;border:1px solid #ff980030" title="GPS route data recorded on device but not yet uploaded to cloud">📱 NOT UPLOADED</span>`
-    const actionBtn = isManual || hasSamples
+        ? `<span class="sess-badge" style="background:#00e67618;color:#00e676;border-color:#00e67640">✓ Synced</span>`
+        : `<span class="sess-badge" style="background:#ff980014;color:#ff9800;border-color:#ff980032">📱 Pending</span>`
+
+    const syncIcon=isManual||hasSamples
+      ? `<button class="sess-sync-btn synced" title="Already synced" onclick="event.stopPropagation()">✓</button>`
+      : `<button class="sess-sync-btn" title="Check for GPS data" id="sync-btn-${s.id}" onclick="event.stopPropagation();recheckSession(${s.id})">↻</button>`
+
+    const actionBtn=(isManual||hasSamples)
       ? `<button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${isManual?'\'manual\'':s.id})">📄 Analyze &amp; Export PDF</button>`
-      : `<div style="display:flex;gap:6px;padding:0 10px 10px">
-          <button class="pdf-btn" style="flex:1;background:rgba(255,152,0,.12);border-color:rgba(255,152,0,.35);color:#ff9800" onclick="event.stopPropagation();recheckSession(${s.id})">↻ Check for GPS</button>
-          <button class="pdf-btn" style="flex:1" onclick="event.stopPropagation();document.getElementById('upload-panel').scrollIntoView({behavior:'smooth'})">↑ Upload GPS</button>
-        </div>`
+      : ''
+
     return `
     <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${isManual?'\'manual\'':s.id})">
-      <div class="sess-dev" style="display:flex;justify-content:space-between;align-items:center">
-        <span>${isManual?'📂':('📱 '+sid(s.device_id))} ${s.name?'· '+s.name:''}</span>
-        ${syncBadge}
+      <div class="sess-dev">
+        <div class="sess-dev-left">
+          <span style="color:var(--mu);font-size:11px">${isManual?'📂':('📱 '+sid(s.device_id))}</span>
+          ${s.name?`<span style="color:var(--tx);font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>`:''}
+          ${syncBadge}
+        </div>
+        ${syncIcon}
       </div>
       <div class="sess-meta">${ts(s.start_time)}</div>
       <div class="sess-row">
@@ -2571,9 +2659,10 @@ function renderSessions() {
         <span class="sess-stat" style="color:var(--bl)">📍 ${s.sample_count??'?'} pts</span>
         ${s.distance_km!=null?`<span class="sess-stat" style="color:var(--gr)">🛣 ${n(s.distance_km,1)} km</span>`:''}
         ${s.avg_rsrp!=null?`<span class="sess-stat" style="color:${rsrpColor(Math.round(s.avg_rsrp))}">${n(s.avg_rsrp,0)} dBm</span>`:''}
+        ${opName&&opName!=='Unknown'?`<span class="sess-stat" style="color:${opColor}">${opName}</span>`:''}
       </div>
-    </div>
-    ${actionBtn}`
+      ${actionBtn}
+    </div>`
   }).join('')
 }
 
@@ -3465,6 +3554,7 @@ async function fetchAll() {
   osAll.forEach(r=>r._op=normOp(r.operator))
   sampledSessionIds=new Set((sampR.data||[]).map(r=>r.session_id).filter(Boolean))
   populateProvinces()
+  populateDrvDevices()
   refreshAll()
   // Don't set 'live' here — wait for realtime subscription confirmation
 }
@@ -3569,6 +3659,35 @@ document.querySelectorAll('[data-dop]').forEach(b=>b.addEventListener('click',()
 document.getElementById('dd-tech').addEventListener('change',e=>{F.dTech=e.target.value;refreshDash()})
 document.getElementById('dd-cov').addEventListener('change',e=>{F.dCov=e.target.value;refreshDash()})
 document.getElementById('dd-prov').addEventListener('change',e=>{F.dProv=e.target.value;refreshDash()})
+
+// Drive Test filters
+document.querySelectorAll('[data-ddate]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-ddate]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on')
+  F.drvDate=b.dataset.ddate
+  // Clear custom date inputs when switching to a preset
+  if(F.drvDate!=='custom'){
+    document.getElementById('drv-date-from').value=''
+    document.getElementById('drv-date-to').value=''
+    F.drvFrom=null; F.drvTo=null
+  }
+  renderSessions()
+}))
+document.querySelectorAll('[data-drv-op]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-drv-op]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.drvOp=b.dataset.drvOp; renderSessions()
+}))
+document.getElementById('drv-device-sel').addEventListener('change',e=>{F.drvDevice=e.target.value;renderSessions()})
+document.getElementById('drv-date-from').addEventListener('change',e=>{
+  F.drvFrom=e.target.value||null; F.drvDate='custom'
+  document.querySelectorAll('[data-ddate]').forEach(x=>x.classList.remove('on'))
+  renderSessions()
+})
+document.getElementById('drv-date-to').addEventListener('change',e=>{
+  F.drvTo=e.target.value||null; F.drvDate='custom'
+  document.querySelectorAll('[data-ddate]').forEach(x=>x.classList.remove('on'))
+  renderSessions()
+})
 
 // Network filters
 document.querySelectorAll('[data-nop]').forEach(b=>b.addEventListener('click',()=>{
