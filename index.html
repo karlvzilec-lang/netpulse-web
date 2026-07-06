@@ -480,6 +480,32 @@ td.r,th.r{text-align:right}
   </button>
 </div>
 
+<!-- GLOBAL FILTER BAR — shared across Executive / Network / Customer Experience -->
+<div class="fbar" id="gfbar" aria-label="Global filters">
+  <div class="fbar-group">
+    <span class="fbar-label">Period</span>
+    <button class="fchip" data-df="all">All</button>
+    <button class="fchip on" data-df="ytd">YTD</button>
+    <button class="fchip" data-df="quarter">90d</button>
+    <button class="fchip" data-df="month">30d</button>
+    <button class="fchip" data-df="week">7d</button>
+  </div>
+  <div class="fbar-div"></div>
+  <div class="fbar-group">
+    <span class="fbar-label">Operator</span>
+    <button class="fchip" data-dop="all">All</button>
+    <button class="fchip on" data-dop="Cellcard">Cellcard</button>
+    <button class="fchip" data-dop="Metfone">Metfone</button>
+    <button class="fchip" data-dop="Smart">Smart</button>
+  </div>
+  <div class="fbar-div"></div>
+  <div class="fbar-group">
+    <select class="fdrop" id="dd-tech" aria-label="Filter by network technology"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
+    <select class="fdrop" id="dd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
+    <select class="fdrop" id="dd-cov" style="display:none" aria-label="Filter by coverage type"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
+  </div>
+</div>
+
 <div class="page" role="main">
 
 <!-- ══════════════ EXPERIENCE DASHBOARD ══════════════ -->
@@ -500,32 +526,6 @@ td.r,th.r{text-align:right}
     <span style="font-size:11px;color:var(--mu)">Executive: decision-ready KPIs &amp; health score &nbsp;·&nbsp; Technical: RSRP thresholds, SEV matrix &amp; raw metrics</span>
   </div>
 
-  <!-- Dashboard filter bar -->
-  <div class="fbar" style="margin:-4px -20px 20px">
-    <div class="fbar-group">
-      <span class="fbar-label">Period</span>
-      <button class="fchip" data-df="all">All</button>
-      <button class="fchip on" data-df="ytd">YTD</button>
-      <button class="fchip" data-df="quarter">90d</button>
-      <button class="fchip" data-df="month">30d</button>
-      <button class="fchip" data-df="week">7d</button>
-    </div>
-    <div class="fbar-div"></div>
-    <div class="fbar-group">
-      <span class="fbar-label">Operator</span>
-      <button class="fchip" data-dop="all">All</button>
-      <button class="fchip on" data-dop="Cellcard">Cellcard</button>
-      <button class="fchip" data-dop="Metfone">Metfone</button>
-      <button class="fchip" data-dop="Smart">Smart</button>
-    </div>
-    <div class="fbar-div"></div>
-    <div class="fbar-group">
-      <select class="fdrop" id="dd-tech" aria-label="Filter by network technology"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
-      <select class="fdrop" id="dd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
-      <!-- keep dd-cov hidden so F.dCov wiring stays intact -->
-      <select class="fdrop" id="dd-cov" style="display:none" aria-label="Filter by coverage type"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
-    </div>
-  </div>
 
   <!-- KPI row (technical view only — exec view uses hero cards instead) -->
   <div class="kgrid tech-only">
@@ -882,25 +882,6 @@ td.r,th.r{text-align:right}
 
 <!-- ══════════════ NETWORK ══════════════ -->
 <div class="tp" id="tp-net">
-  <div class="fbar" style="margin:-20px -20px 20px">
-    <div class="fbar-group">
-      <span class="fbar-label">Operator</span>
-      <button class="fchip on" data-nop="all">All</button>
-      <button class="fchip" data-nop="Cellcard">Cellcard</button>
-      <button class="fchip" data-nop="Metfone">Metfone</button>
-      <button class="fchip" data-nop="Smart">Smart</button>
-    </div>
-    <div class="fbar-div"></div>
-    <div class="fbar-group">
-      <span class="fbar-label">Tech</span>
-      <button class="fchip on" data-nt="all">All</button>
-      <button class="fchip" data-nt="5g">5G</button>
-      <button class="fchip" data-nt="4g">4G</button>
-      <button class="fchip" data-nt="3g">3G</button>
-    </div>
-    <div class="fbar-div"></div>
-    <select class="fdrop" id="nd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
-  </div>
   <div class="g g2">
     <div class="card">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">Throughput &amp; Latency</span><span class="ch-s">Last 100 tests</span></div>
@@ -933,7 +914,7 @@ td.r,th.r{text-align:right}
 
 <!-- ══════════════ CX RATING ══════════════ -->
 <div class="tp" id="tp-cx">
-  <!-- CX filter bar -->
+  <!-- CX-specific dimension; operator, technology and province come from the global bar -->
   <div class="fbar" style="margin:-20px -20px 16px">
     <div class="fbar-group">
       <span class="fbar-label">Type</span>
@@ -941,24 +922,6 @@ td.r,th.r{text-align:right}
       <button class="fchip" data-cov2="mobile">Mobile</button>
       <button class="fchip" data-cov2="broadband">Broadband</button>
     </div>
-    <div class="fbar-div"></div>
-    <div class="fbar-group">
-      <span class="fbar-label">Tech</span>
-      <button class="fchip on" data-ct="all">All</button>
-      <button class="fchip" data-ct="5g">5G</button>
-      <button class="fchip" data-ct="4g">4G</button>
-      <button class="fchip" data-ct="3g">3G</button>
-    </div>
-    <div class="fbar-div"></div>
-    <div class="fbar-group">
-      <span class="fbar-label">Operator</span>
-      <button class="fchip on" data-cop="all">All</button>
-      <button class="fchip" data-cop="Cellcard">Cellcard</button>
-      <button class="fchip" data-cop="Metfone">Metfone</button>
-      <button class="fchip" data-cop="Smart">Smart</button>
-    </div>
-    <div class="fbar-div"></div>
-    <select class="fdrop" id="cx-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
   </div>
 
   <!-- Latest result card -->
@@ -2577,7 +2540,7 @@ function renderRecent() {
 // ── Render: Network tab ───────────────────────────
 function renderNetwork() {
   pages['tb-net']=0; pages['tb-gaming']=0;
-  const nx=filterNx(nxAll,{op:F.nOp,tech:F.nTech,prov:F.nProv})
+  const nx=filterNx(nxAll,{op:F.dOp,tech:F.dTech,prov:F.dProv})
   const slice=[...nx].reverse().slice(-100)
   chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
   chNetTs.data.datasets[0].data=slice.map(r=>r.download_mbps)
@@ -2671,8 +2634,8 @@ function renderHourly(nx) {
 
 // ── Render: CX tab ────────────────────────────────
 function renderCX() {
-  const os=filterOs(osAll,{op:F.cOp,tech:F.cTech,cov:F.cCov,prov:F.cProv})
-  const cx=filterCx(cxAll,{op:F.cOp,tech:F.cTech,cov:F.cCov,prov:F.cProv})
+  const os=filterOs(osAll,{op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
+  const cx=filterCx(cxAll,{op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
 
   document.getElementById('cx-count').textContent=os.length+cx.length
 
@@ -3861,6 +3824,8 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   b.classList.add('on')
   b.setAttribute('aria-selected','true')
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
+  // Global filter bar is only relevant to the three analytics tabs
+  const gf=document.getElementById('gfbar'); if(gf) gf.style.display=['dash','net','cx'].includes(b.dataset.tab)?'flex':'none'
   if(b.dataset.tab==='drv') setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
   if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
   history.pushState({tab:b.dataset.tab},'','#'+b.dataset.tab)
@@ -3893,19 +3858,19 @@ document.querySelectorAll('.os-drill-grp-tab').forEach(el=>{
 })
 
 // ── Filter wiring ─────────────────────────────────
-// Dashboard date chips
+// Global filter bar — one bar drives Executive, Network and Customer Experience
+function applyGlobal(){ refreshDash(); renderNetwork(); renderCX() }
 document.querySelectorAll('[data-df]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-df]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.dDate=b.dataset.df; refreshDash()
+  b.classList.add('on'); F.dDate=b.dataset.df; applyGlobal()
 }))
-// Dashboard operator chips
 document.querySelectorAll('[data-dop]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-dop]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.dOp=b.dataset.dop; refreshDash()
+  b.classList.add('on'); F.dOp=b.dataset.dop; applyGlobal()
 }))
-document.getElementById('dd-tech').addEventListener('change',e=>{F.dTech=e.target.value;refreshDash()})
-document.getElementById('dd-cov').addEventListener('change',e=>{F.dCov=e.target.value;refreshDash()})
-document.getElementById('dd-prov').addEventListener('change',e=>{F.dProv=e.target.value;refreshDash()})
+document.getElementById('dd-tech').addEventListener('change',e=>{F.dTech=e.target.value;applyGlobal()})
+document.getElementById('dd-cov').addEventListener('change',e=>{F.dCov=e.target.value;applyGlobal()})
+document.getElementById('dd-prov').addEventListener('change',e=>{F.dProv=e.target.value;applyGlobal()})
 
 // Drive Test filters
 document.querySelectorAll('[data-ddate]').forEach(b=>b.addEventListener('click',()=>{
@@ -3936,31 +3901,11 @@ document.getElementById('drv-date-to').addEventListener('change',e=>{
   renderSessions()
 })
 
-// Network filters
-document.querySelectorAll('[data-nop]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-nop]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.nOp=b.dataset.nop; renderNetwork()
-}))
-document.querySelectorAll('[data-nt]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-nt]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.nTech=b.dataset.nt; renderNetwork()
-}))
-document.getElementById('nd-prov').addEventListener('change',e=>{F.nProv=e.target.value;renderNetwork()})
-
-// CX filters
+// CX-specific "Type" filter — operator, technology and province come from the global bar
 document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-cov2]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); F.cCov=b.dataset.cov2; renderCX()
 }))
-document.querySelectorAll('[data-ct]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-ct]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.cTech=b.dataset.ct; renderCX()
-}))
-document.querySelectorAll('[data-cop]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-cop]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.cOp=b.dataset.cop; renderCX()
-}))
-document.getElementById('cx-prov').addEventListener('change',e=>{F.cProv=e.target.value;renderCX()})
 
 // ══════════════════════════════════════════════════
 //  COVERAGE MAP — H3 hexbin + CellMapper drive dots
