@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="np-loading">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -411,6 +411,13 @@ td.r,th.r{text-align:right}
 @media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}.esb-facts{border-left:none;padding-left:0}}
 /* Visually-hidden but available to screen readers */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Empty states — any data table with an empty tbody shows a message (after first load) */
+.tw{position:relative}
+html:not(.np-loading) .tw:has(tbody:empty) table{min-height:88px}
+html:not(.np-loading) .tw:has(tbody:empty)::after{content:"No data for the current filters";position:absolute;left:0;right:0;top:40px;text-align:center;color:var(--mu);font-size:12px;padding:20px;pointer-events:none}
+/* Loading shimmer for KPI value placeholders while data loads */
+@keyframes np-sk{0%{background-position:-320px 0}100%{background-position:320px 0}}
+html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear-gradient(90deg,var(--s2) 25%,var(--bd) 50%,var(--s2) 75%);background-size:640px 100%;animation:np-sk 1.3s ease-in-out infinite}
 /* ══ RESPONSIVE — phones/tablets (P0 foundation) ═══════════════════ */
 @media(max-width:640px){
   .page{padding:12px}
@@ -3742,12 +3749,14 @@ async function fetchAll() {
     populateProvinces()
     populateDrvDevices()
     refreshAll()
+    document.documentElement.classList.remove('np-loading')  // first data in — reveal skeletons / enable empty states
 
     if(failed.length) npBanner('Some data could not be loaded: '+failed.join(', ')+'. Showing everything else.','warn')
     else npClearBanner()
     // Don't set 'live' here — wait for realtime subscription confirmation
   } catch(e){
     console.error('fetchAll:',e)
+    document.documentElement.classList.remove('np-loading')
     npBanner('Could not load data from Supabase — '+((e&&e.message)||e)+'. Will keep retrying…','err')
     setConn('err')
     throw e
