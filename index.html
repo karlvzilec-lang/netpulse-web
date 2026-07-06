@@ -409,6 +409,8 @@ td.r,th.r{text-align:right}
 .covq-bar{height:6px;border-radius:3px;background:var(--s2);margin:4px 0;overflow:hidden}
 .covq-fill{height:100%;border-radius:3px;transition:width .6s}
 @media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}.esb-facts{border-left:none;padding-left:0}}
+/* Visually-hidden but available to screen readers */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* ══ RESPONSIVE — phones/tablets (P0 foundation) ═══════════════════ */
 @media(max-width:640px){
   .page{padding:12px}
@@ -435,9 +437,10 @@ td.r,th.r{text-align:right}
 </style>
 </head>
 <body>
+<h1 class="sr-only">NetPulse Web — live network drive-test dashboard</h1>
 
 <!-- NAVBAR -->
-<nav class="nav">
+<nav class="nav" aria-label="Primary">
   <a class="nav-logo" href="#">
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="28" height="28" rx="6" fill="#1f6feb"/>
@@ -477,7 +480,7 @@ td.r,th.r{text-align:right}
   </button>
 </div>
 
-<div class="page">
+<div class="page" role="main">
 
 <!-- ══════════════ EXPERIENCE DASHBOARD ══════════════ -->
 <div class="tp on" id="tp-dash">
@@ -517,10 +520,10 @@ td.r,th.r{text-align:right}
     </div>
     <div class="fbar-div"></div>
     <div class="fbar-group">
-      <select class="fdrop" id="dd-tech"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
-      <select class="fdrop" id="dd-prov"><option value="all">All Provinces</option></select>
+      <select class="fdrop" id="dd-tech" aria-label="Filter by network technology"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
+      <select class="fdrop" id="dd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
       <!-- keep dd-cov hidden so F.dCov wiring stays intact -->
-      <select class="fdrop" id="dd-cov" style="display:none"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
+      <select class="fdrop" id="dd-cov" style="display:none" aria-label="Filter by coverage type"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
     </div>
   </div>
 
@@ -753,7 +756,7 @@ td.r,th.r{text-align:right}
     <div class="g g2 tech-only" id="tech-ref-section">
       <div class="card">
         <div class="ch">
-          <span class="ch-t">RSRP Signal Quality Thresholds</span>
+          <span class="ch-t" role="heading" aria-level="2">RSRP Signal Quality Thresholds</span>
           <span class="ch-s">ITU / 3GPP TS 36.133 reference</span>
         </div>
         <div class="cb" style="padding:0">
@@ -773,7 +776,7 @@ td.r,th.r{text-align:right}
       <!-- SEV Priority Matrix -->
       <div class="card">
         <div class="ch">
-          <span class="ch-t">Issue Severity &amp; Priority Matrix</span>
+          <span class="ch-t" role="heading" aria-level="2">Issue Severity &amp; Priority Matrix</span>
           <span class="ch-s">For fix prioritization and escalation</span>
         </div>
         <div class="cb">
@@ -813,16 +816,16 @@ td.r,th.r{text-align:right}
     <div class="awards" id="awards-grid"></div>
     <div class="g g2">
       <div class="card">
-        <div class="ch"><span class="ch-t">Speed Test Trend</span><span class="ch-s">Last 60 tests</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">Speed Test Trend</span><span class="ch-s">Last 60 tests</span></div>
         <div class="cb"><div class="chart-h" style="height:190px"><canvas id="ch-speed"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="ch"><span class="ch-t">RSRP Distribution</span><span class="ch-s">Signal quality bands</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">RSRP Distribution</span><span class="ch-s">Signal quality bands</span></div>
         <div class="cb"><div class="chart-h" style="height:190px"><canvas id="ch-rsrp"></canvas></div></div>
       </div>
     </div>
     <div class="card mb">
-      <div class="ch"><span class="ch-t">Recent Tests</span><span class="live-tag">LIVE</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Recent Tests</span><span class="live-tag">LIVE</span></div>
       <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">RSRP</th><th scope="col">Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
     </div>
   </div>
@@ -830,11 +833,11 @@ td.r,th.r{text-align:right}
   <!-- Rankings -->
   <div class="stp" id="st-rankings">
     <div class="card mb">
-      <div class="ch"><span class="ch-t">Operator Rankings</span><span class="ch-s">All metrics · filtered period</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Operator Rankings</span><span class="ch-s">All metrics · filtered period</span></div>
       <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th><th scope="col">RSRP (dBm)</th><th scope="col">Jitter</th><th scope="col">Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
     </div>
     <div class="card mb">
-      <div class="ch"><span class="ch-t">OpenSignal Experience Rankings</span><span class="ch-s">By operator</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Experience Rankings</span><span class="ch-s">By operator</span></div>
       <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Quality</th><th scope="col">Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
     </div>
   </div>
@@ -844,21 +847,21 @@ td.r,th.r{text-align:right}
     <div class="op-cards" id="op-cards"></div>
     <div class="g g2">
       <div class="card">
-        <div class="ch"><span class="ch-t">Download Speed Comparison</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">Download Speed Comparison</span></div>
         <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-dl"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="ch"><span class="ch-t">Upload Speed Comparison</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">Upload Speed Comparison</span></div>
         <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-ul"></canvas></div></div>
       </div>
     </div>
     <div class="g g2">
       <div class="card">
-        <div class="ch"><span class="ch-t">Latency Comparison</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">Latency Comparison</span></div>
         <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-ping"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="ch"><span class="ch-t">OpenSignal Experience Comparison</span></div>
+        <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Experience Comparison</span></div>
         <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-os"></canvas></div></div>
       </div>
     </div>
@@ -867,11 +870,11 @@ td.r,th.r{text-align:right}
   <!-- Trends -->
   <div class="stp" id="st-trends">
     <div class="card mb">
-      <div class="ch"><span class="ch-t">Download Trend by Operator</span><span class="ch-s">Daily averages</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Download Trend by Operator</span><span class="ch-s">Daily averages</span></div>
       <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-trend"></canvas></div></div>
     </div>
     <div class="card mb">
-      <div class="ch"><span class="ch-t">RSRP Trend by Operator</span><span class="ch-s">Daily averages</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">RSRP Trend by Operator</span><span class="ch-s">Daily averages</span></div>
       <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-rsrp-trend"></canvas></div></div>
     </div>
   </div>
@@ -896,33 +899,33 @@ td.r,th.r{text-align:right}
       <button class="fchip" data-nt="3g">3G</button>
     </div>
     <div class="fbar-div"></div>
-    <select class="fdrop" id="nd-prov"><option value="all">All Provinces</option></select>
+    <select class="fdrop" id="nd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
   </div>
   <div class="g g2">
     <div class="card">
-      <div class="ch"><span class="ch-t">Throughput &amp; Latency</span><span class="ch-s">Last 100 tests</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Throughput &amp; Latency</span><span class="ch-s">Last 100 tests</span></div>
       <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-net-ts"></canvas></div></div>
     </div>
     <div class="card">
-      <div class="ch"><span class="ch-t">RAT Breakdown</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">RAT Breakdown</span></div>
       <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-rat"></canvas></div></div>
     </div>
   </div>
   <div class="card mb">
-    <div class="ch"><span class="ch-t">Speed Test Log</span><span class="live-tag">LIVE</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Speed Test Log</span><span class="live-tag">LIVE</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">Bands</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">Jitter</th><th scope="col">RSRP</th><th scope="col">SINR</th><th scope="col">PCI</th><th scope="col">Province</th><th scope="col">Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
   </div>
   <div class="card mb">
-    <div class="ch"><span class="ch-t">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Game</th><th scope="col">Avg Ping</th><th scope="col">Min Ping</th><th scope="col">Max Ping</th><th scope="col">Jitter</th><th scope="col">Packet Loss</th><th scope="col">OpenSignal Score</th><th scope="col">Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
   <div class="g g2">
     <div class="card mb">
-      <div class="ch"><span class="ch-t">Province Performance Ranking</span><span class="ch-s">Avg DL · UL · Ping · RSRP by province</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Province Performance Ranking</span><span class="ch-s">Avg DL · UL · Ping · RSRP by province</span></div>
       <div class="tw"><table><thead><tr><th scope="col">Province</th><th class="r">Tests</th><th class="r">↓ DL Mbps</th><th class="r">↑ UL Mbps</th><th class="r">Ping ms</th><th class="r">RSRP dBm</th><th scope="col">Grade</th></tr></thead><tbody id="tb-prov-rank"></tbody></table></div>
     </div>
     <div class="card mb">
-      <div class="ch"><span class="ch-t">Hourly Performance Pattern</span><span class="ch-s">Avg download speed by hour of day</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Hourly Performance Pattern</span><span class="ch-s">Avg download speed by hour of day</span></div>
       <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-hourly"></canvas></div></div>
     </div>
   </div>
@@ -955,7 +958,7 @@ td.r,th.r{text-align:right}
       <button class="fchip" data-cop="Smart">Smart</button>
     </div>
     <div class="fbar-div"></div>
-    <select class="fdrop" id="cx-prov"><option value="all">All Provinces</option></select>
+    <select class="fdrop" id="cx-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
   </div>
 
   <!-- Latest result card -->
@@ -969,17 +972,17 @@ td.r,th.r{text-align:right}
   <div style="font-size:12px;color:var(--mu);margin-bottom:12px"><span id="cx-count">—</span> records loaded</div>
 
   <div class="card mb">
-    <div class="ch"><span class="ch-t">Experience by Operator</span><span class="ch-s">Video · Games · Voice avg score</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Experience by Operator</span><span class="ch-s">Video · Games · Voice avg score</span></div>
     <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cx-op"></canvas></div></div>
   </div>
 
   <div class="card mb">
-    <div class="ch"><span class="ch-t">OpenSignal Scores</span><span class="live-tag">LIVE</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Scores</span><span class="live-tag">LIVE</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Mode</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Q</th><th scope="col">Reliability</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
   </div>
 
   <div class="card mb">
-    <div class="ch"><span class="ch-t">CX Experience Log</span><span class="live-tag">LIVE</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">CX Experience Log</span><span class="live-tag">LIVE</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Coverage</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">DL Score</th><th scope="col">UL Score</th><th scope="col">Overall</th><th scope="col">Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
   </div>
 </div>
@@ -989,7 +992,7 @@ td.r,th.r{text-align:right}
   <div class="g gmap mb">
     <div class="card">
       <div class="ch">
-        <span class="ch-t">Drive Route Map</span>
+        <span class="ch-t" role="heading" aria-level="2">Drive Route Map</span>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="ch-s" id="dmap-lbl">← Select a session</span>
           <span class="live-tag">LIVE</span>
@@ -1006,7 +1009,7 @@ td.r,th.r{text-align:right}
       </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
-      <div class="ch"><span class="ch-t">Sessions</span><span class="ch-s" id="sess-cnt">0</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Sessions</span><span class="ch-s" id="sess-cnt">0</span></div>
       <!-- Drive test filters -->
       <div class="drv-fbar">
         <div class="drv-frow">
@@ -1029,7 +1032,7 @@ td.r,th.r{text-align:right}
           <button class="dchip" data-drv-op="Smart" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
           <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
           <span class="drv-flbl" style="min-width:auto">Device</span>
-          <select id="drv-device-sel" class="drv-device-sel"><option value="all">All Devices</option></select>
+          <select id="drv-device-sel" class="drv-device-sel" aria-label="Filter drive sessions by device"><option value="all">All Devices</option></select>
         </div>
       </div>
       <div class="sess-list" id="sess-list"><div class="empty">Loading sessions…</div></div>
@@ -1077,7 +1080,7 @@ td.r,th.r{text-align:right}
 
   <div class="card mb" id="upload-card">
     <div class="ch">
-      <span class="ch-t">📂 Manual Upload</span>
+      <span class="ch-t" role="heading" aria-level="2">📂 Manual Upload</span>
       <span class="ch-s">CSV or GPX drive test data</span>
     </div>
     <div style="padding:12px 16px">
@@ -1099,7 +1102,7 @@ td.r,th.r{text-align:right}
   </div>
 
   <div class="card">
-    <div class="ch"><span class="ch-t">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
     <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
 </div>
@@ -1147,7 +1150,7 @@ td.r,th.r{text-align:right}
           Province
           <button id="cov-prov-reset" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;display:none">✕ Reset</button>
         </div>
-        <select class="fdrop" id="cov-prov" style="width:100%">
+        <select class="fdrop" id="cov-prov" style="width:100%" aria-label="Coverage map — filter by province">
           <option value="all">All Provinces</option>
         </select>
       </div>
@@ -1182,7 +1185,7 @@ td.r,th.r{text-align:right}
       </div>
       <div class="cov-fbar">
         <div class="cov-fbar-lbl">Device / User</div>
-        <select class="fdrop" id="cov-device" style="width:100%"><option value="all">All Devices</option></select>
+        <select class="fdrop" id="cov-device" style="width:100%" aria-label="Coverage map — filter by device"><option value="all">All Devices</option></select>
       </div>
 
       <!-- RF Coverage Simulation -->
@@ -1195,7 +1198,7 @@ td.r,th.r{text-align:right}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
           <div>
             <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Freq (MHz)</div>
-            <select class="fdrop" id="sim-freq" style="width:100%;font-size:11px">
+            <select class="fdrop" id="sim-freq" style="width:100%;font-size:11px" aria-label="Signal simulation frequency band">
               <option value="850">850 MHz</option>
               <option value="900">900 MHz</option>
               <option value="1800" selected>1800 MHz</option>
@@ -1206,7 +1209,7 @@ td.r,th.r{text-align:right}
           </div>
           <div>
             <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Environment</div>
-            <select class="fdrop" id="sim-env" style="width:100%;font-size:11px">
+            <select class="fdrop" id="sim-env" style="width:100%;font-size:11px" aria-label="Signal simulation environment">
               <option value="urban">Urban (n=3.5)</option>
               <option value="suburban" selected>Suburban (n=3.0)</option>
               <option value="rural">Rural (n=2.5)</option>
