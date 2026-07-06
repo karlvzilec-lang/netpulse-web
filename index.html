@@ -47,7 +47,8 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pill-dot.err{background:var(--re);box-shadow:0 0 6px var(--re);animation:bk 1.2s infinite}
 @keyframes bk{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── Tabs ── */
-.tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px}
+.tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
 .tab-btn{padding:10px 18px;background:none;border:none;border-bottom:3px solid transparent;color:var(--mu);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .tab-btn:hover{color:var(--tx);background:rgba(255,255,255,.04)}
 .tab-btn.on{color:var(--tx);font-weight:700;border-bottom-color:var(--pr)}
@@ -408,6 +409,29 @@ td.r,th.r{text-align:right}
 .covq-bar{height:6px;border-radius:3px;background:var(--s2);margin:4px 0;overflow:hidden}
 .covq-fill{height:100%;border-radius:3px;transition:width .6s}
 @media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}.esb-facts{border-left:none;padding-left:0}}
+/* ══ RESPONSIVE — phones/tablets (P0 foundation) ═══════════════════ */
+@media(max-width:640px){
+  .page{padding:12px}
+  .nav{padding:0 12px}
+  .nav-logo{margin-right:12px}
+  .nav-ts{display:none}
+  .fbar{padding:8px 12px;position:static;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .fbar::-webkit-scrollbar{display:none}
+  .fbar-group{flex-wrap:nowrap;flex-shrink:0}
+  /* Collapse every multi-column grid — beats inline repeat(N,1fr) via !important */
+  .kgrid,.op-cards,.awards,.mxc-grid,.g,.g2,.g3,.gmap{grid-template-columns:1fr!important}
+  .hero-grid,.hero-grid.exec-view,.pmatrix,.sev-live-grid{grid-template-columns:1fr 1fr!important}
+  /* Wide content (tables, charts, images) scrolls or clamps instead of pushing the page */
+  .cb,.card,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  canvas{max-width:100%!important}
+  img{max-width:100%;height:auto}
+  /* Legibility floor on the smallest labels */
+  .fbar-label,.kcard-lbl,.os-score-period,.ch-s{font-size:11px}
+  .kcard-val{font-size:22px}
+}
+@media(max-width:400px){
+  .hero-grid,.hero-grid.exec-view,.pmatrix,.sev-live-grid{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
