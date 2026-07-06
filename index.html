@@ -4,16 +4,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>NetPulse Web — Live Dashboard</title>
+<meta name="description" content="NetPulse Web — live network drive-test dashboard for Cambodia mobile operators (Cellcard, Metfone, Smart). Real-time speed, coverage, CX and drive-test telemetry."/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='6' fill='%231f6feb'/%3E%3Cpolyline points='3,20 7,12 12,16 16,8 21,14 25,10' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E"/>
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://bauiffaqfboqlqnmxffc.supabase.co">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 *:focus-visible{outline:2px solid #58a6ff;outline-offset:2px;border-radius:3px}
@@ -48,7 +44,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--bd);font-size:12px;color:var(--mu)}
 .pill-dot{width:7px;height:7px;border-radius:50%;background:var(--mu);transition:background .3s}
 .pill-dot.live{background:var(--gr);box-shadow:0 0 6px var(--gr);animation:bk 2s infinite}
-.pill-dot.err{background:#64748b}
+.pill-dot.err{background:var(--re);box-shadow:0 0 6px var(--re);animation:bk 1.2s infinite}
 @keyframes bk{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── Tabs ── */
 .tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px}
@@ -1277,11 +1273,58 @@ td.r,th.r{text-align:right}
 
 </div><!-- /page -->
 
+<!-- Vendor libraries — loaded at end of body so the page paints first.
+     Kept synchronous (no defer) so they finish before the app script below runs.
+     onerror flags a failed CDN so the app can show a clear message instead of crashing. -->
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('MapLibre GL')"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('Chart.js')"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('Supabase')"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('jsPDF')"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('jsPDF-AutoTable')"></script>
+<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('h3-js')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" onerror="(window.__npLibFail=window.__npLibFail||[]).push('JSZip')"></script>
+
 <script>
 // ═══════════════════════════════════════════════════
 //  NetPulse Web v2 — Full App-Parity Dashboard
 //  Supabase project: bauiffaqfboqlqnmxffc
 // ═══════════════════════════════════════════════════
+
+// ── Global banner (load errors / warnings) ────────
+function npBanner(msg, kind){
+  let el=document.getElementById('np-banner')
+  if(!el){
+    el=document.createElement('div'); el.id='np-banner'; el.setAttribute('role','alert')
+    el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;padding:9px 40px 9px 16px;font:600 13px system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.4)'
+    const span=document.createElement('span'); span.id='np-banner-msg'
+    const x=document.createElement('button'); x.textContent='✕'; x.setAttribute('aria-label','Dismiss')
+    x.style.cssText='position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;color:#fff;font-size:15px;cursor:pointer;opacity:.8'
+    x.onclick=npClearBanner
+    el.appendChild(span); el.appendChild(x)
+    document.body.appendChild(el)
+  }
+  el.style.background = kind==='warn' ? '#9a6700' : '#b0261f'
+  document.getElementById('np-banner-msg').textContent = msg
+  el.style.display='block'
+}
+function npClearBanner(){ const el=document.getElementById('np-banner'); if(el) el.style.display='none' }
+
+// ── Required-library guard ────────────────────────
+// Fail loud & clear if a CDN library didn't load, instead of a cryptic crash.
+;(function(){
+  const failed=window.__npLibFail||[]
+  const critical={supabase:'Supabase', Chart:'Chart.js'}
+  const critMiss=Object.keys(critical).filter(k=>typeof window[k]==='undefined').map(k=>critical[k])
+  const critAll=[...new Set([...critMiss, ...failed.filter(f=>f==='Supabase'||f==='Chart.js')])]
+  if(critAll.length){
+    npBanner('Cannot start — failed to load: '+critAll.join(', ')+'. Check your network / ad-blocker and reload.','err')
+    throw new Error('NetPulse: critical libraries unavailable — '+critAll.join(', '))
+  }
+  const optFailed=failed.filter(f=>f!=='Supabase'&&f!=='Chart.js')
+  if(optFailed.length){
+    npBanner('Some features unavailable — failed to load: '+optFailed.join(', ')+'. Core dashboard still works.','warn')
+  }
+})()
 
 function h(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function computeNetworkHealthScore(dlMbps,avgRsrp,cxScore10){
@@ -3606,9 +3649,11 @@ function populateProvinces() {
 
 // ── Connection status ─────────────────────────────
 function setConn(s){
-  const isUp=s==='live'||s==='err'
-  document.getElementById('cdot').className='pill-dot'+(isUp?' live':'')
-  document.getElementById('clbl').textContent=isUp?'Live':s==='connecting'?'Connecting…':'Offline'
+  // s: 'live' (green) | 'connecting' (neutral) | 'err' (red, reconnecting) | 'offline' (neutral)
+  const cls = s==='live' ? ' live' : s==='err' ? ' err' : ''
+  const lbl = s==='live' ? 'Live' : s==='connecting' ? 'Connecting…' : s==='err' ? 'Reconnecting…' : 'Offline'
+  document.getElementById('cdot').className='pill-dot'+cls
+  document.getElementById('clbl').textContent=lbl
 }
 function touch(){document.getElementById('nav-ts').textContent='Updated '+new Date().toLocaleTimeString()}
 
@@ -3643,34 +3688,59 @@ function refreshDash() {
 function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
+// Distinct session ids that have real GPS samples.
+// Efficient path: a lightweight RPC that returns DISTINCT ids server-side.
+// Fallback: scan sample rows (session_id only) and dedupe client-side — kept so the
+// app still works even if the RPC isn't deployed.
+async function fetchSampledSessionIds(){
+  try {
+    const {data,error}=await db.rpc('sampled_session_ids')
+    if(!error && Array.isArray(data)) return new Set(data.map(r=>(r&&r.session_id)||r).filter(Boolean))
+  } catch(e){ /* fall through to scan */ }
+  const {data}=await db.from('drive_samples').select('session_id').limit(10000)
+  return new Set((data||[]).map(r=>r.session_id).filter(Boolean))
+}
+
 async function fetchAll() {
   setConn('connecting')
-  const [nxR,osR,cxR,dsR,gR,sampR]= await Promise.all([
-    db.from('networkxp_data').select('*').order('tested_at',{ascending:false}).limit(500),
-    db.from('opensignal_scores').select('*').order('tested_at',{ascending:false}).limit(500),
-    db.from('cx_experience_log').select('*').order('tested_at',{ascending:false}).limit(500),
-    db.from('drive_sessions').select('*').order('start_time',{ascending:false}).limit(100),
-    db.from('gaming_latency_tests').select('*').order('tested_at',{ascending:false}).limit(200),
-    db.from('drive_samples').select('session_id').limit(10000),   // which sessions have real GPS rows
-  ])
-  if(nxR.error) console.error('networkxp_data:',nxR.error)
-  if(osR.error) console.error('opensignal_scores:',osR.error)
-  if(cxR.error) console.error('cx_experience_log:',cxR.error)
-  if(dsR.error) console.error('drive_sessions:',dsR.error)
-  if(gR.error)  console.error('gaming_latency_tests:',gR.error)
-  nxAll=nxR.data||[]; osAll=osR.data||[]; cxAll=cxR.data||[]; sessAll=dsR.data||[]; gamingAll=gR.data||[]
-  // Pre-normalize operator names once on load — eliminates normOp() calls inside every filter pass
-  nxAll.forEach(r=>r._op=normOp(r.operator))
-  osAll.forEach(r=>r._op=normOp(r.operator))
-  sampledSessionIds=new Set((sampR.data||[]).map(r=>r.session_id).filter(Boolean))
-  populateProvinces()
-  populateDrvDevices()
-  refreshAll()
-  // Don't set 'live' here — wait for realtime subscription confirmation
+  try {
+    const [nxR,osR,cxR,dsR,gR]= await Promise.all([
+      db.from('networkxp_data').select('*').order('tested_at',{ascending:false}).limit(500),
+      db.from('opensignal_scores').select('*').order('tested_at',{ascending:false}).limit(500),
+      db.from('cx_experience_log').select('*').order('tested_at',{ascending:false}).limit(500),
+      db.from('drive_sessions').select('*').order('start_time',{ascending:false}).limit(100),
+      db.from('gaming_latency_tests').select('*').order('tested_at',{ascending:false}).limit(200),
+    ])
+    const sampledIds = await fetchSampledSessionIds()
+
+    // Surface per-table failures to the user instead of only logging them
+    const tbl=[['networkxp_data',nxR,'network'],['opensignal_scores',osR,'OpenSignal'],
+      ['cx_experience_log',cxR,'CX'],['drive_sessions',dsR,'drive sessions'],['gaming_latency_tests',gR,'gaming']]
+    const failed=[]
+    tbl.forEach(([name,r,label])=>{ if(r.error){ console.error(name+':',r.error); failed.push(label) } })
+
+    nxAll=nxR.data||[]; osAll=osR.data||[]; cxAll=cxR.data||[]; sessAll=dsR.data||[]; gamingAll=gR.data||[]
+    // Pre-normalize operator names once on load — eliminates normOp() calls inside every filter pass
+    nxAll.forEach(r=>r._op=normOp(r.operator))
+    osAll.forEach(r=>r._op=normOp(r.operator))
+    sampledSessionIds=sampledIds
+    populateProvinces()
+    populateDrvDevices()
+    refreshAll()
+
+    if(failed.length) npBanner('Some data could not be loaded: '+failed.join(', ')+'. Showing everything else.','warn')
+    else npClearBanner()
+    // Don't set 'live' here — wait for realtime subscription confirmation
+  } catch(e){
+    console.error('fetchAll:',e)
+    npBanner('Could not load data from Supabase — '+((e&&e.message)||e)+'. Will keep retrying…','err')
+    setConn('err')
+    throw e
+  }
 }
 
 // ── Realtime ──────────────────────────────────────
-let _rtChannel=null
+let _rtChannel=null, _rtRetry=0, _rtReconnect=null
 function setupRealtime() {
   if(_rtChannel) { try{db.removeChannel(_rtChannel)}catch(e){} }
   _rtChannel=db.channel('np-live')
@@ -3710,11 +3780,14 @@ function setupRealtime() {
       touch()
     })
     .subscribe(s=>{
-      if(s==='SUBSCRIBED'){setConn('live'); console.log('[NP] realtime connected')}
+      if(s==='SUBSCRIBED'){setConn('live'); _rtRetry=0; console.log('[NP] realtime connected')}
       if(s==='CLOSED'||s==='CHANNEL_ERROR'){
         setConn('err')
-        console.warn('[NP] realtime lost — reconnecting in 5s…')
-        setTimeout(setupRealtime, 5000)
+        // Exponential backoff (2s→4s→8s…capped at 30s) + jitter, so a Supabase blip
+        // doesn't hammer the endpoint with synchronized reconnects.
+        const delay=Math.min(30000, 2000*Math.pow(2,_rtRetry++))+Math.floor(Math.random()*1000)
+        console.warn(`[NP] realtime lost — reconnecting in ${Math.round(delay/1000)}s…`)
+        clearTimeout(_rtReconnect); _rtReconnect=setTimeout(setupRealtime, delay)
       }
     })
 }
@@ -4688,7 +4761,13 @@ document.getElementById('tower-csv-input').addEventListener('change',async e=>{
 })
 
 // ── Boot ──────────────────────────────────────────
-fetchAll().then(()=>setupRealtime()).catch(e=>{console.error(e);setConn('err')})
+function boot(){
+  fetchAll().then(()=>setupRealtime()).catch(e=>{
+    console.error('boot:',e); setConn('err')
+    setTimeout(boot, 6000)   // initial load failed (e.g. offline) — keep retrying
+  })
+}
+boot()
 </script>
 </body>
 </html>
