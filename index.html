@@ -3441,108 +3441,139 @@ function toggleTheme(){
 // Apply saved theme on load
 ;(function(){const t=localStorage.getItem('np-theme')||'dark';if(t==='light')applyTheme('light')})()
 window.exportPDF = async function(sessId) {
-  const sess=sessAll.find(s=>s.id===sessId)
-  if(!sess){showToast('Select a session first');return}
-  let samples=driveSamples
-  if(!samples.length||activeSess?.id!==sessId){
-    const {data}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true})
-    samples=data||[]
+  let sess=sessAll.find(s=>s.id===sessId)
+  // Fallback: older sessions scroll out of the top-100 cache — fetch by id so export still works
+  if(!sess && sessId!=='manual'){
+    const {data}=await db.from('drive_sessions').select('*').eq('id',sessId).maybeSingle()
+    sess=data||null
   }
+  if(!sess){showToast('Select a session first');return}
+  // Fetch the COMPLETE sample set. Supabase caps every request at 1000 rows, so a single
+  // query silently truncated long drives (a 3186-sample run only reported on the first 1000).
+  // Paginate with range() until a short page comes back.
+  let samples=[]
+  for(let from=0; from<=200000; from+=1000){
+    const {data,error}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,from+999)
+    if(error||!data||!data.length) break
+    samples=samples.concat(data)
+    if(data.length<1000) break
+  }
+  if(!samples.length && activeSess?.id===sessId) samples=driveSamples
 
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('p','mm','a4')
-  const W=210,M=14
+  const W=210,M=14,CW=W-2*M
 
-  // Header
-  doc.setFillColor(13,17,23); doc.rect(0,0,W,28,'F')
-  doc.setTextColor(88,166,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
-  doc.text('NetPulse',M,12)
-  doc.setTextColor(139,148,158); doc.setFontSize(10); doc.setFont('helvetica','normal')
-  doc.text('Drive Test Report',M,19)
-  doc.setTextColor(230,237,243); doc.setFontSize(9)
-  doc.text(`Generated: ${new Date().toLocaleString()}`,W-M,12,{align:'right'})
+  // ── Print-first palette (WCAG-safe on white paper) ──
+  const INK=[26,29,33], SUB=[107,114,128], HAIR=[226,229,233], GROUP=[237,241,246], TRACK=[238,240,243]
+  const BRAND=[31,111,235]
+  const OK=[26,127,55], WARN=[180,83,9], BAD=[196,52,28]
+  const bandColors=[[26,127,55],[37,99,235],[180,83,9],[234,88,12],[196,52,28]]
+  const statusColor={pass:OK,warn:WARN,fail:BAD}, statusLabel={pass:'PASS',warn:'WARN',fail:'FAIL'}
+  // Replace non-WinAnsi glyphs jsPDF's Helvetica can't render (root cause of letter-spacing artifacts)
+  const S=s=>String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')
+  const T=(txt,x,y,opt)=>doc.text(S(txt),x,y,opt)
 
-  // Session info box
-  doc.setFillColor(22,27,34); doc.roundedRect(M,32,W-2*M,34,3,3,'F')
-  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text('SESSION DETAILS',M+4,39)
-  doc.setFont('helvetica','normal'); doc.setTextColor(230,237,243); doc.setFontSize(9)
+  // ── Header — light, with a thin brand rule ──
+  doc.setTextColor(...BRAND); doc.setFont('helvetica','bold'); doc.setFontSize(15)
+  T('NetPulse',M,15)
+  doc.setTextColor(...SUB); doc.setFont('helvetica','normal'); doc.setFontSize(10)
+  T('Drive Test Report',M+29,15)
+  doc.setFontSize(8)
+  T(`Generated ${new Date().toLocaleString()}`,W-M,15,{align:'right'})
+  doc.setDrawColor(...BRAND); doc.setLineWidth(.5); doc.line(M,18.5,W-M,18.5)
+  let yy=27
+
+  // ── Session details — hairline grid, no heavy fill ──
+  doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+  T('SESSION DETAILS',M,yy); yy+=5.5
+  const dur=sess.end_time&&sess.start_time?Math.round((new Date(sess.end_time)-new Date(sess.start_time))/60000)+' min':'Active'
   const info=[
-    [`Device: ${sid(sess.device_id)}`,`Start: ${ts(sess.start_time)}`],
-    [`Samples: ${sess.sample_count??samples.length}`,`End: ${ts(sess.end_time)}`],
-    [`Distance: ${sess.distance_km!=null?n(sess.distance_km,1)+' km':'—'}`,`Duration: ${sess.end_time&&sess.start_time?Math.round((new Date(sess.end_time)-new Date(sess.start_time))/60000)+' min':'Active'}`],
-    [`Avg RSRP: ${sess.avg_rsrp!=null?n(sess.avg_rsrp,0)+' dBm':'—'}`,`Handovers: ${sess.handover_count??'—'}`],
+    ['DEVICE',sid(sess.device_id),'START',ts(sess.start_time)],
+    ['SAMPLES',String(sess.sample_count??samples.length),'END',ts(sess.end_time)],
+    ['DISTANCE',sess.distance_km!=null?n(sess.distance_km,1)+' km':'-','DURATION',dur],
+    ['AVG RSRP',sess.avg_rsrp!=null?n(sess.avg_rsrp,0)+' dBm':'-','HANDOVERS',String(sess.handover_count??'-')],
   ]
-  info.forEach(([l,r],i)=>{doc.text(l,M+4,46+i*6); doc.text(r,W/2,46+i*6)})
+  doc.setFontSize(9)
+  info.forEach((row,i)=>{
+    const ry=yy+i*6
+    doc.setFont('helvetica','normal'); doc.setTextColor(...SUB); doc.setFontSize(7.5)
+    T(row[0],M,ry); T(row[2],W/2,ry)
+    doc.setFont('helvetica','bold'); doc.setTextColor(...INK); doc.setFontSize(9)
+    T(row[1],M+26,ry); T(row[3],W/2+26,ry)
+  })
+  yy+=info.length*6+1
+  doc.setDrawColor(...HAIR); doc.setLineWidth(.3); doc.line(M,yy,W-M,yy); yy+=7
 
-  // RSRP distribution
+  // ── RSRP distribution — muted bars, ink labels, light track ──
   const bands=[0,0,0,0,0]
   samples.forEach(s=>{const v=s.rsrp;if(v==null)return;if(v>=-80)bands[0]++;else if(v>=-90)bands[1]++;else if(v>=-100)bands[2]++;else if(v>=-110)bands[3]++;else bands[4]++})
-  const bandLabels=['Excellent(≥-80)','Good(-90)','Fair(-100)','Poor(-110)','Critical']
-  const bandColors=[[0,230,118],[0,188,212],[255,193,7],[255,152,0],[244,67,54]]
-  let yy=70
-  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text('RSRP SIGNAL DISTRIBUTION',M,yy); yy+=5
+  const bandLabels=['Excellent (>= -80)','Good (-80 to -90)','Fair (-90 to -100)','Poor (-100 to -110)','Critical (< -110)']
+  doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+  T('RSRP SIGNAL DISTRIBUTION',M,yy); yy+=5
   const total=bands.reduce((a,b)=>a+b,0)||1
+  const barX=M+48, barMax=CW-48-24
   bands.forEach((cnt,i)=>{
     const pct=Math.round(cnt/total*100)
-    const bw=(W-2*M-60)*pct/100
-    doc.setFillColor(...bandColors[i]); doc.rect(M,yy,Math.max(bw,1),5,'F')
-    doc.setTextColor(...bandColors[i]); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
-    doc.text(`${bandLabels[i]}: ${cnt} (${pct}%)`,M+Math.max(bw,1)+2,yy+3.5)
-    yy+=7
+    doc.setTextColor(...INK); doc.setFont('helvetica','normal'); doc.setFontSize(7.5)
+    T(bandLabels[i],M,yy+2.6)
+    doc.setFillColor(...TRACK); doc.rect(barX,yy,barMax,3.4,'F')
+    doc.setFillColor(...bandColors[i]); doc.rect(barX,yy,Math.max(barMax*pct/100,.5),3.4,'F')
+    doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7)
+    T(`${cnt}  (${pct}%)`,W-M,yy+2.6,{align:'right'})
+    yy+=6
   })
   yy+=4
 
-  // Map capture
+  // Map capture — light caption + hairline frame
   if(mapReady&&activeSess?.id===sessId){
     try{
-      const mapImg=map.getCanvas().toDataURL('image/jpeg',0.85)
-      const mh=60
-      doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-      doc.text('DRIVE ROUTE MAP',M,yy); yy+=3
-      doc.addImage(mapImg,'JPEG',M,yy,W-2*M,mh)
-      yy+=mh+6
+      const mapImg=map.getCanvas().toDataURL('image/jpeg',0.9)
+      const mh=58
+      if(yy+mh+8>286){doc.addPage();yy=18}
+      doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+      T('DRIVE ROUTE MAP',M,yy); yy+=3
+      doc.addImage(mapImg,'JPEG',M,yy,CW,mh)
+      doc.setDrawColor(...HAIR); doc.setLineWidth(.3); doc.rect(M,yy,CW,mh,'S')
+      yy+=mh+7
     }catch(e){console.warn('map capture:',e)}
   }
 
   // ── Rule-based assessment (from shared computeDriveRules) ──
   const dr=computeDriveRules(samples,sess)
-  const statusColor={pass:[0,230,118],warn:[255,193,7],fail:[244,67,54]}
-  const statusLabel={pass:'PASS',warn:'WARN',fail:'FAIL'}
-
-  if(yy>230){doc.addPage();yy=14}
-  doc.setFillColor(28,33,40); doc.rect(M,yy,W-2*M,7,'F')
-  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text('RULE-BASED ASSESSMENT',M+3,yy+5); yy+=9
-
-  // Two-column layout: left col rules 1-6, right col rules 7-12
   const half=Math.ceil(dr.rules.length/2)
-  const colW=(W-2*M)/2-2
-  dr.rules.forEach((r,i)=>{
-    const cx=i<half?M:M+colW+4
-    const ry=yy+(i<half?i:i-half)*10
-    if(ry>280){/* page overflow guard — autoTable below handles wrapping */return}
-    const sc=statusColor[r.status]
-    doc.setFillColor(...sc); doc.circle(cx+3,ry+3.5,1.8,'F')
-    doc.setTextColor(230,237,243); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
-    doc.text(r.label,cx+7,ry+4)
-    doc.setTextColor(139,148,158); doc.setFontSize(6.5); doc.setFont('helvetica','normal')
-    doc.text(r.detail,cx+7,ry+8,{maxWidth:colW-10})
-    doc.setTextColor(...sc); doc.setFontSize(6); doc.setFont('helvetica','bold')
-    doc.text(statusLabel[r.status],cx+colW-8,ry+4,{align:'right'})
-  })
-  yy+=half*10+6
+  const rowsH=half*11
+  if(yy+rowsH+8>288){doc.addPage();yy=18}
+  doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+  T('RULE-BASED ASSESSMENT',M,yy); yy+=5
 
-  // Verdict banner
-  const vc={EXCELLENT:[0,230,118],GOOD:[88,166,255],FAIR:[255,193,7],POOR:[244,67,54]}[dr.verdict]||[139,148,158]
-  doc.setFillColor(...vc.map(v=>Math.round(v*.15+22))); doc.roundedRect(M,yy,W-2*M,14,2,2,'F')
-  doc.setDrawColor(...vc); doc.setLineWidth(.4); doc.roundedRect(M,yy,W-2*M,14,2,2,'S')
-  doc.setTextColor(...vc); doc.setFontSize(11); doc.setFont('helvetica','bold')
-  doc.text(`${dr.verdict}`,W/2,yy+9,{align:'center'})
-  doc.setTextColor(139,148,158); doc.setFontSize(7); doc.setFont('helvetica','normal')
-  doc.text(`${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,W/2,yy+13.5,{align:'center'})
-  yy+=20
+  // Two even columns: rules 1-6 left, 7-12 right
+  const colW=CW/2-3
+  dr.rules.forEach((r,i)=>{
+    const cx=i<half?M:M+colW+6
+    const ry=yy+(i<half?i:i-half)*11
+    const sc=statusColor[r.status]
+    doc.setFillColor(...sc); doc.circle(cx+1.6,ry+1.3,1.4,'F')
+    doc.setTextColor(...INK); doc.setFont('helvetica','bold'); doc.setFontSize(8)
+    T(r.label,cx+5,ry+2.1)
+    doc.setTextColor(...sc); doc.setFont('helvetica','bold'); doc.setFontSize(6.5)
+    T(statusLabel[r.status],cx+colW,ry+2.1,{align:'right'})
+    doc.setTextColor(...SUB); doc.setFont('helvetica','normal'); doc.setFontSize(6.8)
+    T(r.detail,cx+5,ry+6,{maxWidth:colW-6})
+  })
+  yy+=rowsH+5
+
+  // ── Verdict — minimalist chip (light tint + colored border/text) ──
+  const vc={EXCELLENT:OK,GOOD:BRAND,FAIR:WARN,POOR:BAD}[dr.verdict]||SUB
+  if(yy+13>290){doc.addPage();yy=18}
+  doc.setFillColor(...vc.map(v=>Math.round(v+(255-v)*0.9)))
+  doc.setDrawColor(...vc); doc.setLineWidth(.5)
+  doc.roundedRect(M,yy,CW,13,1.5,1.5,'FD')
+  doc.setTextColor(...vc); doc.setFont('helvetica','bold'); doc.setFontSize(12)
+  T(`VERDICT: ${dr.verdict}`,M+5,yy+8.2)
+  doc.setTextColor(...SUB); doc.setFont('helvetica','normal'); doc.setFontSize(7.5)
+  T(`${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,W-M-5,yy+8.2,{align:'right'})
+  yy+=19
 
   // Classify all samples for network issues (no experience KPI)
   const ratCounts={}
@@ -3551,7 +3582,7 @@ window.exportPDF = async function(sessId) {
   const conThresh=/NR|5G/.test(domRat)?20:/2G|EDGE|GPRS/.test(domRat)?0.5:5
   // LOC_ISSUES = show individual lat/lng row; SUMMARY_ISSUES = count-only in PCI header
   const LOC_ISSUES=new Set(['Coverage Gap','Poor Handover','Ping-Pong'])
-  const ISSUE_COLORS={'Coverage Gap':[244,67,54],'Poor Handover':[255,87,34],'Ping-Pong':[0,188,212],'Congestion':[255,152,0],'Overlap':[255,193,7]}
+  const ISSUE_COLORS={'Coverage Gap':[196,52,28],'Poor Handover':[194,65,12],'Ping-Pong':[37,99,235],'Congestion':[180,83,9],'Overlap':[161,98,7]}
   const classified=samples.map((s,i)=>{
     const issues=[]
     if(s.rsrp!=null&&s.rsrp<-110) issues.push('Coverage Gap')
@@ -3576,58 +3607,52 @@ window.exportPDF = async function(sessId) {
   // Sort PCI groups: most samples first
   const pciGroups=[...pciMap.values()].sort((a,b)=>b.samples.length-a.samples.length)
 
-  // Issue summary table
-  if(doc.lastAutoTable&&doc.lastAutoTable.finalY>260){doc.addPage();yy=14}
-  doc.setTextColor(139,148,158); doc.setFontSize(8); doc.setFont('helvetica','bold')
-  doc.text(`ISSUE SUMMARY BY PCI  (${classified.length} flagged samples · ${pciGroups.length} cells)`,M,yy); yy+=3
+  // ── Issue summary table — clean 5-column grid, light theme ──
+  if(yy>272){doc.addPage();yy=18}
+  doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+  T(`ISSUE SUMMARY BY PCI   (${classified.length} flagged samples · ${pciGroups.length} cells)`,M,yy); yy+=2
   if(!pciGroups.length){
-    doc.setTextColor(0,230,118); doc.setFontSize(8); doc.setFont('helvetica','normal')
-    doc.text('No network issues detected.',M,yy+6); yy+=12
+    doc.setTextColor(...OK); doc.setFont('helvetica','normal'); doc.setFontSize(9)
+    T('No network issues detected.',M,yy+7)
   } else {
     const body=[]
     pciGroups.forEach(g=>{
-      const issueList=[...g.issues].join(' · ')||'—'
-      const siteLat=g.lat!=null?n(g.lat,5):'—'
-      const siteLng=g.lng!=null?n(g.lng,5):'—'
-      const issueCounts=[...g.issues].map(iss=>{
-        const cnt=g.samples.filter(s=>s._issues.includes(iss)).length
-        return `${iss}(${cnt})`
-      }).join('  ')
-      // PCI group header row
+      const issueCounts=[...g.issues].map(iss=>`${iss} (${g.samples.filter(s=>s._issues.includes(iss)).length})`).join('   ')
+      const site=g.lat!=null?`${n(g.lat,5)}, ${n(g.lng,5)}`:'-'
+      // PCI group header row — subtle grey fill, bold, one cell per column (no colSpan hacks)
       body.push([
-        {content:`PCI ${g.pci}`,styles:{fontStyle:'bold',textColor:[230,237,243],fontSize:7.5}},
-        {content:`${g.samples.length} samples`,styles:{textColor:[139,148,158],fontSize:6.5}},
-        {content:issueCounts,styles:{textColor:[255,193,7],fontSize:6,colSpan:2}},
-        {content:'',styles:{colSpan:0}},
-        {content:`Site: ${siteLat}, ${siteLng}`,styles:{textColor:[88,166,255],fontSize:6.5,colSpan:2}},
-        {content:'',styles:{colSpan:0}},
+        {content:`PCI ${g.pci}`,styles:{fontStyle:'bold',textColor:INK,fillColor:GROUP}},
+        {content:`${g.samples.length}`,styles:{fontStyle:'bold',textColor:INK,fillColor:GROUP,halign:'right'}},
+        {content:issueCounts||'-',styles:{textColor:WARN,fillColor:GROUP}},
+        {content:site,styles:{textColor:BRAND,fillColor:GROUP}},
+        {content:'',styles:{fillColor:GROUP}},
       ])
-      // Detail rows — only for LOC_ISSUES (Coverage Gap, Handover, Ping-Pong)
+      // Detail rows for located issues — aligned under Issues / Location / RSRP
       const locSamples=g.samples.filter(s=>s._issues.some(iss=>LOC_ISSUES.has(iss)))
       locSamples.slice(0,20).forEach(s=>{
         const locIssues=s._issues.filter(iss=>LOC_ISSUES.has(iss))
-        const topIss=locIssues[0]
-        const col=ISSUE_COLORS[topIss]||[139,148,158]
+        const col=ISSUE_COLORS[locIssues[0]]||SUB
+        const tm=s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'-'
         body.push([
-          {content:'',styles:{fillColor:[30,37,44]}},
-          {content:s.sampled_at?new Date(s.sampled_at).toLocaleTimeString():'—',styles:{textColor:[139,148,158],fontSize:6,fillColor:[30,37,44]}},
-          {content:s.latitude!=null?n(s.latitude,5):'—',styles:{textColor:[88,166,255],fontSize:6,fillColor:[30,37,44]}},
-          {content:s.longitude!=null?n(s.longitude,5):'—',styles:{textColor:[88,166,255],fontSize:6,fillColor:[30,37,44]}},
-          {content:locIssues.join(' + '),styles:{textColor:[col[0],col[1],col[2]],fontStyle:'bold',fontSize:6,fillColor:[30,37,44]}},
-          {content:s.rsrp!=null?s.rsrp+' dBm':'—',styles:{textColor:[139,148,158],fontSize:6,fillColor:[30,37,44]}},
+          {content:''},
+          {content:''},
+          {content:`${tm}  ·  ${locIssues.join(' + ')}`,styles:{textColor:col,fontSize:6.5}},
+          {content:s.latitude!=null?`${n(s.latitude,5)}, ${n(s.longitude,5)}`:'-',styles:{textColor:SUB,fontSize:6.5}},
+          {content:s.rsrp!=null?`${s.rsrp} dBm`:'-',styles:{textColor:SUB,fontSize:6.5,halign:'right'}},
         ])
       })
       if(locSamples.length>20){
-        body.push([{content:`  … ${locSamples.length-20} more location events`,colSpan:6,styles:{textColor:[100,110,120],fontSize:6,fillColor:[22,27,34],cellPadding:1}}])
+        body.push([{content:`+ ${locSamples.length-20} more location events`,colSpan:5,styles:{textColor:SUB,fontStyle:'italic',fontSize:6.5}}])
       }
     })
     doc.autoTable({
-      startY:yy,
-      head:[['PCI','Samples','Issues','','Site Location','']],
+      startY:yy+2,
+      head:[['PCI','Samples','Issues','Site / Event Location','RSRP']],
       body,
-      styles:{fontSize:6.5,cellPadding:2,textColor:[230,237,243],fillColor:[22,27,34],lineColor:[48,54,61],lineWidth:.3},
-      headStyles:{fillColor:[28,33,40],textColor:[139,148,158],fontStyle:'bold',fontSize:7},
-      columnStyles:{0:{cellWidth:18},1:{cellWidth:18},2:{cellWidth:38},3:{cellWidth:0},4:{cellWidth:38},5:{cellWidth:0}},
+      theme:'grid',
+      styles:{font:'helvetica',fontSize:7,cellPadding:{top:1.6,right:2.5,bottom:1.6,left:2.5},textColor:INK,fillColor:[255,255,255],lineColor:HAIR,lineWidth:.15,overflow:'linebreak'},
+      headStyles:{fillColor:INK,textColor:[255,255,255],fontStyle:'bold',fontSize:7,cellPadding:{top:2,right:2.5,bottom:2,left:2.5}},
+      columnStyles:{0:{cellWidth:22},1:{cellWidth:18,halign:'right'},2:{cellWidth:58},3:{cellWidth:50},4:{cellWidth:'auto',halign:'right'}},
       margin:{left:M,right:M},
     })
   }
