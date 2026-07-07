@@ -19,6 +19,10 @@
   --pr:#1f6feb;--tx:#e6edf3;--mu:#9da8b4;
   --gr:#3fb950;--yw:#d29922;--or:#db6d28;--re:#f85149;--pu:#a371f7;--bl:#58a6ff;--cy:#39d353;
   --r-ex:#00e676;--r-go:#00bcd4;--r-fa:#ffc107;--r-po:#ff9800;--r-cr:#f44336;
+  /* Design tokens — radius / spacing / type scale */
+  --r-card:12px;--r-ctrl:8px;--r-pill:20px;
+  --sp-1:6px;--sp-2:10px;--sp-3:14px;--sp-4:18px;--sp-5:24px;
+  --fs-cap:11px;--fs-sm:12px;--fs-base:13px;--fs-h3:15px;--fs-h2:18px;--fs-kpi:28px;
 }
 [data-theme="light"]{
   --bg:#f6f8fa;--s1:#ffffff;--s2:#f0f2f5;--bd:#d0d7de;
@@ -68,7 +72,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .tp{display:none}.tp.on{display:block}
 /* ── KPI grid ── */
 .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
-.kcard{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.kcard{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);padding:14px 16px;display:flex;flex-direction:column;gap:3px}
 .kcard-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px}
 .kcard-val{font-size:28px;font-weight:700;line-height:1.1}
 .kcard-unit{font-size:11px;color:var(--mu)}
@@ -85,7 +89,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .gmap{grid-template-columns:1fr 300px}
 @media(max-width:900px){.g2,.g3,.gmap{grid-template-columns:1fr}}
 /* ── Cards ── */
-.card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);overflow:hidden;margin-bottom:16px}
 .ch{padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:baseline;gap:10px}
 .ch-t{font-size:13px;font-weight:700;color:var(--tx)}
 .ch-s{font-size:11px;color:var(--mu)}
@@ -105,7 +109,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pgr-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--s1);color:var(--tx);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
 .pgr-btn:hover:not(:disabled){background:var(--s2)}
 .pgr-btn:disabled{opacity:.35;cursor:default}
-.os-score-hd{display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--s2);border-radius:10px;margin-bottom:14px;border:1px solid var(--bd);flex-wrap:wrap}
+.os-score-hd{display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--s2);border-radius:var(--r-card);margin-bottom:14px;border:1px solid var(--bd);flex-wrap:wrap}
 .os-score-period{font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .os-score-title{font-size:16px;font-weight:800;color:var(--tx);flex:1}
 /* Metric Experience Card Grid */
@@ -220,7 +224,7 @@ tr:hover td{background:var(--s2)}
 .drv-pill.warn{color:#ffc107;background:rgba(255,193,7,.12);border-color:rgba(255,193,7,.3)}
 .drv-pill.fail{color:#f44336;background:rgba(244,67,54,.12);border-color:rgba(244,67,54,.3)}
 /* ── CX Latest result ── */
-.cx-latest{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:16px}
+.cx-latest{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r-card);padding:16px;margin-bottom:16px}
 .cx-latest-head{font-size:13px;font-weight:600;margin-bottom:2px}
 .cx-latest-sub{font-size:11px;color:var(--mu);margin-bottom:14px}
 .cx-metrics{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)}
@@ -301,7 +305,7 @@ td.r,th.r{text-align:right}
 .trend-dn{color:#f44336}
 .trend-eq{color:var(--mu)}
 /* ── Network health banner ── */
-.health-banner{background:linear-gradient(135deg,rgba(31,111,235,.1) 0%,rgba(0,230,118,.07) 100%);border:1px solid var(--bd);border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.health-banner{background:linear-gradient(135deg,rgba(31,111,235,.1) 0%,rgba(0,230,118,.07) 100%);border:1px solid var(--bd);border-radius:var(--r-card);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .health-ring{width:68px;height:68px;border-radius:50%;border:4px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .3s}
 .health-ring-num{font-size:22px;font-weight:800;line-height:1}
 .health-ring-lbl{font-size:8px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
@@ -371,7 +375,7 @@ td.r,th.r{text-align:right}
 .hero-card-rag{position:absolute;top:14px;right:14px}
 .hero-card-bench{font-size:10px;color:var(--mu);margin-top:4px;padding-top:6px;border-top:1px solid var(--bd)}
 /* ══ ACTIONS REQUIRED PANEL ════════════════════════ */
-.act-panel{background:var(--s1);border:1px solid var(--bd);border-radius:10px;margin-bottom:18px;overflow:hidden}
+.act-panel{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);margin-bottom:18px;overflow:hidden}
 .act-header{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--s2)}
 .act-title{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
 .act-cnt{font-size:11px;color:var(--mu)}
