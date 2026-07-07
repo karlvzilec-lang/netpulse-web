@@ -208,8 +208,10 @@ tr:hover td{background:var(--s2)}
 .sess-sync-btn:hover{border-color:rgba(255,152,0,.6);color:#ff9800;background:rgba(255,152,0,.1)}
 .sess-sync-btn.synced{color:#00e67699;border-color:transparent;cursor:default;font-size:12px}
 .sess-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;border:1px solid;white-space:nowrap}
-.pdf-btn{display:block;width:calc(100% - 28px);margin:8px 14px;padding:7px;background:rgba(31,111,235,.15);border:1px solid rgba(31,111,235,.3);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
+.pdf-btn{display:none;width:calc(100% - 28px);margin:8px 14px;padding:7px;background:rgba(31,111,235,.15);border:1px solid rgba(31,111,235,.3);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
 .pdf-btn:hover{background:rgba(31,111,235,.25)}
+/* Reveal the export action only on the selected or hovered session — cuts button noise */
+.sess-item.sel .pdf-btn,.sess-item:hover .pdf-btn{display:block}
 /* ── Drive analysis verdict banner ── */
 .drv-verdict-banner{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--bd)}
 .drv-verdict-icon{font-size:18px;flex-shrink:0}
