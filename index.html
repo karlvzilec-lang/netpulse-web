@@ -136,6 +136,12 @@ th{padding:8px 11px;text-align:left;color:var(--mu);font-weight:500;border-botto
 td{padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--s2)}
+/* Sortable headers */
+.tw thead th{cursor:pointer;user-select:none}
+.tw thead th:hover{color:var(--tx)}
+.tw thead th[aria-sort]::after{content:"";display:inline-block;margin-left:5px;border:4px solid transparent;vertical-align:middle}
+.tw thead th[aria-sort="ascending"]::after{border-bottom-color:var(--pr)}
+.tw thead th[aria-sort="descending"]::after{border-top-color:var(--pr)}
 /* ── Badges ── */
 .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600}
 .b5g{background:rgba(63,185,80,.18);color:#3fb950}
@@ -4754,6 +4760,26 @@ document.getElementById('tower-csv-input').addEventListener('change',async e=>{
   st.textContent=`✅ ${feats.length} towers loaded from CSV`
   document.getElementById('cov-stat-towers').textContent=feats.length+' towers'
   e.target.value=''
+})
+
+// ── Sortable tables — click any data-table header to sort ──
+document.addEventListener('click', e=>{
+  const th = e.target.closest('.tw thead th')
+  if(!th) return
+  const table = th.closest('table'), tbody = table && table.querySelector('tbody')
+  if(!tbody || tbody.rows.length < 2) return
+  const idx = [...th.parentNode.children].indexOf(th)
+  const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending'
+  th.parentNode.querySelectorAll('th').forEach(x=>x.removeAttribute('aria-sort'))
+  th.setAttribute('aria-sort', dir)
+  const val = r => {
+    const c = r.children[idx]; if(!c) return ''
+    const raw = c.textContent.trim().replace(/[,%]/g,'')
+    const n = parseFloat(raw.replace(/[^0-9.\-]/g,''))
+    return (raw!=='' && !isNaN(n) && /[0-9]/.test(raw)) ? n : c.textContent.trim().toLowerCase()
+  }
+  const s = dir==='ascending' ? 1 : -1
+  ;[...tbody.rows].sort((a,b)=>{ const av=val(a), bv=val(b); return av<bv?-s : av>bv?s : 0 }).forEach(r=>tbody.appendChild(r))
 })
 
 // ── Boot ──────────────────────────────────────────
