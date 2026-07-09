@@ -2455,7 +2455,7 @@ function renderRankings() {
 function renderCompare() {
   const nx=_dashNx
   const ops=['Cellcard','Metfone','Smart']
-  const opColors=labels.map(l=>OP_COLORS[l]||'#58a6ff')
+  const opColors=ops.map(l=>OP_COLORS[l]||'#58a6ff')
   const avg=(data,col)=>data.length?data.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/data.length:0
 
   const labels=ops, nxByOp=ops.map(op=>(_dashAllOpNx[op]||[]))
@@ -3165,7 +3165,7 @@ function renderMetadataAnalysis(sess) {
       <div style="margin-top:6px;padding:6px 8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.25);border-radius:6px;color:#ff9800;font-size:9px;line-height:1.5">
         GPS route not yet synced from device.<br>
         <button onclick="recheckSession(${sess.id})" style="margin-top:4px;padding:2px 8px;background:rgba(255,152,0,.2);border:1px solid rgba(255,152,0,.4);border-radius:4px;color:#ff9800;font-size:9px;cursor:pointer;font-weight:700">↻ Check Again</button>
-        <button onclick="document.getElementById('upload-panel').scrollIntoView({behavior:'smooth'})" style="margin-top:4px;margin-left:4px;padding:2px 8px;background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);border-radius:4px;color:var(--bl);font-size:9px;cursor:pointer;font-weight:700">↑ Upload CSV/GPX</button>
+        <button onclick="document.getElementById('upload-card').scrollIntoView({behavior:'smooth'})" style="margin-top:4px;margin-left:4px;padding:2px 8px;background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);border-radius:4px;color:var(--bl);font-size:9px;cursor:pointer;font-weight:700">↑ Upload CSV/GPX</button>
       </div>
     </div>`
 
@@ -3207,7 +3207,8 @@ function renderMetadataAnalysis(sess) {
   document.getElementById('drv-verdict-label').textContent=label
   document.getElementById('drv-verdict-label').style.color=color
   document.getElementById('drv-verdict-sub').textContent=sub
-  document.getElementById('drv-verdict-pill').innerHTML=
+  const _vpill=document.getElementById('drv-verdict-pill')
+  if(_vpill) _vpill.innerHTML=
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${color}22;border:1px solid ${color}44;color:${color}">📊 Metadata Only</span>`
 }
 
