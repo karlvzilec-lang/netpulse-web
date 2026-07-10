@@ -157,7 +157,7 @@ tr:hover td{background:var(--s2)}
 .gauge-lbl{font-size:11px;color:var(--mu);text-align:center;max-width:90px}
 .gauge-sub{font-size:10px;color:var(--mu);text-align:center}
 /* ── Executive summary card ── */
-.exec-card{background:linear-gradient(135deg,var(--s2) 0%,rgba(31,111,235,.08) 100%);border:1px solid var(--bd);border-radius:10px;padding:20px;margin-bottom:16px}
+.exec-card{background:linear-gradient(135deg,var(--s2) 0%,rgba(31,111,235,.08) 100%);border:1px solid var(--bd);border-radius:var(--r-card);padding:20px;margin-bottom:16px}
 .exec-score{font-size:13px;color:var(--mu);margin-bottom:4px}
 .exec-big{font-size:36px;font-weight:800;color:var(--bl)}
 .exec-rating{font-size:14px;color:var(--tx);font-weight:600;margin-bottom:16px}
@@ -167,13 +167,13 @@ tr:hover td{background:var(--s2)}
 .exec-stat-l{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
 /* ── Awards ── */
 .awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px}
-.award-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.award-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);padding:12px 14px;display:flex;align-items:center;gap:10px}
 .award-icon{font-size:22px}
 .award-info .award-op{font-size:13px;font-weight:600}
 .award-info .award-metric{font-size:11px;color:var(--mu)}
 /* ── Operator comparison cards ── */
 .op-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
-.op-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px 16px}
+.op-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);padding:14px 16px}
 .op-card-name{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .op-card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .op-card-key{font-size:11px;color:var(--mu)}
@@ -355,7 +355,7 @@ td.r,th.r{text-align:right}
 /* ── Tech view hidden by default ── */
 .tech-only{display:none}
 /* ══ EXECUTIVE STATUS BANNER ══════════════════════ */
-.exec-status-banner{border-radius:14px;padding:22px 26px;margin-bottom:18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;transition:background .4s,border-color .4s}
+.exec-status-banner{border-radius:var(--r-card);padding:22px 26px;margin-bottom:18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;transition:background .4s,border-color .4s}
 .esb-green{background:linear-gradient(135deg,rgba(0,230,118,.13) 0%,rgba(0,188,212,.06) 100%);border:1.5px solid rgba(0,230,118,.35)}
 .esb-amber{background:linear-gradient(135deg,rgba(255,193,7,.13) 0%,rgba(255,152,0,.06) 100%);border:1.5px solid rgba(255,193,7,.35)}
 .esb-red{background:linear-gradient(135deg,rgba(244,67,54,.14) 0%,rgba(255,87,34,.06) 100%);border:1.5px solid rgba(244,67,54,.35)}
@@ -4821,6 +4821,13 @@ function npA11yEnhance(){
     const t = card && card.querySelector('.ch-t')
     c.setAttribute('role','img')
     c.setAttribute('aria-label', (t ? t.textContent.trim() : (c.id||'Data')) + ' chart')
+  })
+  // Complete the ARIA tab pattern: link each tab to its panel
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(tab=>{
+    const pid='tp-'+tab.dataset.tab, panel=document.getElementById(pid)
+    if(!tab.id) tab.id='tab-'+tab.dataset.tab
+    tab.setAttribute('aria-controls',pid)
+    if(panel){ panel.setAttribute('role','tabpanel'); panel.setAttribute('aria-labelledby',tab.id) }
   })
 }
 npA11yEnhance()
