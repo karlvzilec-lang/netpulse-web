@@ -1351,6 +1351,9 @@ const PAGE_SIZE = 10
 
 function paginate(tbodyId, allRows, renderRow, wrapId) {
   if(!(tbodyId in pages)) pages[tbodyId] = 0
+  // A re-render replaces rows in their original order — clear any sort indicator so it can't lie
+  const _tb0=document.getElementById(tbodyId), _tbl0=_tb0&&_tb0.closest('table')
+  if(_tbl0) _tbl0.querySelectorAll('thead th[aria-sort]').forEach(th=>th.removeAttribute('aria-sort'))
   const total = allRows.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   if(pages[tbodyId] >= totalPages) pages[tbodyId] = 0
@@ -4775,14 +4778,22 @@ document.addEventListener('click', e=>{
   const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending'
   th.parentNode.querySelectorAll('th').forEach(x=>x.removeAttribute('aria-sort'))
   th.setAttribute('aria-sort', dir)
-  const val = r => {
-    const c = r.children[idx]; if(!c) return ''
-    const raw = c.textContent.trim().replace(/[,%]/g,'')
-    const n = parseFloat(raw.replace(/[^0-9.\-]/g,''))
-    return (raw!=='' && !isNaN(n) && /[0-9]/.test(raw)) ? n : c.textContent.trim().toLowerCase()
+  const parse = r => {
+    const c = r.children[idx]; const raw = c ? c.textContent.trim() : ''
+    if(raw==='' || raw==='—' || raw==='-') return {e:1}                 // blank/dash
+    const n = parseFloat(raw.replace(/[,%\s]/g,'').replace(/[^0-9.\-].*$/,''))
+    return (/\d/.test(raw) && !isNaN(n)) ? {n} : {t:raw.toLowerCase()}
   }
   const s = dir==='ascending' ? 1 : -1
-  ;[...tbody.rows].sort((a,b)=>{ const av=val(a), bv=val(b); return av<bv?-s : av>bv?s : 0 }).forEach(r=>tbody.appendChild(r))
+  ;[...tbody.rows].sort((a,b)=>{
+    const pa=parse(a), pb=parse(b)
+    if(pa.e && pb.e) return 0
+    if(pa.e) return 1; if(pb.e) return -1                               // blanks always sort last
+    const an=('n' in pa), bn=('n' in pb)
+    if(an && bn) return pa.n<pb.n?-s : pa.n>pb.n?s : 0
+    if(an!==bn) return an?-1:1                                          // numbers before text
+    return pa.t<pb.t?-s : pa.t>pb.t?s : 0
+  }).forEach(r=>tbody.appendChild(r))
 })
 // Keyboard: Enter/Space on a focused sortable header triggers the sort
 document.addEventListener('keydown', e=>{
