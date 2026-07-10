@@ -1096,7 +1096,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <div><div class="layer-iname">Drive Routes</div><div class="layer-isub">Session path lines</div></div>
         </div>
         <div class="layer-row">
-          <label class="ltog"><input type="checkbox" id="lyr-hex" checked><span class="lslid"></span></label>
+          <label class="ltog"><input type="checkbox" id="lyr-hex" checked aria-label="Toggle Experience Hexbin layer"><span class="lslid"></span></label>
           <div class="layer-dot" style="background:#ffc107"></div>
           <div><div class="layer-iname">Experience Hexbin</div><div class="layer-isub">H3 res 9 · ~174m · avg RSRP</div></div>
         </div>
@@ -1160,7 +1160,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="sb-sec" id="sim-sec">
         <div class="sb-sec-hd" style="display:flex;align-items:center;justify-content:space-between">
           RF Coverage Simulation
-          <label class="ltog" style="transform:scale(.85)"><input type="checkbox" id="lyr-sim"><span class="lslid"></span></label>
+          <label class="ltog" style="transform:scale(.85)"><input type="checkbox" id="lyr-sim" aria-label="Toggle RF coverage simulation layer"><span class="lslid"></span></label>
         </div>
         <div style="font-size:10px;color:var(--mu);margin-bottom:8px;line-height:1.5">Propagation model applied to loaded cell sites. Estimates RSRP at each H3 hex.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
@@ -2794,7 +2794,7 @@ function renderSessions() {
       : ''
 
     return `
-    <div class="sess-item${isSel?' sel':''}" onclick="pickSess(${isManual?'\'manual\'':s.id})">
+    <div class="sess-item${isSel?' sel':''}" role="button" tabindex="0" onclick="pickSess(${isManual?'\'manual\'':s.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSess(${isManual?'\'manual\'':s.id})}">
       <div class="sess-dev">
         <div class="sess-dev-left">
           <span style="color:var(--mu);font-size:11px">${isManual?'📂':('📱 '+sid(s.device_id))}</span>
@@ -4784,6 +4784,28 @@ document.addEventListener('click', e=>{
   const s = dir==='ascending' ? 1 : -1
   ;[...tbody.rows].sort((a,b)=>{ const av=val(a), bv=val(b); return av<bv?-s : av>bv?s : 0 }).forEach(r=>tbody.appendChild(r))
 })
+// Keyboard: Enter/Space on a focused sortable header triggers the sort
+document.addEventListener('keydown', e=>{
+  const th = e.target && e.target.closest && e.target.closest('.tw thead th')
+  if(th && (e.key==='Enter' || e.key===' ')){ e.preventDefault(); th.click() }
+})
+
+// ── Accessibility enhancements (labels for charts, keyboard for headers) ──
+function npA11yEnhance(){
+  // Sortable headers reachable/operable by keyboard
+  document.querySelectorAll('.tw thead th').forEach(th=>{
+    if(!th.hasAttribute('tabindex')){ th.setAttribute('tabindex','0'); th.setAttribute('role','button') }
+  })
+  // Chart canvases get a text alternative from their card title
+  document.querySelectorAll('canvas').forEach(c=>{
+    if(c.getAttribute('role')) return
+    const card = c.closest('.card')
+    const t = card && card.querySelector('.ch-t')
+    c.setAttribute('role','img')
+    c.setAttribute('aria-label', (t ? t.textContent.trim() : (c.id||'Data')) + ' chart')
+  })
+}
+npA11yEnhance()
 
 // ── Boot ──────────────────────────────────────────
 function boot(){
