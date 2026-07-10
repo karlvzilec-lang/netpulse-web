@@ -1511,8 +1511,9 @@ function filterOs(data, {date,op,tech,cov,prov}={}) {
     return true
   })
 }
-function filterCx(data, {cov,tech,op,prov}={}) {
+function filterCx(data, {date,cov,tech,op,prov}={}) {
   return data.filter(r=>{
+    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
     if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
     if (tech&&tech!=='all'){
       const t=(r.technology||'').toUpperCase()
@@ -2548,7 +2549,7 @@ function renderRecent() {
 // ── Render: Network tab ───────────────────────────
 function renderNetwork() {
   pages['tb-net']=0; pages['tb-gaming']=0;
-  const nx=filterNx(nxAll,{op:F.dOp,tech:F.dTech,prov:F.dProv})
+  const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
   const slice=[...nx].reverse().slice(-100)
   chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
   chNetTs.data.datasets[0].data=slice.map(r=>r.download_mbps)
@@ -2642,8 +2643,8 @@ function renderHourly(nx) {
 
 // ── Render: CX tab ────────────────────────────────
 function renderCX() {
-  const os=filterOs(osAll,{op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
-  const cx=filterCx(cxAll,{op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
+  const os=filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
+  const cx=filterCx(cxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.cCov,prov:F.dProv})
 
   document.getElementById('cx-count').textContent=os.length+cx.length
 
