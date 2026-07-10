@@ -2666,6 +2666,12 @@ function renderCX() {
       <div class="cx-metric"><div class="cx-metric-v" style="color:var(--cy)">${latest.reliability_experience??'—'}/1000</div><div class="cx-metric-l">Reliability</div></div>
       <div class="cx-metric"><div class="cx-metric-v" style="color:var(--pu)">${cqPct}%</div><div class="cx-metric-l">Consistent Quality</div></div>
     `
+  } else {
+    // No OpenSignal rows for the current filters — clear the card instead of showing the last operator's data
+    document.getElementById('cx-latest-head').textContent='Latest Result'
+    document.getElementById('cx-latest-sub').textContent='No experience data for the current filters'
+    document.getElementById('cx-gauges').innerHTML=''
+    document.getElementById('cx-metrics').innerHTML=''
   }
 
   // By operator
