@@ -444,8 +444,9 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   .hero-grid,.hero-grid.exec-view,.pmatrix,.sev-live-grid{grid-template-columns:1fr 1fr!important}
   /* Wide content (tables, charts, images) scrolls or clamps instead of pushing the page */
   .cb,.card,.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  canvas{max-width:100%!important}
-  img{max-width:100%;height:auto}
+  /* Chart canvases clamp, but NEVER the MapLibre WebGL canvas — max-width on it breaks map rendering */
+  canvas:not(.maplibregl-canvas){max-width:100%!important}
+  img:not(.maplibregl-image){max-width:100%;height:auto}
   /* Legibility floor on the smallest labels */
   .fbar-label,.kcard-lbl,.os-score-period,.ch-s{font-size:11px}
   .kcard-val{font-size:22px}
@@ -4814,8 +4815,8 @@ function npA11yEnhance(){
   document.querySelectorAll('.tw thead th').forEach(th=>{
     if(!th.hasAttribute('tabindex')){ th.setAttribute('tabindex','0'); th.setAttribute('role','button') }
   })
-  // Chart canvases get a text alternative from their card title
-  document.querySelectorAll('canvas').forEach(c=>{
+  // Chart canvases get a text alternative from their card title (exclude the MapLibre map canvas)
+  document.querySelectorAll('canvas:not(.maplibregl-canvas)').forEach(c=>{
     if(c.getAttribute('role')) return
     const card = c.closest('.card')
     const t = card && card.querySelector('.ch-t')
