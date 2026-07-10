@@ -1649,10 +1649,29 @@ const chHourly = mk('ch-hourly','bar',{labels:Array.from({length:24},(_,i)=>i),d
 const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
 const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[],backgroundColor:'rgba(63,185,80,.7)'},{label:'Games XP',data:[],backgroundColor:'rgba(88,166,255,.7)'},{label:'Voice XP',data:[],backgroundColor:'rgba(163,113,247,.7)'}]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
+// ── Map diagnostics — surface WebGL / tile failures instead of a blank box ──
+function webglSupported(){
+  try{ const c=document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl')||c.getContext('experimental-webgl'))) }catch(e){ return false }
+}
+function showMapError(containerId, err, kind){
+  const el=document.getElementById(containerId); if(!el) return
+  console.error('[MAP]', containerId, err)
+  let box=el.querySelector('.map-err')
+  if(!box){ box=document.createElement('div'); box.className='map-err'
+    box.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:var(--s1);color:var(--mu);font-size:12px;z-index:5'
+    el.style.position='relative'; el.appendChild(box) }
+  const msg=String((err&&(err.message||err.error&&err.error.message))||err||'unknown error').replace(/</g,'&lt;')
+  box.innerHTML='<div style="font-size:26px">🗺️</div><div style="color:var(--tx);font-weight:700;font-size:14px">Map could not load</div>'
+    +'<div style="max-width:360px;line-height:1.5">'+(kind==='webgl'
+      ? 'Your browser has <b>WebGL disabled</b>, which MapLibre needs to draw maps. Enable hardware acceleration in Chrome settings (or update Chrome), then reload.'
+      : 'Failed to load the basemap tiles. Detail: <span style="color:var(--re)">'+msg+'</span>')+'</div>'
+}
+
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
   if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
   const dmapEl=document.getElementById('dmap')
+  if(!webglSupported()){ showMapError('dmap',null,'webgl'); return }
   if(dmapEl)dmapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
   map = new maplibregl.Map({
     container:'dmap',
@@ -1664,6 +1683,7 @@ function initDriveMap() {
   })
   map.addControl(new maplibregl.NavigationControl(),'top-right')
   map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
+  map.on('error', e=>showMapError('dmap', e))
 
   // Android WebView WebGL context recovery
   map.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
@@ -4079,6 +4099,7 @@ function renderCovMap(){
 function initCovMap(){
   if(mapCov){ setTimeout(()=>mapCov.resize(),50); return }
   const covMapEl=document.getElementById('cov-map')
+  if(!webglSupported()){ showMapError('cov-map',null,'webgl'); return }
   if(covMapEl)covMapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
   mapCov=new maplibregl.Map({
     container:'cov-map',
@@ -4089,6 +4110,7 @@ function initCovMap(){
   })
   mapCov.addControl(new maplibregl.NavigationControl(),'top-right')
   mapCov.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
+  mapCov.on('error', e=>showMapError('cov-map', e))
 
   // Android WebView WebGL context recovery
   mapCov.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
