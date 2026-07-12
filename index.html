@@ -2774,7 +2774,11 @@ function renderSessions() {
 
   // Apply filters
   const now=new Date()
-  let filtered=[...sessAll]
+  // Hide stale Pending sessions — no GPS samples synced after 7+ days (should have auto-synced
+  // long before then; a session still Pending at that age is effectively dead/orphaned on the
+  // device side). Synced and manually-loaded sessions are never hidden by this rule.
+  const staleCut=new Date(now-7*864e5)
+  let filtered=sessAll.filter(s=>sampledSessionIds.has(s.id)||!s.start_time||new Date(s.start_time)>=staleCut)
   if(F.drvDate==='today'){
     const midnight=new Date(now); midnight.setHours(0,0,0,0)
     filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=midnight)
