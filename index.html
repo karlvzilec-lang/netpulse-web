@@ -3435,7 +3435,7 @@ function computeDriveRules(samples, sess) {
     {label:'Signal Gap',        status:gapPct<5?'pass':gapPct<20?'warn':'fail',  detail:gapPct>0?`${gapPct.toFixed(0)}% pts below −110 dBm · max run: ${maxGapRun}`:'No gaps detected'},
     {label:'Avg RSRP',          status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail', detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm (σ=${rsrpStd!=null?rsrpStd.toFixed(1):'—'})`:'No data'},
     {label:'SINR / Interference',status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail', detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'},
-    {label:'Overlap / Pilot Pollution',status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail', detail:pciDensity!=null?`${uniquePCIs} PCIs · ${pciDensity.toFixed(1)}/km density`:`${uniquePCIs} unique PCIs`},
+    {label:'Overlap / Pilot Pollution',status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail', detail:pciDensity!=null?`${uniquePCIs} unique PCIs · ${pciDensity.toFixed(1)} per km driven`:`${uniquePCIs} unique PCIs`},
     {label:'Congestion',        status:congestPct==null?'warn':congestPct<10?'pass':congestPct<30?'warn':'fail', detail:congestPct!=null?`${congestPct.toFixed(0)}% samples below ${dlThresh.fa} Mbps threshold`:'No DL data'},
     {label:'Poor Handover',     status:(abruptDrops===0&&pingPong===0)?'pass':(abruptDrops>5||pingPong>3)?'fail':'warn', detail:`${abruptDrops} abrupt drops · ${pingPong} ping-pong · ${hoRate!=null?hoRate.toFixed(1)+'/km':'—'}`},
     {label:'Mobility Experience',status:mobScore>=80?'pass':mobScore>=55?'warn':'fail', detail:`Score ${mobScore}/100 — ${mobScore>=80?'Smooth':mobScore>=55?'Some interruptions':'Frequent disruptions'}`},
