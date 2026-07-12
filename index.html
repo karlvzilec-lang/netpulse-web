@@ -1673,14 +1673,16 @@ function initDriveMap() {
   const dmapEl=document.getElementById('dmap')
   if(!webglSupported()){ showMapError('dmap',null,'webgl'); return }
   if(dmapEl)dmapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
-  map = new maplibregl.Map({
-    container:'dmap',
-    style:'https://tiles.openfreemap.org/styles/liberty',
-    center:[104.9282,11.5564],
-    zoom:11,
-    preserveDrawingBuffer:true,
-    antialias:true
-  })
+  try{
+    map = new maplibregl.Map({
+      container:'dmap',
+      style:'https://tiles.openfreemap.org/styles/liberty',
+      center:[104.9282,11.5564],
+      zoom:11,
+      preserveDrawingBuffer:true,
+      antialias:true
+    })
+  }catch(e){ showMapError('dmap', e); return }
   map.addControl(new maplibregl.NavigationControl(),'top-right')
   map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
   map.on('error', e=>showMapError('dmap', e))
@@ -4105,13 +4107,15 @@ function initCovMap(){
   const covMapEl=document.getElementById('cov-map')
   if(!webglSupported()){ showMapError('cov-map',null,'webgl'); return }
   if(covMapEl)covMapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
-  mapCov=new maplibregl.Map({
-    container:'cov-map',
-    style:'https://tiles.openfreemap.org/styles/liberty',
-    center:[104.9282,11.5564], zoom:11,
-    preserveDrawingBuffer:true,
-    antialias:true
-  })
+  try{
+    mapCov=new maplibregl.Map({
+      container:'cov-map',
+      style:'https://tiles.openfreemap.org/styles/liberty',
+      center:[104.9282,11.5564], zoom:11,
+      preserveDrawingBuffer:true,
+      antialias:true
+    })
+  }catch(e){ showMapError('cov-map', e); return }
   mapCov.addControl(new maplibregl.NavigationControl(),'top-right')
   mapCov.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
   mapCov.on('error', e=>showMapError('cov-map', e))
