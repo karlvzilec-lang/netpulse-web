@@ -967,6 +967,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <span class="live-tag">LIVE</span>
         </div>
       </div>
+      <div id="dmap-diag" style="font-size:11px;color:var(--mu);padding:6px 16px;white-space:pre-wrap;font-family:monospace;border-bottom:1px solid var(--bd);display:none"></div>
       <div id="dmap"></div>
       <div class="mleg">
         <span style="font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">RSRP</span>
@@ -1255,6 +1256,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
     <!-- ── Map area ── -->
     <div class="cov-map-ct">
+      <div id="cov-map-diag" style="position:absolute;top:0;left:0;right:0;font-size:11px;color:var(--tx);background:var(--s1);padding:6px 12px;white-space:pre-wrap;font-family:monospace;z-index:20;display:none;border-bottom:1px solid var(--bd)"></div>
       <div id="cov-map"></div>
       <div class="map-pills">
         <div class="mpill" id="cov-stat-drive">0 drive pts</div>
@@ -1667,8 +1669,25 @@ function showMapError(containerId, err, kind){
       : 'Failed to load the basemap tiles. Detail: <span style="color:var(--re)">'+msg+'</span>')+'</div>'
 }
 
+// ── On-page map diagnostics (temporary, no DevTools required) ──
+function writeMapDiag(diagElId){
+  const diagEl=document.getElementById(diagElId); if(!diagEl) return
+  let gl=null, glErr=null
+  try{ const c=document.createElement('canvas'); gl=c.getContext('webgl')||c.getContext('experimental-webgl') }catch(e){ glErr=String(e) }
+  const info={
+    webglBasicSupport: !!gl,
+    webglRenderer: gl ? (()=>{ try{ return gl.getParameter(gl.RENDERER) }catch(e){ return 'err:'+e } })() : null,
+    webglGetContextError: glErr,
+    mapLibreLoaded: typeof maplibregl,
+    userAgent: navigator.userAgent
+  }
+  diagEl.style.display='block'
+  diagEl.textContent='MAP DIAGNOSTIC: '+JSON.stringify(info)
+}
+
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
+  writeMapDiag('dmap-diag')
   if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
   const dmapEl=document.getElementById('dmap')
   if(!webglSupported()){ showMapError('dmap',null,'webgl'); return }
@@ -3013,9 +3032,17 @@ window.pickSess = async function(id) {
   const dur=activeSess.end_time&&activeSess.start_time?Math.round((new Date(activeSess.end_time)-new Date(activeSess.start_time))/60000)+' min':'Active'
   document.getElementById('da-dur').textContent=dur
 
-  const {data,error}=await db.from('drive_samples').select('*').eq('session_id',id).order('sampled_at',{ascending:true})
-  if(error){console.error('drive_samples:',error);return}
-  driveSamples=data||[]
+  // Paginate: Supabase caps every request at 1000 rows, which would silently truncate the
+  // Rule-Based Assessment (PCI density, RSRP stats, etc.) for any session with >1000 GPS points.
+  let _samples=[]
+  for(let from=0; from<=200000; from+=1000){
+    const {data,error}=await db.from('drive_samples').select('*').eq('session_id',id).order('sampled_at',{ascending:true}).range(from,from+999)
+    if(error){console.error('drive_samples:',error);break}
+    if(!data||!data.length) break
+    _samples=_samples.concat(data)
+    if(data.length<1000) break
+  }
+  driveSamples=_samples
   paintMap()
   renderSamples()
   if(driveSamples.length){
@@ -4103,6 +4130,7 @@ function renderCovMap(){
 
 // ── Init coverage map (lazy, on first tab click) ──
 function initCovMap(){
+  writeMapDiag('cov-map-diag')
   if(mapCov){ setTimeout(()=>mapCov.resize(),50); return }
   const covMapEl=document.getElementById('cov-map')
   if(!webglSupported()){ showMapError('cov-map',null,'webgl'); return }
