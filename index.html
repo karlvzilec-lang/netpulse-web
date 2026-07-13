@@ -967,7 +967,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <span class="live-tag">LIVE</span>
         </div>
       </div>
-      <div id="dmap-diag" style="font-size:11px;color:var(--mu);padding:6px 16px;white-space:pre-wrap;font-family:monospace;border-bottom:1px solid var(--bd);display:none"></div>
       <div id="dmap"></div>
       <div class="mleg">
         <span style="font-size:10px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">RSRP</span>
@@ -1256,7 +1255,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
     <!-- ── Map area ── -->
     <div class="cov-map-ct">
-      <div id="cov-map-diag" style="position:absolute;top:0;left:0;right:0;font-size:11px;color:var(--tx);background:var(--s1);padding:6px 12px;white-space:pre-wrap;font-family:monospace;z-index:20;display:none;border-bottom:1px solid var(--bd)"></div>
       <div id="cov-map"></div>
       <div class="map-pills">
         <div class="mpill" id="cov-stat-drive">0 drive pts</div>
@@ -1669,25 +1667,8 @@ function showMapError(containerId, err, kind){
       : 'Failed to load the basemap tiles. Detail: <span style="color:var(--re)">'+msg+'</span>')+'</div>'
 }
 
-// ── On-page map diagnostics (temporary, no DevTools required) ──
-function writeMapDiag(diagElId){
-  const diagEl=document.getElementById(diagElId); if(!diagEl) return
-  let gl=null, glErr=null
-  try{ const c=document.createElement('canvas'); gl=c.getContext('webgl')||c.getContext('experimental-webgl') }catch(e){ glErr=String(e) }
-  const info={
-    webglBasicSupport: !!gl,
-    webglRenderer: gl ? (()=>{ try{ return gl.getParameter(gl.RENDERER) }catch(e){ return 'err:'+e } })() : null,
-    webglGetContextError: glErr,
-    mapLibreLoaded: typeof maplibregl,
-    userAgent: navigator.userAgent
-  }
-  diagEl.style.display='block'
-  diagEl.textContent='MAP DIAGNOSTIC: '+JSON.stringify(info)
-}
-
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
-  writeMapDiag('dmap-diag')
   if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
   const dmapEl=document.getElementById('dmap')
   if(!webglSupported()){ showMapError('dmap',null,'webgl'); return }
@@ -1711,7 +1692,6 @@ function initDriveMap() {
   map.getCanvas().addEventListener('webglcontextrestored',()=>{ map.setStyle(map.getStyle()) },false)
 
   map.on('load',()=>{
-    if(dmapEl)dmapEl.innerHTML=''
     mapReady=true
 
   // Route — RSRP-colored segments (CellMapper style: each 2-pt segment colored by signal strength)
@@ -4130,7 +4110,6 @@ function renderCovMap(){
 
 // ── Init coverage map (lazy, on first tab click) ──
 function initCovMap(){
-  writeMapDiag('cov-map-diag')
   if(mapCov){ setTimeout(()=>mapCov.resize(),50); return }
   const covMapEl=document.getElementById('cov-map')
   if(!webglSupported()){ showMapError('cov-map',null,'webgl'); return }
@@ -4153,7 +4132,6 @@ function initCovMap(){
   mapCov.getCanvas().addEventListener('webglcontextrestored',()=>{ mapCov.setStyle(mapCov.getStyle()) },false)
 
   mapCov.on('load',async()=>{
-    if(covMapEl)covMapEl.innerHTML=''
     mapCovReady=true
 
     // Sources
