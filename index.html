@@ -763,7 +763,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="card">
         <div class="ch">
           <span class="ch-t" role="heading" aria-level="2">RSRP Signal Quality Thresholds</span>
-          <span class="ch-s">ITU / 3GPP TS 36.133 reference</span>
+          <span class="ch-s">Common industry drive-test convention (not an official 3GPP/ITU standard)</span>
         </div>
         <div class="cb" style="padding:0">
           <table class="thresh-tbl">
@@ -1418,7 +1418,7 @@ function normOp(op) {
   return op
 }
 function rsrpColor(v) {
-  if (v==null) return '#8b949e'
+  if (v==null) return 'var(--mu)'
   if (v>=-80)  return '#00e676'
   if (v>=-90)  return '#00bcd4'
   if (v>=-100) return '#ffc107'
@@ -3295,7 +3295,9 @@ function renderDriveRules(samples, sess) {
     vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore
   } = computeDriveRules(samples, sess)
   const dlVals = samples.filter(s=>s.download_mbps!=null).map(s=>s.download_mbps)
-  const rsrpColor=v=>v==null?'var(--mu)':v>=-90?'#00e676':v>=-100?'#ffc107':v>=-110?'#ff9800':'#f44336'
+  // Uses the global rsrpColor() (5-tier, matches the RSRP reference table) — this used to
+  // shadow it with a 4-tier local copy missing the -80 breakpoint, so a -85 dBm reading (B/Good
+  // everywhere else in the app) rendered green/"Excellent" only in this panel.
   document.getElementById('drv-grade-bars').innerHTML=`
     ${Object.entries(grades).map(([g,cnt])=>{
       const pct2=Math.round(cnt/tot*100)
@@ -3366,6 +3368,23 @@ function renderDriveRules(samples, sess) {
 }
 
 // ── Shared drive rule computation (used by renderDriveRules + exportPDF) ──
+// Shared download-speed thresholds by dominant RAT — single source of truth for both the
+// Congestion/Download Speed rules (computeDriveRules) and the PDF issue classifier (exportPDF),
+// which previously each hardcoded their own numbers and disagreed (e.g. 3G: 0.5 Mbps floor in
+// one, 5 Mbps in the other — a 10x mismatch that could call the same sample "fine" in one report
+// and "congested" in the other). 2G now has its own realistic floor instead of being lumped in
+// with 3G (EDGE tops out around 0.2-0.4 Mbps; a 0.5 Mbps "acceptable" bar failed it by physics,
+// not a real problem). Unknown/no RAT data defaults to the 4G bar rather than the harshest one,
+// since penalizing missing metadata as if it were 2G is misleading.
+function dlThresholdFor(domRat) {
+  const r = (domRat||'').toUpperCase()
+  if (r.includes('NR')||r.includes('5G'))              return {go:50, fa:20}
+  if (r.includes('LTE')||r.includes('4G'))              return {go:10, fa:5}
+  if (r.includes('WCDMA')||r.includes('3G')||r.includes('UMTS')||r.includes('HSPA')) return {go:2, fa:1}
+  if (r.includes('GSM')||r.includes('2G')||r.includes('EDGE')||r.includes('GPRS'))   return {go:0.15, fa:0.05}
+  return {go:10, fa:5} // unknown RAT — assume 4G rather than penalizing missing metadata
+}
+
 function computeDriveRules(samples, sess) {
   const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
   const grades={A:0,B:0,C:0,D:0,F:0}
@@ -3381,15 +3400,18 @@ function computeDriveRules(samples, sess) {
   const avgDl  =dlVals.length  ?dlVals.reduce((a,b)=>a+b,0)/dlVals.length:null
   const rsrpP10=pct(rsrpVals,10),rsrpP50=pct(rsrpVals,50),rsrpP90=pct(rsrpVals,90)
   const dlP10=pct(dlVals,10),dlP50=pct(dlVals,50),dlP90=pct(dlVals,90)
-  const abPct=(grades.A+grades.B)/tot*100
+  // Denominator matches the numerator: grades.A/B only ever count samples that HAD an RSRP
+  // reading (rsrpGrade(null) returns '—', never tallied) — using samples.length here silently
+  // discounted the % by counting unmeasurable samples against it without counting them for
+  // anything. Signal Gap below is intentionally different: it treats "no RSRP reading" as itself
+  // evidence of a gap, so its denominator (tot = all samples) is correct as-is.
+  const abPct=(grades.A+grades.B)/(sWithRsrp.length||1)*100
   const distKm=sess.distance_km||0
   const hoRate=distKm>0?(sess.handover_count||0)/distKm:null
   const ratMap={}
   samples.forEach(s=>{if(s.rat)ratMap[s.rat]=(ratMap[s.rat]||0)+1})
   const domRat=(Object.entries(ratMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'').toUpperCase()
-  const is5G=domRat.includes('NR')||domRat.includes('5G')
-  const is4G=domRat.includes('LTE')||domRat.includes('4G')
-  const dlThresh=is5G?{go:50,fa:20}:is4G?{go:10,fa:5}:{go:1,fa:0.5}
+  const dlThresh=dlThresholdFor(domRat)
   let gapRun=0,maxGapRun=0,inGap=false
   const gapPts=samples.filter(s=>{
     const bad=s.rsrp==null||s.rsrp<-110
@@ -3414,7 +3436,10 @@ function computeDriveRules(samples, sess) {
   const gameVals=sWithSinr.map(s=>s.sinr)
   const vidPct=dlVals.length?{excellent:dlVals.filter(v=>v>=15).length/dlVals.length*100,good:dlVals.filter(v=>v>=5&&v<15).length/dlVals.length*100,fair:dlVals.filter(v=>v>=2&&v<5).length/dlVals.length*100,poor:dlVals.filter(v=>v<2).length/dlVals.length*100}:null
   const vidScore=vidPct?Math.round(vidPct.excellent*1+vidPct.good*.75+vidPct.fair*.4):null
-  const gamePct=gameVals.length?{excellent:gameVals.filter(v=>v>=13).length/gameVals.length*100,good:gameVals.filter(v=>v>=5&&v<13).length/gameVals.length*100,fair:gameVals.filter(v=>v>=0&&v<5).length/gameVals.length*100,poor:gameVals.filter(v=>v<0).length/gameVals.length*100}:null
+  // SINR bands aligned with the app's own RSRP/SINR reference table (Excellent>=20, Good 13-20,
+  // Fair 0-13, Poor/Critical <0) — was previously v>=13 "excellent", contradicting the SINR /
+  // Interference rule below which treats 13 dB as merely "pass" (i.e. Good, not Excellent).
+  const gamePct=gameVals.length?{excellent:gameVals.filter(v=>v>=20).length/gameVals.length*100,good:gameVals.filter(v=>v>=13&&v<20).length/gameVals.length*100,fair:gameVals.filter(v=>v>=0&&v<13).length/gameVals.length*100,poor:gameVals.filter(v=>v<0).length/gameVals.length*100}:null
   const gameScore=gamePct?Math.round(gamePct.excellent*1+gamePct.good*.75+gamePct.fair*.4):null
   const voicePct=rsrpVals.length?{excellent:rsrpVals.filter(v=>v>=-90).length/rsrpVals.length*100,good:rsrpVals.filter(v=>v>=-100&&v<-90).length/rsrpVals.length*100,marginal:rsrpVals.filter(v=>v>=-110&&v<-100).length/rsrpVals.length*100,drop:rsrpVals.filter(v=>v<-110).length/rsrpVals.length*100}:null
   const voiceScore=voicePct?Math.round(voicePct.excellent*1+voicePct.good*.75+voicePct.marginal*.3):null
@@ -3435,9 +3460,12 @@ function computeDriveRules(samples, sess) {
   const fails=rules.filter(r=>r.status==='fail').length
   const warns=rules.filter(r=>r.status==='warn').length
   let verdict,vColor,vIcon
+  // FAIR previously only checked fails<=2, ignoring warns entirely — a session with 2 fails,
+  // 9 warns and 1 pass (out of 12 rules) showed the same "FAIR" verdict as 2 fails, 0 warns,
+  // 10 passes. Now also requires most rules to actually be passing (warns<=4, i.e. >=6/12 pass).
   if(fails===0&&warns===0){verdict='EXCELLENT';vColor='#00e676';vIcon='🏆'}
   else if(fails===0&&warns<=2){verdict='GOOD';vColor='#58a6ff';vIcon='✅'}
-  else if(fails<=2){verdict='FAIR';vColor='#ffc107';vIcon='⚠️'}
+  else if(fails<=2&&warns<=4){verdict='FAIR';vColor='#ffc107';vIcon='⚠️'}
   else{verdict='POOR';vColor='#f44336';vIcon='❌'}
   return {rules,fails,warns,verdict,vColor,vIcon,grades,tot,GC,
     avgRsrp,avgSinr,avgDl,rsrpStd,rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
@@ -3496,17 +3524,27 @@ window.exportPDF = async function(sessId) {
     sess=data||null
   }
   if(!sess){showToast('Select a session first');return}
-  // Fetch the COMPLETE sample set. Supabase caps every request at 1000 rows, so a single
-  // query silently truncated long drives (a 3186-sample run only reported on the first 1000).
-  // Paginate with range() until a short page comes back.
+  // Manual/uploaded-CSV sessions live only in the client-side manualSamples array — they're
+  // never written to Supabase, so a session_id='manual' query always returns nothing. Read
+  // manualSamples directly (it persists regardless of which session is currently active) rather
+  // than the old fallback to `driveSamples`, which is only populated for the ACTIVE session —
+  // clicking "Export PDF" on the manual row after switching to a different session silently
+  // exported on zero samples (a near-empty/FAIL report for data that was actually populated).
   let samples=[]
-  for(let from=0; from<=200000; from+=1000){
-    const {data,error}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,from+999)
-    if(error||!data||!data.length) break
-    samples=samples.concat(data)
-    if(data.length<1000) break
+  if(sessId==='manual'){
+    samples=manualSamples
+  } else {
+    // Fetch the COMPLETE sample set. Supabase caps every request at 1000 rows, so a single
+    // query silently truncated long drives (a 3186-sample run only reported on the first 1000).
+    // Paginate with range() until a short page comes back.
+    for(let from=0; from<=200000; from+=1000){
+      const {data,error}=await db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,from+999)
+      if(error||!data||!data.length) break
+      samples=samples.concat(data)
+      if(data.length<1000) break
+    }
+    if(!samples.length && activeSess?.id===sessId) samples=driveSamples
   }
-  if(!samples.length && activeSess?.id===sessId) samples=driveSamples
 
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('p','mm','a4')
@@ -3627,7 +3665,9 @@ window.exportPDF = async function(sessId) {
   const ratCounts={}
   samples.forEach(s=>{if(s.rat)ratCounts[s.rat]=(ratCounts[s.rat]||0)+1})
   const domRat=Object.entries(ratCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'LTE'
-  const conThresh=/NR|5G/.test(domRat)?20:/2G|EDGE|GPRS/.test(domRat)?0.5:5
+  // Same threshold table the on-screen Congestion/Download Speed rules use (dlThresholdFor),
+  // so a sample isn't flagged "Congestion" here while the rule-based assessment calls it fine.
+  const conThresh=dlThresholdFor(domRat).fa
   // LOC_ISSUES = show individual lat/lng row; SUMMARY_ISSUES = count-only in PCI header
   const LOC_ISSUES=new Set(['Coverage Gap','Poor Handover','Ping-Pong'])
   const ISSUE_COLORS={'Coverage Gap':[196,52,28],'Poor Handover':[194,65,12],'Ping-Pong':[37,99,235],'Congestion':[180,83,9],'Overlap':[161,98,7]}
