@@ -1323,11 +1323,19 @@ function npClearBanner(){ const el=document.getElementById('np-banner'); if(el) 
 })()
 
 function h(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+// Missing components used to default to a fixed 50/100 midpoint, which isn't a neutral estimate —
+// it's a hard ceiling (a session with only real download data could never score above ~70 with
+// two of three weights defaulted) and a floor (bad real data got dragged up toward 50). Now
+// renormalizes the 0.4/0.35/0.25 weights over whichever components are actually present, and
+// returns null (insufficient data) only when none of the three were measured at all.
 function computeNetworkHealthScore(dlMbps,avgRsrp,cxScore10){
-  const dlS=dlMbps!=null?Math.min(100,Math.max(0,(dlMbps/50)*100)):50
-  const rsrpS=avgRsrp!=null?Math.min(100,Math.max(0,((avgRsrp+120)/40)*100)):50
-  const cxS=cxScore10!=null?Math.min(100,Math.max(0,cxScore10*10)):50
-  return Math.round(dlS*0.4+rsrpS*0.35+cxS*0.25)
+  const parts=[]
+  if(dlMbps!=null)   parts.push([Math.min(100,Math.max(0,(dlMbps/50)*100)), 0.4])
+  if(avgRsrp!=null)  parts.push([Math.min(100,Math.max(0,((avgRsrp+120)/40)*100)), 0.35])
+  if(cxScore10!=null) parts.push([Math.min(100,Math.max(0,cxScore10*10)), 0.25])
+  if(!parts.length) return null
+  const totalW=parts.reduce((s,[,w])=>s+w,0)
+  return Math.round(parts.reduce((s,[v,w])=>s+v*w,0)/totalW)
 }
 const OP_COLORS={Cellcard:'#FF7900',Metfone:'#DB1A21',Smart:'#009639'}
 const SB_URL = 'https://bauiffaqfboqlqnmxffc.supabase.co'
@@ -1846,22 +1854,27 @@ function renderHealthScore() {
   const dlScore   = Math.min(100, Math.max(0, (avgDl / 50) * 100))
   // RSRP: -80 = 100, -120 = 0
   const rsrpScore = Math.min(100, Math.max(0, ((avgRsrp + 120) / 40) * 100))
-  // CX from OpenSignal (0-100 scale)
+  // CX from OpenSignal (0-100 scale) — cxScore itself stays defaulted-to-50 for the driver-color
+  // badges below (unchanged, pre-existing display behavior); hasCxData tracks whether real CX
+  // data actually exists, so computeNetworkHealthScore gets a true null instead of a pre-defaulted
+  // 50 that would silently defeat its own reweighting logic.
   const os = _dashOs.length ? _dashOs : (filterOs ? filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv}) : [])
-  let cxScore = 50
+  let cxScore = 50, hasCxData = false
   if (os && os.length) {
     const osAvg = col => os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length
     cxScore = (osAvg('video_experience')+osAvg('games_experience')+osAvg('voice_app_experience'))/3
+    hasCxData = true
   }
-  const health = computeNetworkHealthScore(avgDl, avgRsrp, cxScore/10)
+  const health = computeNetworkHealthScore(avgDl, avgRsrp, hasCxData?cxScore/10:null)
   const ring  = document.getElementById('health-ring')
   const num   = document.getElementById('health-score-num')
   const badge = document.getElementById('health-status-badge')
   const drv   = document.getElementById('health-drivers')
   if (!ring) return
-  num.textContent = health
+  num.textContent = health!=null?health:'—'
   let color, label, bg
-  if (health >= 75)      { color='#00e676'; label='GOOD';     bg='rgba(0,230,118,.15)' }
+  if (health==null)      { color='var(--mu)'; label='INSUFFICIENT DATA'; bg='rgba(139,148,158,.15)' }
+  else if (health >= 75)      { color='#00e676'; label='GOOD';     bg='rgba(0,230,118,.15)' }
   else if (health >= 50) { color='#ffc107'; label='FAIR';     bg='rgba(255,193,7,.15)' }
   else                   { color='#f44336'; label='NEEDS ATTENTION'; bg='rgba(244,67,54,.15)' }
   ring.style.borderColor = color
@@ -1974,20 +1987,20 @@ function renderExecBanner() {
   // coverage quality: % of tests with rsrp >= -100 (Good or better)
   const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
 
-  // health score: DL 40%, signal 35%, CX 25%
-  const dlScore=avgDl!=null?Math.min(100,Math.max(0,(avgDl/50)*100)):50
-  const rsrpScore=avgRsrp!=null?Math.min(100,Math.max(0,((avgRsrp+120)/40)*100)):50
-  const cxScoreN=cxScore10!=null?Math.min(100,Math.max(0,cxScore10*10)):50
+  // health score: DL 40%, signal 35%, CX 25% (reweighted over whichever are present — see
+  // computeNetworkHealthScore). avgDl is effectively always present here (nx.length>0 is already
+  // guaranteed by the `if(nx.length)` below and avgOf sums missing fields as 0), so health can't
+  // actually come back null in this branch, but the null guard below is kept as defense-in-depth.
   const health=computeNetworkHealthScore(avgDl, avgRsrp, cxScore10)
 
   const ring=document.getElementById('esb-ring'), banner=document.getElementById('esb-banner')
   const scoreEl=document.getElementById('esb-score'), verdict=document.getElementById('esb-verdict')
   const sub=document.getElementById('esb-sub'), badge=document.getElementById('esb-badge')
   if(!ring||!banner)return
-  scoreEl.textContent=nx.length?health:'—'
+  scoreEl.textContent=(nx.length&&health!=null)?health:'—'
   // 5-band naming aligned with OpenSignal Video Experience model (verified 2-1, Opensignal 2024)
   let cls='esb-neutral', ringColor='var(--bd)', vText='No data', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
-  if(nx.length){
+  if(nx.length&&health!=null){
     if(health>=85){cls='esb-green';ringColor='#00e676';vText='Excellent Network Performance';vSub='All KPIs consistently exceed operational benchmarks';bText='EXCELLENT';bBg='rgba(0,230,118,.2)';bColor='#00e676'}
     else if(health>=70){cls='esb-green';ringColor='#3fb950';vText='Good Network Performance';vSub='KPIs meeting benchmarks with minor optimization opportunities';bText='GOOD';bBg='rgba(63,185,80,.2)';bColor='#3fb950'}
     else if(health>=50){cls='esb-amber';ringColor='#ffc107';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='#ffc107'}
@@ -2233,19 +2246,25 @@ function renderOSMatrix() {
   buildCards(METRICS_OVERALL, 'mxc-grid-overall')
   buildCards(METRICS_CONSISTENCY, 'mxc-grid-consistency')
 
-  // Update health score badge in the score header
+  // Update health score badge in the score header — an independent formula from
+  // computeNetworkHealthScore (measures coverage % and consistent-quality % rather than avg RSRP
+  // and a CX survey score, so it's kept separate rather than merged), but had the same
+  // defaults-missing-inputs-to-50 issue. Now reweights the same 0.4/0.35/0.25 split over whichever
+  // components are actually present, same principle as computeNetworkHealthScore.
   const nx = _dashNx
   const avg = col => nx.length ? nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length : null
   const dl=avg('download_mbps'), rsrps=nx.map(r=>r.rsrp).filter(v=>v!=null)
   const cov=rsrps.length?rsrps.filter(v=>v>=-100).length/rsrps.length*100:null
   const cq=nx.length?nx.filter(r=>{const d=parseFloat(r.download_mbps)||0,u=parseFloat(r.upload_mbps)||0,p=parseFloat(r.ping_ms)||999,rs=r.rsrp??-120;return d>=25&&u>=5&&p<100&&rs>=-100}).length/nx.length*100:null
-  const dlS=dl!=null?Math.min(100,(dl/50)*100):50
-  const covS=cov!=null?Math.min(100,cov):50
-  const cqS=cq!=null?Math.min(100,cq):50
-  const health=Math.round(dlS*0.4+covS*0.35+cqS*0.25)
+  const healthParts=[]
+  if(dl!=null)  healthParts.push([Math.min(100,(dl/50)*100), 0.4])
+  if(cov!=null) healthParts.push([Math.min(100,cov), 0.35])
+  if(cq!=null)  healthParts.push([Math.min(100,cq), 0.25])
+  const healthW=healthParts.reduce((s,[,w])=>s+w,0)
+  const health=healthParts.length?Math.round(healthParts.reduce((s,[v,w])=>s+v*w,0)/healthW):null
   const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
-  if(hn&&nx.length){hn.textContent=health;hn.style.color=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'}
-  if(hb&&nx.length){
+  if(hn&&nx.length){hn.textContent=health!=null?health:'—';hn.style.color=health==null?'var(--mu)':health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'}
+  if(hb&&nx.length&&health!=null){
     const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
     const clr=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
     hb.textContent=lbl;hb.style.background=clr+'22';hb.style.color=clr;hb.style.border='1px solid '+clr+'44'
@@ -3315,7 +3334,12 @@ function renderDriveRules(samples, sess) {
       </div>`
     }).join('')}
     <div style="margin-top:14px;border-top:1px solid var(--bd);padding-top:10px">
-      <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">RSRP Percentile · dBm <span style="font-weight:400;text-transform:none">(ETSI TR 103 559)</span></div>
+      <!-- ETSI TR 103 559 is an application/service-QoE benchmark-scoring document (telephony,
+           video, data throughput, browsing) — confirmed via its own scope text and complete
+           abbreviations list, neither of which mentions RSRP/RF-layer metrics. P10/P50/P90
+           percentile reporting of RSRP is a drive-test industry convention, not something this
+           (or any single) standard formally defines. -->
+      <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">RSRP Percentile · dBm <span style="font-weight:400;text-transform:none">(common industry convention)</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
         <div style="text-align:center;background:var(--s2);border-radius:6px;padding:7px 4px">
           <div style="font-size:9px;color:var(--mu);margin-bottom:3px">P10 · Edge</div>
@@ -3430,10 +3454,31 @@ function computeDriveRules(samples, sess) {
   const pciSet=new Set(samples.map(s=>s.pci).filter(v=>v!=null))
   const uniquePCIs=pciSet.size
   const pciDensity=distKm>0?uniquePCIs/distKm:null
+  // Time-windowed handover detection — GPS/RF logging interval is device-controlled, not
+  // guaranteed uniform (real sessions show gaps of 10-16s even when the median is ~1s). The
+  // previous version used raw array-index adjacency, so a gradual decline spanning a logging gap
+  // could misread as an "abrupt" handover, and index-window ping-pong detection could mis-fire at
+  // non-uniform rates. Matches 3GPP SON-style ping-pong detection (TS 32.500-series), which is
+  // defined by a TIME threshold (handback within Ttp seconds), not a sample count.
   let abruptDrops=0,pingPong=0
+  const MAX_GAP_SEC=15        // ignore RSRP deltas spanning more than this — likely a genuine gradual change across a logging gap, not a real handover-triggering drop
+  const PING_PONG_WINDOW_SEC=8 // handback to a PCI last seen within this many seconds, with a different PCI serving in between
+  const tOf=s=>s.sampled_at?new Date(s.sampled_at).getTime():null
   for(let i=1;i<samples.length;i++){
-    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null&&samples[i-1].rsrp-samples[i].rsrp>12)abruptDrops++
-    if(i>1&&samples[i].pci&&samples[i-2].pci&&samples[i-1].pci&&samples[i].pci===samples[i-2].pci&&samples[i].pci!==samples[i-1].pci)pingPong++
+    const tI=tOf(samples[i]), tPrev=tOf(samples[i-1])
+    const gapSec=(tI!=null&&tPrev!=null)?(tI-tPrev)/1000:null
+    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null&&samples[i-1].rsrp-samples[i].rsrp>12&&(gapSec==null||gapSec<=MAX_GAP_SEC))abruptDrops++
+    if(samples[i].pci!=null&&tI!=null){
+      let sawDifferent=false
+      for(let k=i-1;k>=0;k--){
+        const tK=tOf(samples[k])
+        if(tK==null||(tI-tK)/1000>PING_PONG_WINDOW_SEC) break
+        if(samples[k].pci==null) continue
+        if(samples[k].pci!==samples[i].pci){ sawDifferent=true; continue }
+        if(sawDifferent) pingPong++
+        break
+      }
+    }
   }
   const congestPct=dlVals.length?dlVals.filter(v=>v<dlThresh.fa).length/dlVals.length*100:null
   const rsrpMean=avgRsrp||0
