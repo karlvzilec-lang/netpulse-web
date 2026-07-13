@@ -3235,8 +3235,12 @@ function renderMetadataAnalysis(sess) {
   }
   if (ho > 0 && km > 0) {
     const hoPer = ho / km
-    if (hoPer > 3)   rules.push({ok:false, txt:`High handover rate (${hoRate}/km) — poor cell planning on route`})
-    else if (hoPer > 1.5) rules.push({ok:null, txt:`Moderate handovers (${hoRate}/km) — acceptable for urban route`})
+    // Aligned with mobScore's embedded handover-rate cutoffs (>4 severe, >2 moderate) used when
+    // full GPS samples are available — this metadata-only fallback previously used different
+    // numbers (>3, >1.5), so the same drive could be judged by two different bars depending on
+    // whether its GPS route had finished syncing yet.
+    if (hoPer > 4)   rules.push({ok:false, txt:`High handover rate (${hoRate}/km) — poor cell planning on route`})
+    else if (hoPer > 2) rules.push({ok:null, txt:`Moderate handovers (${hoRate}/km) — acceptable for urban route`})
     else             rules.push({ok:true,  txt:`Low handover rate (${hoRate}/km) — stable cell coverage`})
   }
   if (!rules.length) rules.push({ok:null, txt:'Insufficient metadata for rule assessment'})
@@ -3287,7 +3291,7 @@ function renderDriveRules(samples, sess) {
 
   // Grade distribution
   const {rules,fails,warns,verdict:_v,vColor:_vc,vIcon:_vi,
-    grades,tot,GC,avgRsrp,avgSinr,avgDl,rsrpStd,
+    grades,tot,GC,avgRsrp,avgSinr,avgDl,rsrpStd,lowSampleCount,
     rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
     abPct,distKm,hoRate,domRat,dlThresh,
     gapPct,maxGapRun,uniquePCIs,pciDensity,
@@ -3364,7 +3368,9 @@ function renderDriveRules(samples, sess) {
   document.getElementById('drv-verdict-icon').textContent=_vi
   document.getElementById('drv-verdict-label').textContent=_v
   document.getElementById('drv-verdict-label').style.color=_vc
-  document.getElementById('drv-verdict-sub').textContent=`${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
+  document.getElementById('drv-verdict-sub').textContent=lowSampleCount
+    ? `⚠ Only ${samples.length} sample${samples.length!==1?'s':''} — too few for a reliable verdict`
+    : `${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
 }
 
 // ── Shared drive rule computation (used by renderDriveRules + exportPDF) ──
@@ -3448,7 +3454,10 @@ function computeDriveRules(samples, sess) {
     {label:'Signal Gap',        status:gapPct<5?'pass':gapPct<20?'warn':'fail',  detail:gapPct>0?`${gapPct.toFixed(0)}% pts below −110 dBm · max run: ${maxGapRun}`:'No gaps detected'},
     {label:'Avg RSRP',          status:avgRsrp==null?'warn':avgRsrp>=-90?'pass':avgRsrp>=-100?'warn':'fail', detail:avgRsrp!=null?`${avgRsrp.toFixed(0)} dBm (σ=${rsrpStd!=null?rsrpStd.toFixed(1):'—'})`:'No data'},
     {label:'SINR / Interference',status:avgSinr==null?'warn':avgSinr>=13?'pass':avgSinr>=0?'warn':'fail', detail:avgSinr!=null?`${avgSinr.toFixed(1)} dB avg`:'No data'},
-    {label:'Overlap / Pilot Pollution',status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail', detail:pciDensity!=null?`${uniquePCIs} unique PCIs · ${pciDensity.toFixed(1)} per km driven`:`${uniquePCIs} unique PCIs`},
+    // "Pilot pollution" is a CDMA/UMTS-era term (excessive overlapping pilot/common-pilot-channel
+    // signal); LTE/NR has no pilot channel in that sense. Relabeled for accuracy — this metric is
+    // cell-overlap/PCI-confusion, the modern equivalent concept.
+    {label:'Cell Overlap (PCI Confusion)',status:pciDensity==null?'warn':pciDensity<=3?'pass':pciDensity<=6?'warn':'fail', detail:pciDensity!=null?`${uniquePCIs} unique PCIs · ${pciDensity.toFixed(1)} per km driven`:`${uniquePCIs} unique PCIs`},
     {label:'Congestion',        status:congestPct==null?'warn':congestPct<10?'pass':congestPct<30?'warn':'fail', detail:congestPct!=null?`${congestPct.toFixed(0)}% samples below ${dlThresh.fa} Mbps threshold`:'No DL data'},
     {label:'Poor Handover',     status:(abruptDrops===0&&pingPong===0)?'pass':(abruptDrops>5||pingPong>3)?'fail':'warn', detail:`${abruptDrops} abrupt drops · ${pingPong} ping-pong · ${hoRate!=null?hoRate.toFixed(1)+'/km':'—'}`},
     {label:'Mobility Experience',status:mobScore>=80?'pass':mobScore>=55?'warn':'fail', detail:`Score ${mobScore}/100 — ${mobScore>=80?'Smooth':mobScore>=55?'Some interruptions':'Frequent disruptions'}`},
@@ -3467,7 +3476,11 @@ function computeDriveRules(samples, sess) {
   else if(fails===0&&warns<=2){verdict='GOOD';vColor='#58a6ff';vIcon='✅'}
   else if(fails<=2&&warns<=4){verdict='FAIR';vColor='#ffc107';vIcon='⚠️'}
   else{verdict='POOR';vColor='#f44336';vIcon='❌'}
-  return {rules,fails,warns,verdict,vColor,vIcon,grades,tot,GC,
+  // A 1-2 point session can mathematically hit 100% pass / EXCELLENT — same visual confidence
+  // (trophy icon) as a full multi-km drive. Flag it so callers can show a caveat rather than
+  // silently trusting percentages computed from almost no data.
+  const lowSampleCount = samples.length < 10
+  return {rules,fails,warns,verdict,vColor,vIcon,grades,tot,GC,lowSampleCount,
     avgRsrp,avgSinr,avgDl,rsrpStd,rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
     abPct,distKm,hoRate,domRat,dlThresh,gapPct,maxGapRun,uniquePCIs,pciDensity,
     abruptDrops,pingPong,congestPct,mobScore,vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore}
@@ -3657,8 +3670,11 @@ window.exportPDF = async function(sessId) {
   doc.roundedRect(M,yy,CW,13,1.5,1.5,'FD')
   doc.setTextColor(...vc); doc.setFont('helvetica','bold'); doc.setFontSize(12)
   T(`VERDICT: ${dr.verdict}`,M+5,yy+8.2)
-  doc.setTextColor(...SUB); doc.setFont('helvetica','normal'); doc.setFontSize(7.5)
-  T(`${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,W-M-5,yy+8.2,{align:'right'})
+  doc.setTextColor(...(dr.lowSampleCount?BAD:SUB)); doc.setFont('helvetica','normal'); doc.setFontSize(7.5)
+  T(dr.lowSampleCount
+    ? `Only ${samples.length} sample${samples.length!==1?'s':''} - too few for a reliable verdict`
+    : `${dr.fails} issue${dr.fails!==1?'s':''} · ${dr.warns} warning${dr.warns!==1?'s':''} · ${samples.length} samples`,
+    W-M-5,yy+8.2,{align:'right'})
   yy+=19
 
   // Classify all samples for network issues (no experience KPI)
