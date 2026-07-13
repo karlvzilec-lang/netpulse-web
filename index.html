@@ -1400,12 +1400,10 @@ window.goPage = function(tbodyId, newPage, wrapId) {
 
 // Active filters
 const F = {
-  // Dashboard
+  // Dashboard — also drives Network Detail and Customer Experience via the global filter bar
   dDate:'ytd', dOp:'Cellcard', dTech:'all', dCov:'all', dProv:'all',
-  // Network
-  nOp:'all', nTech:'all', nProv:'all',
-  // CX
-  cCov:'all', cTech:'all', cOp:'all', cProv:'all',
+  // CX — local "Type" filter only (operator/tech/province come from the global bar above)
+  cCov:'all',
   // Drive Test
   drvDate:'all', drvFrom:null, drvTo:null, drvOp:'all', drvDevice:'all',
 }
@@ -1529,6 +1527,15 @@ function filterCx(data, {date,cov,tech,op,prov}={}) {
       if (cov==='broadband'&&c.includes('mobile')) return false
     }
     if (prov&&prov!=='all'&&r.province!==prov) return false
+    return true
+  })
+}
+// gaming_latency_tests rows carry no rat/province field, only operator + tested_at —
+// so only those two dimensions of the global filter bar apply here.
+function filterGaming(data, {date,op}={}) {
+  return data.filter(r=>{
+    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
+    if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
     return true
   })
 }
@@ -1896,7 +1903,7 @@ function renderKPIs() {
   const re = document.getElementById('k-rsrp')
   re.textContent=n(ar,0); re.style.color=rsrpColor(ar)
   document.getElementById('k-sess').textContent = sessAll.length.toLocaleString()
-  document.getElementById('k-cx').textContent   = osAll.length.toLocaleString()
+  document.getElementById('k-cx').textContent   = _dashOs.length.toLocaleString()
   const cut=new Date(Date.now()-86400000).toISOString()
   const devs=new Set(nx.filter(r=>r.tested_at>cut).map(r=>r.device_id))
   document.getElementById('k-dev').textContent = devs.size
@@ -2601,7 +2608,8 @@ function renderNetwork() {
       <td style="color:var(--mu)">${h(r.indoor_outdoor)||'—'}</td>
     </tr>`)
 
-  paginate('tb-gaming', gamingAll, r=>`
+  const gaming=filterGaming(gamingAll,{date:F.dDate,op:F.dOp})
+  paginate('tb-gaming', gaming, r=>`
     <tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -3709,7 +3717,7 @@ function populateProvinces() {
     const existing=new Set([...sel.options].map(o=>o.value))
     provs.forEach(p=>{if(!existing.has(p)){const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o)}})
   }
-  addOpts('dd-prov'); addOpts('nd-prov'); addOpts('cx-prov')
+  addOpts('dd-prov')
 }
 
 // ── Connection status ─────────────────────────────
@@ -3734,7 +3742,7 @@ function refreshDash() {
   _dashOpOs = {Cellcard:_dashOs.filter(r=>r._op==='Cellcard'), Metfone:_dashOs.filter(r=>r._op==='Metfone'), Smart:_dashOs.filter(r=>r._op==='Smart')}
   const _allNx = F.dOp==='all' ? _dashNx : filterNx(nxAll, {date:F.dDate, op:'all', tech:F.dTech, prov:F.dProv})
   _dashAllOpNx = {Cellcard:_allNx.filter(r=>r._op==='Cellcard'), Metfone:_allNx.filter(r=>r._op==='Metfone'), Smart:_allNx.filter(r=>r._op==='Smart')}
-  const _allOs = filterOs(osAll, {date:F.dDate})
+  const _allOs = filterOs(osAll, {date:F.dDate, tech:F.dTech, prov:F.dProv, cov:F.dCov})
   _dashAllOpOs = {Cellcard:_allOs.filter(r=>r._op==='Cellcard'), Metfone:_allOs.filter(r=>r._op==='Metfone'), Smart:_allOs.filter(r=>r._op==='Smart')}
   // Frame 1: above-fold exec content (visible immediately)
   // Health banner is handled by renderHealthScore() called inside renderKPIs()
@@ -4098,13 +4106,29 @@ function renderCovMap(){
   mapCov.getSource('cov-routes').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : {type:'FeatureCollection',features:routeFeats})
   mapCov.getSource('cov-hex').setData(show==='drive'  ? {type:'FeatureCollection',features:[]} : hexGJ)
 
+  // Towers carry a real operator + radio(tech) property (Cellcard/Metfone/Smart, NR/LTE/…) —
+  // apply the same Operator/Tech filter used for drive samples. Resellers are Cellcard's own
+  // fixed retail footprint (single KMZ, no operator dimension in the data), so they're not
+  // filtered by CF.op — there's nothing to filter.
+  const towerFeats=covTowersGJ.features.filter(f=>{
+    if(CF.op&&CF.op!=='all'&&f.properties.operator!==CF.op) return false
+    if(CF.tech&&CF.tech!=='all'){
+      const r=(f.properties.radio||'').toUpperCase()
+      if(CF.tech==='5g'&&!r.includes('NR')&&!r.includes('5G')) return false
+      if(CF.tech==='4g'&&!r.includes('LTE')&&!r.includes('4G')) return false
+      if(CF.tech==='3g'&&!r.includes('WCDMA')&&!r.includes('3G')) return false
+    }
+    return true
+  })
+  if(mapCovReady) mapCov.getSource('cov-towers').setData({type:'FeatureCollection',features:towerFeats})
+
   // Push resellers (static — only updated by loadSitesFromSupabase)
   if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
 
   // Stats
   document.getElementById('cov-stat-drive').textContent=driveRows.length+' drive pts'
   document.getElementById('cov-stat-exp').textContent=hexGJ.features.length+' hexbins'
-  document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
+  document.getElementById('cov-stat-towers').textContent=towerFeats.length+' towers'
   document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
 }
 
