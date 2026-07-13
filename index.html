@@ -958,86 +958,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
 <!-- ══════════════ DRIVE TEST ══════════════ -->
 <div class="tp" id="tp-drv">
-
-  <!-- Overview / Sessions toggle -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-    <div class="view-toggle">
-      <button class="vt-btn on" data-drvview="overview" onclick="setDrvView('overview')">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v2H2V3zm0 4h8v2H2V7zm0 4h5v2H2v-2z"/></svg>
-        Overview
-      </button>
-      <button class="vt-btn" data-drvview="sessions" onclick="setDrvView('sessions')">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6" r="1.2"/><path d="M8 10v6"/></svg>
-        Sessions
-      </button>
-    </div>
-    <span style="font-size:11px;color:var(--mu)">Overview: aggregate KPIs across all completed drive tests &nbsp;·&nbsp; Sessions: route map &amp; per-drive analysis</span>
-  </div>
-
-  <!-- ── Drive Test Overview — aggregate KPIs ── -->
-  <div id="drv-overview">
-    <div class="fbar" style="margin:0 0 20px">
-      <div class="fbar-group">
-        <span class="fbar-label">Group By</span>
-        <button class="fchip on" data-drv-period="week" onclick="setDrvPeriod('week')">Weekly</button>
-        <button class="fchip" data-drv-period="month" onclick="setDrvPeriod('month')">Monthly</button>
-        <button class="fchip" data-drv-period="quarter" onclick="setDrvPeriod('quarter')">Quarterly</button>
-        <button class="fchip" data-drv-period="year" onclick="setDrvPeriod('year')">Annual</button>
-      </div>
-    </div>
-
-    <div class="kgrid">
-      <div class="kcard kc-pu">
-        <div class="kcard-lbl">Completed Drive Tests</div>
-        <div class="kcard-val" id="dov-count">—</div>
-        <div class="kcard-unit">sessions with recorded metrics</div>
-      </div>
-      <div class="kcard kc-gr">
-        <div class="kcard-lbl">Total Distance</div>
-        <div class="kcard-val" id="dov-dist">—</div>
-        <div class="kcard-unit">km driven</div>
-      </div>
-      <div class="kcard kc-bl">
-        <div class="kcard-lbl">Avg Download Speed</div>
-        <div class="kcard-val" id="dov-dl">—</div>
-        <div class="kcard-unit">Mbps</div>
-      </div>
-      <div class="kcard kc-bl">
-        <div class="kcard-lbl">Avg Signal (RSRP)</div>
-        <div class="kcard-val" id="dov-rsrp">—</div>
-        <div class="kcard-unit">dBm</div>
-      </div>
-      <div class="kcard kc-yw">
-        <div class="kcard-lbl">Avg Handovers</div>
-        <div class="kcard-val" id="dov-ho">—</div>
-        <div class="kcard-unit">per session</div>
-      </div>
-      <div class="kcard kc-cy">
-        <div class="kcard-lbl">Composite Health Score</div>
-        <div class="kcard-val" id="dov-health">—</div>
-        <div class="kcard-unit">/ 100</div>
-      </div>
-    </div>
-
-    <div class="g g2">
-      <div class="card">
-        <div class="ch"><span class="ch-t" role="heading" aria-level="2">Experience Trend</span><span class="ch-s" id="dov-trend-lbl">Weekly</span></div>
-        <div class="cb"><div class="chart-h" style="height:260px"><canvas id="ch-dov-trend"></canvas></div></div>
-      </div>
-      <div class="card">
-        <div class="ch"><span class="ch-t" role="heading" aria-level="2">By Operator</span></div>
-        <div class="cb"><div id="dov-op-cards" class="op-cards"><div class="empty" style="padding:20px;text-align:center;color:var(--mu);font-size:12px">Loading…</div></div></div>
-      </div>
-    </div>
-
-    <div class="card mb">
-      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Period Breakdown</span><span class="ch-s" id="dov-period-lbl">Weekly</span></div>
-      <div class="tw"><table><thead><tr><th scope="col">Period</th><th class="r">Sessions</th><th class="r">Distance (km)</th><th class="r">Avg DL (Mbps)</th><th class="r">Avg RSRP (dBm)</th><th class="r">Avg Handovers</th><th class="r">Health Score</th></tr></thead><tbody id="tb-dov-periods"></tbody></table></div>
-    </div>
-  </div>
-
-  <!-- ── Drive Test Sessions — route map, session list, per-drive analysis ── -->
-  <div id="drv-sessions-view" style="display:none">
   <div class="g gmap mb">
     <div class="card">
       <div class="ch">
@@ -1154,7 +1074,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
     <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
-  </div><!-- /drv-sessions-view -->
 </div>
 
 <!-- ══════════════ COVERAGE MAP ══════════════ -->
@@ -1729,9 +1648,6 @@ const chHourly = mk('ch-hourly','bar',{labels:Array.from({length:24},(_,i)=>i),d
 // CX charts
 const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
 const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[],backgroundColor:'rgba(63,185,80,.7)'},{label:'Games XP',data:[],backgroundColor:'rgba(88,166,255,.7)'},{label:'Voice XP',data:[],backgroundColor:'rgba(163,113,247,.7)'}]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
-
-// Drive Test Overview — aggregate health-score trend across completed sessions
-const chDovTrend = mk('ch-dov-trend','bar',{labels:[],datasets:[{label:'Health Score',data:[],backgroundColor:'rgba(88,166,255,.7)',borderRadius:3}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
 // ── Map diagnostics — surface WebGL / tile failures instead of a blank box ──
 function webglSupported(){
@@ -2854,122 +2770,6 @@ function opLogoSpan(opName,opColor){
   return `<span class="sess-stat" style="color:${opColor};display:inline-flex;align-items:center;gap:4px">${img}<span style="font-size:10px">${h(opName)}</span></span>`
 }
 
-// ── Drive Test Overview — aggregate KPIs across all completed drive tests ──
-let allDriveSessions=null, drvOverviewPeriod='week', drvView='overview'
-
-// Fetches ALL drive_sessions rows (not the 100-row window used for the session list),
-// paginated past Supabase's 1000-row-per-request cap, so weekly/monthly/quarterly/annual
-// rollups aren't silently truncated. Cached after first load; realtime inserts append to it.
-async function fetchAllDriveSessions(){
-  if(allDriveSessions) return allDriveSessions
-  let rows=[]
-  for(let from=0; from<=200000; from+=1000){
-    const {data,error}=await db.from('drive_sessions').select('*').order('start_time',{ascending:true}).range(from,from+999)
-    if(error){ console.error('drive_sessions (overview):',error); break }
-    if(!data||!data.length) break
-    rows=rows.concat(data)
-    if(data.length<1000) break
-  }
-  allDriveSessions=rows
-  return rows
-}
-
-function drvPeriodKey(dateStr, granularity){
-  const d=new Date(dateStr)
-  if(granularity==='week'){
-    const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()))
-    const dow=(dt.getUTCDay()+6)%7 // Mon=0..Sun=6
-    dt.setUTCDate(dt.getUTCDate()-dow)
-    return dt.toISOString().slice(0,10)
-  }
-  if(granularity==='month') return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
-  if(granularity==='quarter') return d.getFullYear()+'-Q'+(Math.floor(d.getMonth()/3)+1)
-  return String(d.getFullYear())
-}
-function drvPeriodLabel(key, granularity){
-  if(granularity==='week'){ const [y,m,day]=key.split('-').map(Number); return new Date(y,m-1,day).toLocaleDateString('en-US',{month:'short',day:'numeric'}) }
-  if(granularity==='month'){ const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short',year:'2-digit'}) }
-  return key
-}
-const drvPeriodLabels={week:'Weekly',month:'Monthly',quarter:'Quarterly',year:'Annual'}
-
-function setDrvPeriod(p){
-  drvOverviewPeriod=p
-  document.querySelectorAll('[data-drv-period]').forEach(b=>b.classList.toggle('on', b.dataset.drvPeriod===p))
-  renderDriveOverview()
-}
-
-function setDrvView(v){
-  drvView=v
-  document.querySelectorAll('[data-drvview]').forEach(b=>b.classList.toggle('on', b.dataset.drvview===v))
-  document.getElementById('drv-overview').style.display = v==='overview' ? 'block' : 'none'
-  document.getElementById('drv-sessions-view').style.display = v==='sessions' ? 'block' : 'none'
-  if(v==='overview') renderDriveOverview()
-  else setTimeout(()=>{ initDriveMap(); if(!activeSess) autoPickDriveSession() },80)
-}
-
-async function renderDriveOverview(){
-  const rows=await fetchAllDriveSessions()
-  // "Complete" = the Android app recorded at least one metric at session completion,
-  // regardless of whether the GPS route itself has finished syncing to Supabase.
-  const complete=rows.filter(s=>s.avg_rsrp!=null||s.distance_km!=null||s.avg_download_mbps!=null)
-  const avgOf=(arr,key)=>{ const v=arr.filter(s=>s[key]!=null).map(s=>s[key]); return v.length?v.reduce((a,b)=>a+b,0)/v.length:null }
-
-  document.getElementById('dov-count').textContent=complete.length.toLocaleString()
-  document.getElementById('dov-dist').textContent=n(complete.reduce((a,s)=>a+(s.distance_km||0),0),1)
-  const avgDl=avgOf(complete,'avg_download_mbps'), avgRsrp=avgOf(complete,'avg_rsrp'), avgHo=avgOf(complete,'handover_count')
-  document.getElementById('dov-dl').textContent=avgDl!=null?n(avgDl,1):'—'
-  document.getElementById('dov-rsrp').textContent=avgRsrp!=null?n(avgRsrp,0):'—'
-  document.getElementById('dov-ho').textContent=avgHo!=null?n(avgHo,1):'—'
-  document.getElementById('dov-health').textContent=complete.length?computeNetworkHealthScore(avgDl,avgRsrp,null):'—'
-
-  // Bucket into the selected period granularity
-  const g=drvOverviewPeriod
-  const buckets=new Map()
-  complete.forEach(s=>{
-    if(!s.start_time) return
-    const key=drvPeriodKey(s.start_time,g)
-    if(!buckets.has(key)) buckets.set(key,[])
-    buckets.get(key).push(s)
-  })
-  const trend=[...buckets.keys()].sort().map(k=>{
-    const arr=buckets.get(k)
-    const dlAvg=avgOf(arr,'avg_download_mbps'), rsrpAvg=avgOf(arr,'avg_rsrp'), hoAvg=avgOf(arr,'handover_count')
-    return {label:drvPeriodLabel(k,g),count:arr.length,dist:arr.reduce((a,s)=>a+(s.distance_km||0),0),dlAvg,rsrpAvg,hoAvg,health:computeNetworkHealthScore(dlAvg,rsrpAvg,null)}
-  })
-
-  document.getElementById('dov-trend-lbl').textContent=drvPeriodLabels[g]
-  document.getElementById('dov-period-lbl').textContent=drvPeriodLabels[g]
-  if(chDovTrend){ chDovTrend.data.labels=trend.map(t=>t.label); chDovTrend.data.datasets[0].data=trend.map(t=>t.health); chDovTrend.update('none') }
-
-  const tb=document.getElementById('tb-dov-periods')
-  if(tb) tb.innerHTML=trend.length ? trend.slice().reverse().map(t=>`
-    <tr>
-      <td>${h(t.label)}</td>
-      <td class="r">${t.count}</td>
-      <td class="r">${n(t.dist,1)}</td>
-      <td class="r">${t.dlAvg!=null?n(t.dlAvg,1):'—'}</td>
-      <td class="r">${t.rsrpAvg!=null?n(t.rsrpAvg,0):'—'}</td>
-      <td class="r">${t.hoAvg!=null?n(t.hoAvg,1):'—'}</td>
-      <td class="r">${t.health}</td>
-    </tr>`).join('') : ''
-
-  const opEl=document.getElementById('dov-op-cards')
-  if(opEl){
-    const cards=['Cellcard','Metfone','Smart'].map(op=>{
-      const opRows=complete.filter(s=>normOp(s.operator)===op)
-      if(!opRows.length) return ''
-      const dl=avgOf(opRows,'avg_download_mbps'), rs=avgOf(opRows,'avg_rsrp')
-      return `<div class="op-card">
-        <div style="font-weight:700;color:${OP_COLORS[op]}">${op}</div>
-        <div style="font-size:11px;color:var(--mu);margin:2px 0 6px">${opRows.length} session${opRows.length!==1?'s':''}</div>
-        <div style="font-size:11px">DL ${dl!=null?n(dl,1):'—'} Mbps &nbsp;·&nbsp; RSRP ${rs!=null?n(rs,0):'—'} dBm</div>
-      </div>`
-    }).filter(Boolean).join('')
-    opEl.innerHTML = cards || '<div class="empty" style="padding:20px;text-align:center;color:var(--mu);font-size:12px">No operator data for completed sessions</div>'
-  }
-}
-
 function renderSessions() {
   const el=document.getElementById('sess-list')
 
@@ -4029,11 +3829,8 @@ function setupRealtime() {
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_sessions'},p=>{
       sessAll.unshift(p.new)
-      if(allDriveSessions) allDriveSessions.push(p.new)
       refreshDash()         // keeps k-sess KPI in sync
-      renderSessions()
-      if(drvView==='overview') renderDriveOverview()
-      touch()
+      renderSessions(); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_samples'},p=>{
       // Drive Test tab: update active session map + table
@@ -4081,7 +3878,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
   // Global filter bar is only relevant to the three analytics tabs
   const gf=document.getElementById('gfbar'); if(gf) gf.style.display=['dash','net','cx'].includes(b.dataset.tab)?'flex':'none'
-  if(b.dataset.tab==='drv') setDrvView(drvView)
+  if(b.dataset.tab==='drv') setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
   if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
   history.pushState({tab:b.dataset.tab},'','#'+b.dataset.tab)
 }))
