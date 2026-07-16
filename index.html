@@ -4137,7 +4137,7 @@ function filterCovDrive(){
     if(!s.latitude||!s.longitude) return false
     if(CF.op!=='all'&&normOp(s.operator)!==CF.op) return false
     if(CF.device!=='all'&&s.device_id!==CF.device) return false
-    if(CF.prov!=='all'&&(s.province||'')!==CF.prov) return false
+    // drive_samples has no province column (device GPS only) — cannot be province-filtered, so it's left unfiltered by CF.prov
     if(CF.tech!=='all'){
       const r=(s.rat||'').toUpperCase()
       if(CF.tech==='5g'&&!r.includes('NR')&&!r.includes('5G')) return false
@@ -4453,11 +4453,19 @@ function initCovMap(){
       mapCov.on('mouseleave',id,()=>mapCov.getCanvas().style.cursor='')
     })
 
-    // Load drive samples for coverage map
-    const {data:ds}=await db.from('drive_samples')
-      .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id,province')
-      .order('sampled_at',{ascending:false}).limit(3000)
-    covDriveSamples=ds||[]
+    // Load drive samples for coverage map (most recent 3000).
+    // Supabase caps every request at 1000 rows, so this pages with range() rather than
+    // relying on .limit(3000) alone, which would silently return only the first 1000.
+    covDriveSamples=[]
+    for(let from=0; from<3000; from+=1000){
+      const {data:ds,error:dsErr}=await db.from('drive_samples')
+        .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id')
+        .order('sampled_at',{ascending:false}).range(from,from+999)
+      if(dsErr){console.error('Coverage Map drive_samples load failed:',dsErr);break}
+      if(!ds||!ds.length) break
+      covDriveSamples=covDriveSamples.concat(ds)
+      if(ds.length<1000) break
+    }
 
     // Populate province + device dropdowns from actual data
     populateCovProvinces()
