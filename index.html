@@ -1600,8 +1600,8 @@ window.goPage = function(tbodyId, newPage, wrapId) {
     'tb-recent': ()=>renderRecent(),
     'tb-net':    ()=>renderNetwork(),
     'tb-gaming': ()=>renderNetwork(),
-    'tb-os':     ()=>paginate('tb-os',_cxOsRows,r=>{const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—';return`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${r.technology||'—'}</td><td><span class="badge buk">${r.test_mode||'—'}</span></td><td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td><td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td><td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td><td style="color:var(--cy)">${cq}</td><td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td><td style="color:var(--bl)">${n(r.download_speed_mbps)}</td><td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td><td>${r.province||'—'}</td></tr>`}),
-    'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,r=>`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${r.technology||'—'}</td><td><span class="badge buk">${r.coverage_type||'—'}</span></td><td style="color:var(--gr)">${r.video_xp_score??'—'}</td><td style="color:var(--bl)">${r.gaming_xp_score??'—'}</td><td style="color:var(--pu)">${r.voiceapp_xp_score??'—'}</td><td>${r.dl_speed_score??'—'}</td><td>${r.ul_speed_score??'—'}</td><td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td><td>${r.province||'—'}</td></tr>`),
+    'tb-os':     ()=>paginate('tb-os',_cxOsRows,r=>{const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—';return`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${h(r.technology)||'—'}</td><td><span class="badge buk">${h(r.test_mode)||'—'}</span></td><td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td><td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td><td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td><td style="color:var(--cy)">${cq}</td><td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td><td style="color:var(--bl)">${n(r.download_speed_mbps)}</td><td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td><td>${h(r.province)||'—'}</td></tr>`}),
+    'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,r=>`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${h(r.technology)||'—'}</td><td><span class="badge buk">${h(r.coverage_type)||'—'}</span></td><td style="color:var(--gr)">${r.video_xp_score??'—'}</td><td style="color:var(--bl)">${r.gaming_xp_score??'—'}</td><td style="color:var(--pu)">${r.voiceapp_xp_score??'—'}</td><td>${r.dl_speed_score??'—'}</td><td>${r.ul_speed_score??'—'}</td><td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td><td>${h(r.province)||'—'}</td></tr>`),
     'tb-samples':()=>{ if(activeSess) selectSession(activeSess.id) },
   }
   if(rerender[tbodyId]) rerender[tbodyId]()
@@ -1624,7 +1624,7 @@ function normOp(op) {
   if (l.includes('cellcard')) return 'Cellcard'
   if (l.includes('metfone'))  return 'Metfone'
   if (l.includes('smart'))    return 'Smart'
-  return op
+  return h(op)   // unrecognized operator strings are rendered as-is elsewhere in the app, so escape here at the source
 }
 function rsrpColor(v) {
   if (v==null) return 'var(--mu)'
@@ -1657,7 +1657,7 @@ function ratBadge(rat) {
   if (r.includes('LTE')||r.includes('4G'))      return '<span class="badge b4g">4G LTE</span>'
   if (r.includes('WCDMA')||r.includes('3G')||r.includes('UMTS')) return '<span class="badge b3g">3G</span>'
   if (r.includes('GSM')||r.includes('2G')||r.includes('EDGE'))   return '<span class="badge b2g">2G</span>'
-  return `<span class="badge buk">${rat}</span>`
+  return `<span class="badge buk">${h(rat)}</span>`
 }
 function scoreBand(v) {
   if (v==null||isNaN(v)) return {label:'—',color:'var(--mu)'}
@@ -1852,8 +1852,8 @@ async function onRequestAccessSubmit(){
   btn.disabled=true; btn.textContent='Submitting…'
   const {error} = await db.from('netpulse_access_requests').insert({email})
   btn.disabled=false; btn.textContent='Submit Request'
-  if(error){
-    errEl.textContent = error.code==='23505' ? 'A request for this email already exists.' : error.message
+  if(error && error.code!=='23505'){
+    errEl.textContent = 'Something went wrong. Please try again.'
     return
   }
   closeAuthModal()
@@ -1980,7 +1980,7 @@ async function loadAdminData(){
   if(!isAdmin()) return
   const [profRes, reqRes] = await Promise.all([
     db.from('netpulse_profiles').select('*').order('created_at',{ascending:false}),
-    db.from('netpulse_access_requests').select('*').eq('status','pending').order('requested_at',{ascending:false}),
+    db.from('netpulse_access_requests').select('*').eq('status','pending').order('requested_at',{ascending:false}).limit(500),
   ])
   if(profRes.error) console.error('loadAdminData profiles:',profRes.error)
   if(reqRes.error) console.error('loadAdminData requests:',reqRes.error)
@@ -3182,7 +3182,7 @@ function renderNetwork() {
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
       <td style="font-weight:600">${normOp(r.operator)}</td>
-      <td style="color:var(--pu)">${r.game||'MLBB'}</td>
+      <td style="color:var(--pu)">${h(r.game)||'MLBB'}</td>
       <td style="color:var(--yw)">${n(r.avg_ping_ms,0)} ms</td>
       <td>${n(r.min_ping_ms,0)} ms</td>
       <td>${n(r.max_ping_ms,0)} ms</td>
@@ -3216,7 +3216,7 @@ function renderProvRanking(nx) {
   tb.innerHTML = rows.map(r => {
     const grade = rsrpGrade(r.rsrp)
     return `<tr>
-      <td style="font-weight:600">${r.prov}</td>
+      <td style="font-weight:600">${h(r.prov)}</td>
       <td class="r">${r.tests}</td>
       <td class="r" style="color:var(--bl);font-weight:600">${r.dl!=null?n(r.dl):'—'}</td>
       <td class="r" style="color:var(--gr)">${r.ul!=null?n(r.ul):'—'}</td>
@@ -3327,8 +3327,8 @@ function renderCX() {
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
       <td style="font-weight:600">${normOp(r.operator)}</td>
-      <td>${r.technology||'—'}</td>
-      <td><span class="badge buk">${r.test_mode||'—'}</span></td>
+      <td>${h(r.technology)||'—'}</td>
+      <td><span class="badge buk">${h(r.test_mode)||'—'}</span></td>
       <td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td>
       <td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td>
       <td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td>
@@ -3347,8 +3347,8 @@ function renderCX() {
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
       <td style="font-weight:600">${normOp(r.operator)}</td>
-      <td>${r.technology||'—'}</td>
-      <td><span class="badge buk">${r.coverage_type||'—'}</span></td>
+      <td>${h(r.technology)||'—'}</td>
+      <td><span class="badge buk">${h(r.coverage_type)||'—'}</span></td>
       <td style="color:var(--gr)">${r.video_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.video_xp_detail||''}</span></td>
       <td style="color:var(--bl)">${r.gaming_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.gaming_xp_detail||''}</span></td>
       <td style="color:var(--pu)">${r.voiceapp_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.voiceapp_xp_detail||''}</span></td>
@@ -3628,7 +3628,7 @@ function renderSamples() {
       <td class="mono" style="text-align:right">${s.sinr??'—'}</td>
       <td style="color:var(--gr);text-align:right">${s.download_mbps!=null?n(s.download_mbps):'—'}</td>
       <td class="mono" style="text-align:right">${s.pci??'—'}</td>
-      <td style="color:var(--mu);font-size:10px">${s.event_type||'—'}</td>
+      <td style="color:var(--mu);font-size:10px">${h(s.event_type)||'—'}</td>
     </tr>`})
 }
 
@@ -4351,6 +4351,14 @@ function touch(){document.getElementById('nav-ts').textContent='Updated '+new Da
 // ── Refresh all views ─────────────────────────────
 let _refreshTimer=null
 function debouncedRefresh(){clearTimeout(_refreshTimer);_refreshTimer=setTimeout(refreshDash,1500)}
+// Coalesces bursts of realtime INSERT events (e.g. an active drive session streaming
+// samples every few seconds, or an abusive flood) into one render per key instead of
+// one per row — mirrors debouncedRefresh's pattern for the heavier tab-level renders.
+let _rtRenderTimers={}
+function debouncedRender(key, fn, delay=400){
+  clearTimeout(_rtRenderTimers[key])
+  _rtRenderTimers[key]=setTimeout(fn, delay)
+}
 function refreshDash() {
   pages['tb-recent']=0
   // Pre-compute filtered datasets once — all render functions read these instead of calling filterNx repeatedly
@@ -4474,36 +4482,36 @@ function setupRealtime() {
   _rtChannel=db.channel('np-live')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'networkxp_data'},p=>{
       nxAll.unshift(p.new); if(nxAll.length>500)nxAll.pop()
-      debouncedRefresh(); renderNetwork(); touch()
+      debouncedRefresh(); debouncedRender('network', renderNetwork); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'opensignal_scores'},p=>{
       osAll.unshift(p.new); if(osAll.length>500)osAll.pop()
-      debouncedRefresh(); renderCX(); touch()  // refreshDash keeps k-cx KPI in sync
+      debouncedRefresh(); debouncedRender('cx', renderCX); touch()  // refreshDash keeps k-cx KPI in sync
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'cx_experience_log'},p=>{
       cxAll.unshift(p.new); if(cxAll.length>500)cxAll.pop()
-      debouncedRefresh(); renderCX(); touch()
+      debouncedRefresh(); debouncedRender('cx', renderCX); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'gaming_latency_tests'},p=>{
       gamingAll.unshift(p.new); if(gamingAll.length>200)gamingAll.pop()
-      renderNetwork(); touch()
+      debouncedRender('network', renderNetwork); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_sessions'},p=>{
       sessAll.unshift(p.new)
-      refreshDash()         // keeps k-sess KPI in sync
-      renderSessions(); touch()
+      debouncedRefresh()         // keeps k-sess KPI in sync
+      debouncedRender('sessions', renderSessions); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_samples'},p=>{
       // Drive Test tab: update active session map + table
       if(activeSess&&p.new.session_id===activeSess.id){
-        driveSamples.push(p.new); paintMap(); renderSamples()
-        renderDriveRules(driveSamples, activeSess)
+        driveSamples.push(p.new)
+        debouncedRender('drivemap', ()=>{ paintMap(); renderSamples(); renderDriveRules(driveSamples, activeSess) })
       }
       // Coverage Map: keep covDriveSamples in sync regardless of active session
       if(p.new.latitude&&p.new.longitude){
         covDriveSamples.unshift(p.new)
         if(covDriveSamples.length>3000) covDriveSamples.pop()
-        if(mapCovReady) renderCovMap()
+        if(mapCovReady) debouncedRender('covmap', renderCovMap)
       }
       touch()
     })
@@ -5698,7 +5706,7 @@ function populateCovProvinces(){
   const sel=document.getElementById('cov-prov')
   const cur=sel.value
   sel.innerHTML='<option value="all">All Provinces</option>'+
-    [...provs].sort().map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('')
+    [...provs].sort().map(p=>`<option value="${h(p)}"${p===cur?' selected':''}>${h(p)}</option>`).join('')
 }
 
 function zoomToProvince(prov){
@@ -5766,7 +5774,7 @@ function populateCovDevices(){
   const sel=document.getElementById('cov-device')
   const cur=sel.value
   sel.innerHTML='<option value="all">All Users / Devices</option>'+
-    [...devs].sort().map(d=>`<option value="${d}"${d===cur?' selected':''}>${sid(d)}</option>`).join('')
+    [...devs].sort().map(d=>`<option value="${h(d)}"${d===cur?' selected':''}>${h(sid(d))}</option>`).join('')
 }
 
 document.getElementById('cov-device').addEventListener('change',e=>{CF.device=e.target.value;renderCovMap()})
