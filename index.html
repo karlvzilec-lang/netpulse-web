@@ -272,6 +272,18 @@ td.r,th.r{text-align:right}
 .cov-sb{width:272px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
 .cov-map-ct{flex:1;position:relative}
 #cov-map{width:100%;height:100%}
+.cov-compare-toggle{position:absolute;top:10px;left:10px;z-index:5;display:flex;gap:4px;background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.cov-compare-toggle button{padding:5px 10px;border:none;border-radius:5px;background:none;color:var(--mu);font-size:11.5px;font-weight:600;cursor:pointer}
+.cov-compare-toggle button.on{background:var(--pr);color:#fff}
+.cov-compare{display:none;width:100%;height:100%;gap:2px;background:var(--bd)}
+.cov-compare.on{display:grid}
+.cov-compare.cols-2{grid-template-columns:1fr 1fr}
+.cov-compare.cols-3{grid-template-columns:1fr 1fr 1fr}
+.cov-compare-panel{position:relative;background:var(--bg);min-width:0}
+.cov-compare-panel .cov-cmp-map{width:100%;height:100%}
+.cov-compare-panel .cov-cmp-hd{position:absolute;top:8px;left:8px;z-index:5;display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.cov-compare-panel .cov-cmp-hd select{background:none;border:none;color:var(--tx);font-size:12px;font-weight:700;cursor:pointer}
+.cov-compare-panel .cov-cmp-stat{position:absolute;bottom:8px;left:8px;z-index:5;font-size:10px;color:var(--mu);background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:3px 7px}
 .sb-sec{padding:10px 14px;border-bottom:1px solid var(--bd)}
 .sb-sec-hd{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:8px}
 .layer-row{display:flex;align-items:center;gap:8px;padding:5px 0}
@@ -454,6 +466,28 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 @media(max-width:400px){
   .hero-grid,.hero-grid.exec-view,.pmatrix,.sev-live-grid{grid-template-columns:1fr!important}
 }
+/* ── Auth ── */
+.auth-btn{margin-left:8px;background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 10px;color:var(--mu);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.auth-btn:hover{color:var(--tx);border-color:rgba(88,166,255,.5)}
+.tab-btn .lock-ic{opacity:.55;margin-left:2px}
+.auth-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center}
+.auth-modal-backdrop.on{display:flex}
+.auth-modal{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);padding:24px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.auth-modal h2{font-size:16px;margin-bottom:4px}
+.auth-modal p.sub{font-size:12px;color:var(--mu);margin-bottom:16px}
+.auth-field{margin-bottom:12px}
+.auth-field label{display:block;font-size:11px;color:var(--mu);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.auth-field input{width:100%;padding:8px 10px;border-radius:var(--r-ctrl);border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:13px}
+.auth-field input:focus{border-color:var(--bl)}
+.auth-err{font-size:12px;color:var(--re);margin-bottom:10px;min-height:1em}
+.auth-actions{display:flex;gap:8px;margin-top:16px}
+.auth-actions button{flex:1;padding:9px;border-radius:var(--r-ctrl);border:1px solid var(--bd);background:var(--pr);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.auth-actions button.secondary{background:none;color:var(--mu)}
+.auth-actions button:disabled{opacity:.6;cursor:default}
+.tp-lock{display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:80px 20px;text-align:center;color:var(--mu)}
+.tp-lock.on{display:flex}
+.tp-lock svg{opacity:.5}
+.tp-lock button{padding:9px 20px;border-radius:var(--r-ctrl);border:1px solid var(--bd);background:var(--pr);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -474,7 +508,29 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   <button id="theme-toggle" onclick="toggleTheme()" style="margin-left:8px;background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 10px;color:var(--mu);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap" aria-label="Toggle light/dark theme">
   <span id="theme-icon">☀️</span><span id="theme-lbl" style="font-size:11px">Light</span>
 </button>
+  <button id="auth-btn" class="auth-btn" onclick="onAuthBtnClick()">Sign In</button>
 </nav>
+
+<!-- AUTH MODAL -->
+<div class="auth-modal-backdrop" id="auth-modal-backdrop">
+  <div class="auth-modal">
+    <h2>Sign in</h2>
+    <p class="sub">Drive Test and Coverage Map require a login.</p>
+    <div class="auth-field">
+      <label for="auth-email">Email</label>
+      <input type="email" id="auth-email" autocomplete="username"/>
+    </div>
+    <div class="auth-field">
+      <label for="auth-pass">Password</label>
+      <input type="password" id="auth-pass" autocomplete="current-password"/>
+    </div>
+    <div class="auth-err" id="auth-err"></div>
+    <div class="auth-actions">
+      <button class="secondary" onclick="closeAuthModal()">Cancel</button>
+      <button id="auth-submit" onclick="onAuthSubmit()">Sign In</button>
+    </div>
+  </div>
+</div>
 
 <!-- TABS -->
 <div class="tabs" role="tablist">
@@ -493,10 +549,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   <button class="tab-btn" data-tab="drv" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6" r="1.2"/><path d="M8 10v6"/></svg>
     Drive Test
+    <svg class="lock-ic auth-lock-badge" width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
   </button>
   <button class="tab-btn" data-tab="cov" role="tab" aria-selected="false">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
     Coverage Map
+    <svg class="lock-ic auth-lock-badge" width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
   </button>
 </div>
 
@@ -958,6 +1016,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
 <!-- ══════════════ DRIVE TEST ══════════════ -->
 <div class="tp" id="tp-drv">
+  <div class="tp-lock" id="drv-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div>Sign in to view Drive Test data</div>
+    <button onclick="openAuthModal()">Sign In</button>
+  </div>
+  <div class="drv-content" id="drv-content">
   <div class="g gmap mb">
     <div class="card">
       <div class="ch">
@@ -1074,10 +1138,17 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
     <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
+  </div><!-- /drv-content -->
 </div>
 
 <!-- ══════════════ COVERAGE MAP ══════════════ -->
 <div class="tp" id="tp-cov">
+  <div class="tp-lock" id="cov-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div>Sign in to view the Coverage Map</div>
+    <button onclick="openAuthModal()">Sign In</button>
+  </div>
+  <div class="cov-content" id="cov-content">
   <div class="cov-wrap">
 
     <!-- ── Sidebar ── -->
@@ -1255,6 +1326,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
     <!-- ── Map area ── -->
     <div class="cov-map-ct">
+      <div class="cov-compare-toggle">
+        <button id="cmp-off-btn" class="on" onclick="setCompareMode(0)">Single</button>
+        <button id="cmp-2-btn" onclick="setCompareMode(2)">2-Way</button>
+        <button id="cmp-3-btn" onclick="setCompareMode(3)">3-Way</button>
+      </div>
       <div id="cov-map"></div>
       <div class="map-pills">
         <div class="mpill" id="cov-stat-drive">0 drive pts</div>
@@ -1262,9 +1338,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="mpill" id="cov-stat-towers">0 towers</div>
         <div class="mpill" id="cov-stat-resellers">0 resellers</div>
       </div>
+      <div class="cov-compare" id="cov-compare"></div>
     </div>
 
   </div>
+  </div><!-- /cov-content -->
 </div>
 
 </div><!-- /page -->
@@ -1604,6 +1682,80 @@ function gaugeSVG(score, color, label) {
 // ── Supabase ──────────────────────────────────────
 const {createClient} = supabase
 const db = createClient(SB_URL, SB_KEY)
+
+// ── Auth ──────────────────────────────────────────
+// Drive Test and Coverage Map require a logged-in user — enforced server-side too
+// (drive_samples' anon SELECT policy was removed; only `authenticated` can read it),
+// so this isn't just a UI gate. drive_sessions (names/dates/counts, no GPS points)
+// stays public since the Executive Summary's "Drive Test Trips" KPI needs it and
+// that tab isn't gated.
+const AUTH_GATED_TABS = ['drv','cov']
+let currentUser = null
+let pendingAuthTab = null   // tab the user was trying to reach when the login modal opened
+
+function openAuthModal(tab){
+  pendingAuthTab = tab || null
+  document.getElementById('auth-err').textContent = ''
+  document.getElementById('auth-modal-backdrop').classList.add('on')
+  document.getElementById('auth-email').focus()
+}
+function closeAuthModal(){
+  document.getElementById('auth-modal-backdrop').classList.remove('on')
+  pendingAuthTab = null
+}
+async function onAuthSubmit(){
+  const email = document.getElementById('auth-email').value.trim()
+  const pass = document.getElementById('auth-pass').value
+  const errEl = document.getElementById('auth-err')
+  const btn = document.getElementById('auth-submit')
+  if(!email || !pass){ errEl.textContent = 'Enter your email and password.'; return }
+  btn.disabled = true; btn.textContent = 'Signing in…'
+  const {data,error} = await db.auth.signInWithPassword({email, password: pass})
+  btn.disabled = false; btn.textContent = 'Sign In'
+  if(error){ errEl.textContent = error.message; return }
+  currentUser = data.user
+  const wantedTab = pendingAuthTab   // read before closeAuthModal() clears it
+  closeAuthModal()
+  updateAuthUI()
+  document.getElementById('auth-pass').value = ''
+  if(wantedTab){
+    const b = document.querySelector(`.tab-btn[data-tab="${wantedTab}"]`)
+    if(b) b.click()
+  }
+}
+async function onSignOut(){
+  await db.auth.signOut()
+  currentUser = null
+  updateAuthUI()
+  // If a gated tab is currently showing, fall back to Executive Summary
+  const activeTab = document.querySelector('.tab-btn.on')
+  if(activeTab && AUTH_GATED_TABS.includes(activeTab.dataset.tab)){
+    document.querySelector('.tab-btn[data-tab="dash"]').click()
+  }
+}
+function onAuthBtnClick(){ currentUser ? onSignOut() : openAuthModal() }
+
+function updateAuthUI(){
+  const btn = document.getElementById('auth-btn')
+  btn.textContent = currentUser ? `Sign Out (${currentUser.email})` : 'Sign In'
+  document.querySelectorAll('.auth-lock-badge').forEach(el=>{ el.style.display = currentUser ? 'none' : '' })
+  for(const tab of AUTH_GATED_TABS){
+    const locked = !currentUser
+    const lockEl = document.getElementById(tab+'-lock')
+    const contentEl = document.getElementById(tab+'-content')
+    if(lockEl) lockEl.classList.toggle('on', locked)
+    if(contentEl) contentEl.style.display = locked ? 'none' : ''
+  }
+}
+async function initAuth(){
+  const {data:{session}} = await db.auth.getSession()
+  currentUser = session?.user || null
+  updateAuthUI()
+  db.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session?.user || null
+    updateAuthUI()
+  })
+}
 
 // ── Chart.js defaults ─────────────────────────────
 Chart.defaults.color = '#8b949e'
@@ -4007,6 +4159,7 @@ function autoPickDriveSession(){
 
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  if(AUTH_GATED_TABS.includes(b.dataset.tab) && !currentUser){ openAuthModal(b.dataset.tab); return }
   document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
   document.querySelectorAll('.tab-btn').forEach(x=>x.setAttribute('aria-selected','false'))
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
@@ -4025,9 +4178,13 @@ window.addEventListener('popstate',e=>{
   const btn=document.querySelector(`.tab-btn[data-tab="${t}"]`)
   if(btn)btn.click()
 })
-// Restore tab from URL hash on load
-const initTab=location.hash.slice(1)
-if(initTab){const b=document.querySelector(`.tab-btn[data-tab="${initTab}"]`);if(b)b.click()}
+// Restore tab from URL hash on load — wait for auth state to resolve first, so a
+// logged-in user reloading on #cov/#drv isn't wrongly bounced to the login modal by
+// a stale "not logged in yet" read before getSession() has actually resolved.
+initAuth().then(()=>{
+  const initTab=location.hash.slice(1)
+  if(initTab){const b=document.querySelector(`.tab-btn[data-tab="${initTab}"]`);if(b)b.click()}
+})
 
 // Sub-tabs
 document.querySelectorAll('.stab').forEach(b=>b.addEventListener('click',()=>{
@@ -4160,10 +4317,13 @@ function buildHexbins(rows) {
 }
 
 // ── Filter drive samples for coverage map ─────────
-function filterCovDrive(){
+// opOverride lets Compare mode filter by a specific operator per panel without touching
+// the shared CF.op filter state; omit it (or pass undefined) for the normal CF.op-driven behavior.
+function filterCovDrive(opOverride){
+  const op = opOverride!==undefined ? opOverride : CF.op
   return covDriveSamples.filter(s=>{
     if(!s.latitude||!s.longitude) return false
-    if(CF.op!=='all'&&normOp(s.operator)!==CF.op) return false
+    if(op!=='all'&&normOp(s.operator)!==op) return false
     if(CF.device!=='all'&&s.device_id!==CF.device) return false
     // drive_samples has no province column (device GPS only) — cannot be province-filtered, so it's left unfiltered by CF.prov
     if(CF.tech!=='all'){
@@ -4175,10 +4335,11 @@ function filterCovDrive(){
     return true
   })
 }
-function filterCovNx(){
+function filterCovNx(opOverride){
+  const op = opOverride!==undefined ? opOverride : CF.op
   return nxAll.filter(r=>{
     if(!r.latitude||!r.longitude) return false
-    if(CF.op!=='all'&&normOp(r.operator)!==CF.op) return false
+    if(op!=='all'&&normOp(r.operator)!==op) return false
     if(CF.device!=='all'&&r.device_id!==CF.device) return false
     if(CF.prov!=='all'&&(r.province||'')!==CF.prov) return false
     if(CF.tech!=='all'){
@@ -4259,6 +4420,137 @@ function renderCovMap(){
   document.getElementById('cov-stat-exp').textContent=hexGJ.features.length+' hexbins'
   document.getElementById('cov-stat-towers').textContent=towerFeats.length+' towers'
   document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
+
+  refreshComparePanels()
+}
+
+// ── Compare mode: 2-3 synchronized side-by-side maps, one operator each ──
+// Deliberately simplified vs. the main map: hexbin coverage + drive-sample dots only
+// (no routes/towers/resellers/simulation) — a focused side-by-side coverage comparison,
+// not a full re-implementation of every layer across 2-3 concurrent WebGL contexts.
+let compareMode = 0    // 0 = off, 2 or 3 = panel count
+let compareMaps = []   // [{map, op, ready, idx}]
+let compareSyncing = false
+
+function setCompareMode(n){
+  if(n===compareMode) return
+  compareMode = n
+  document.getElementById('cmp-off-btn').classList.toggle('on', n===0)
+  document.getElementById('cmp-2-btn').classList.toggle('on', n===2)
+  document.getElementById('cmp-3-btn').classList.toggle('on', n===3)
+  const singleEl=document.getElementById('cov-map')
+  const cmpEl=document.getElementById('cov-compare')
+  if(n===0){
+    cmpEl.classList.remove('on')
+    singleEl.style.display=''
+    destroyCompareMaps()
+    if(mapCov) setTimeout(()=>mapCov.resize(),50)
+    return
+  }
+  singleEl.style.display='none'
+  cmpEl.classList.add('on')
+  cmpEl.classList.toggle('cols-2', n===2)
+  cmpEl.classList.toggle('cols-3', n===3)
+  buildCompareMaps(n)
+}
+
+function destroyCompareMaps(){
+  compareMaps.forEach(p=>{ try{ p.map.remove() }catch(e){} })
+  compareMaps=[]
+  document.getElementById('cov-compare').innerHTML=''
+}
+
+function buildCompareMaps(n){
+  destroyCompareMaps()
+  const cmpEl=document.getElementById('cov-compare')
+  if(!webglSupported()){ cmpEl.innerHTML='<div style="padding:40px;color:var(--mu)">WebGL not supported</div>'; return }
+  const defaultOps=['Cellcard','Metfone','Smart'].slice(0,n)
+  const center = mapCov ? mapCov.getCenter() : {lng:104.9282,lat:11.5564}
+  const zoom = mapCov ? mapCov.getZoom() : 11
+
+  for(let i=0;i<n;i++){
+    const panelId='cov-cmp-'+i
+    const panel=document.createElement('div')
+    panel.className='cov-compare-panel'
+    panel.innerHTML=`
+      <div class="cov-cmp-hd">
+        <select id="cov-cmp-op-${i}" aria-label="Panel ${i+1} operator">
+          ${['Cellcard','Metfone','Smart'].map(op=>`<option value="${op}"${op===defaultOps[i]?' selected':''}>${op}</option>`).join('')}
+        </select>
+      </div>
+      <div class="cov-cmp-map" id="${panelId}"></div>
+      <div class="cov-cmp-stat" id="cov-cmp-stat-${i}">—</div>`
+    cmpEl.appendChild(panel)
+
+    const map=new maplibregl.Map({
+      container:panelId,
+      style:'https://tiles.openfreemap.org/styles/liberty',
+      center:[center.lng,center.lat], zoom,
+      preserveDrawingBuffer:true, antialias:true
+    })
+    map.addControl(new maplibregl.NavigationControl(),'top-right')
+    const entry={map, op:defaultOps[i], ready:false, idx:i}
+    compareMaps.push(entry)
+
+    map.on('load',()=>{
+      map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+      map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
+        cluster:true,clusterMaxZoom:13,clusterRadius:40})
+      map.addLayer({id:`hex-fill-${i}`,type:'fill',source:'cmp-hex',paint:{
+        'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
+          -120,'#d73027',-110,'#fc8d59',-100,'#fee08b',-90,'#d9ef8b',-80,'#1a9850'],
+        'fill-opacity':0.55,'fill-outline-color':'rgba(0,0,0,0.2)'
+      }})
+      map.addLayer({id:`cmp-clusters-${i}`,type:'circle',source:'cmp-samples',filter:['has','point_count'],
+        paint:{'circle-color':'#607d8b','circle-radius':['step',['get','point_count'],14,50,20,200,28],
+          'circle-opacity':.8,'circle-stroke-width':1,'circle-stroke-color':'rgba(255,255,255,.3)'}})
+      map.addLayer({id:`cmp-cluster-ct-${i}`,type:'symbol',source:'cmp-samples',filter:['has','point_count'],
+        layout:{'text-field':'{point_count_abbreviated}','text-size':11,'text-font':['Noto Sans Bold'],'text-allow-overlap':true},
+        paint:{'text-color':'#fff'}})
+      map.addLayer({id:`cmp-dots-${i}`,type:'circle',source:'cmp-samples',filter:['!',['has','point_count']],
+        paint:{'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#1e293b','circle-opacity':.75,
+          'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
+      entry.ready=true
+      renderComparePanel(i)
+    })
+    map.on('error', e=>console.error('compare map '+i+':', e))
+
+    // Synchronized pan/zoom across all panels (guarded to avoid feedback loops)
+    map.on('move', ()=>{
+      if(compareSyncing) return
+      compareSyncing=true
+      const c=map.getCenter(), z=map.getZoom(), b=map.getBearing(), p=map.getPitch()
+      compareMaps.forEach(other=>{ if(other.map!==map) other.map.jumpTo({center:c,zoom:z,bearing:b,pitch:p}) })
+      compareSyncing=false
+    })
+
+    document.getElementById(`cov-cmp-op-${i}`).addEventListener('change',e=>{
+      entry.op=e.target.value
+      renderComparePanel(i)
+    })
+  }
+}
+
+function renderComparePanel(i){
+  const entry=compareMaps[i]
+  if(!entry||!entry.ready) return
+  const driveRows=filterCovDrive(entry.op)
+  const expRows=filterCovNx(entry.op)
+  const hexGJ=buildHexbins(expRows)
+  const driveGJ={type:'FeatureCollection',features:driveRows.map(s=>({
+    type:'Feature',geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
+    properties:{rsrp:s.rsrp}
+  }))}
+  entry.map.getSource('cmp-hex').setData(hexGJ)
+  entry.map.getSource('cmp-samples').setData(driveGJ)
+  const statEl=document.getElementById(`cov-cmp-stat-${i}`)
+  if(statEl) statEl.textContent=`${driveRows.length} drive pts · ${hexGJ.features.length} hexbins`
+}
+
+// Called from renderCovMap() so compare panels stay in sync with CF.tech/CF.device
+// changes and freshly-loaded data, without duplicating the main map's refresh triggers.
+function refreshComparePanels(){
+  if(compareMode) compareMaps.forEach((_,i)=>renderComparePanel(i))
 }
 
 // ── Init coverage map (lazy, on first tab click) ──
