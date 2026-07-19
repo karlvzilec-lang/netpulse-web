@@ -1264,19 +1264,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:rgba(100,116,139,.3)"></div>No Coverage</div>
       </div>
 
-      <!-- Cell Sites loader -->
-      <div class="sb-sec">
-        <div class="sb-sec-hd">Cell &amp; Reseller Sites</div>
-        <button class="sb-btn" id="load-sb-sites-btn" style="margin-bottom:4px">🗄️ Load from Supabase</button>
-        <div class="tow-st" id="sb-sites-status"></div>
-        <div style="font-size:10px;color:var(--mu);margin:6px 0 6px;border-top:1px solid var(--bd);padding-top:6px">OpenCelliD fallback</div>
-        <input class="tok-in" id="ocid-token" type="password" placeholder="Paste free API token…">
-        <button class="sb-btn" id="load-towers-btn">📡 Load Cell Sites</button>
-        <button class="sb-btn g" id="csv-btn" style="margin-top:4px">📂 Upload towers.csv</button>
-        <input type="file" id="tower-csv-input" accept=".csv" style="display:none">
-        <div class="tow-st" id="tower-status"></div>
-      </div>
-
       <!-- Legend -->
       <div class="sb-sec" style="flex:1;border-bottom:none">
         <div class="sb-sec-hd">Signal Grade Legend</div>
@@ -4495,12 +4482,15 @@ function initCovMap(){
     // ── Tower layers — 4G only green, 4G/5G blue ──
     mapCov.addLayer({id:'tow-4g',type:'circle',source:'cov-towers',
       filter:['==',['get','has5g'],false],
+      layout:{visibility:'none'},
       paint:{'circle-radius':5,'circle-color':'#16a34a','circle-stroke-width':1.5,'circle-stroke-color':'#fff','circle-opacity':.85}})
     mapCov.addLayer({id:'tow-5g',type:'circle',source:'cov-towers',
       filter:['==',['get','has5g'],true],
+      layout:{visibility:'none'},
       paint:{'circle-radius':6,'circle-color':'#2563eb','circle-stroke-width':1.5,'circle-stroke-color':'#fff','circle-opacity':.9}})
     mapCov.addLayer({id:'tow-lbl',type:'symbol',source:'cov-towers',minzoom:14,
       layout:{
+        visibility:'none',
         'text-field':['concat',['get','operator'],' ',['get','radio']],
         'text-size':9,'text-offset':[0,1.2],
         'text-font':['Noto Sans Regular'],'text-allow-overlap':false
@@ -4562,10 +4552,11 @@ function initCovMap(){
 
     // ── Reseller layer ──
     mapCov.addLayer({id:'res-dots',type:'circle',source:'cov-resellers',
+      layout:{visibility:'none'},
       paint:{'circle-radius':5,'circle-color':'#FF7900','circle-stroke-width':1.5,
         'circle-stroke-color':'#fff','circle-opacity':.85}})
     mapCov.addLayer({id:'res-lbl',type:'symbol',source:'cov-resellers',minzoom:14,
-      layout:{'text-field':['get','name'],'text-size':9,'text-offset':[0,1.2],
+      layout:{visibility:'none','text-field':['get','name'],'text-size':9,'text-offset':[0,1.2],
         'text-font':['Noto Sans Regular'],'text-allow-overlap':false},
       paint:{'text-color':'#e6edf3','text-halo-color':'#0d1117','text-halo-width':1}})
     // Resellers off by default until loaded
@@ -4988,8 +4979,6 @@ async function parseKmzToGeoJson(storagePath){
 }
 
 async function loadSitesFromSupabase(){
-  const st=document.getElementById('sb-sites-status')
-  st.textContent='⏳ Downloading KMZ from Storage…'
   try{
     // Run both KMZ downloads in parallel
     const [csGJ,rsGJ]=await Promise.all([
@@ -5008,84 +4997,20 @@ async function loadSitesFromSupabase(){
       })
       covTowersGJ=csGJ
       if(mapCovReady) mapCov.getSource('cov-towers').setData(covTowersGJ)
-      document.getElementById('lyr-towers').checked=true
-      covLayer(['tow-4g','tow-5g','tow-lbl'],true)
     }
 
     // Reseller sites → resellers layer
     if(rsGJ.features.length){
       covResellersGJ=rsGJ
       if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
-      document.getElementById('lyr-resellers').checked=true
-      covLayer(['res-dots','res-lbl'],true)
     }
 
-    st.textContent=`✅ ${csGJ.features.length.toLocaleString()} cell sites · ${rsGJ.features.length.toLocaleString()} resellers loaded`
     document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
     document.getElementById('cov-stat-resellers').textContent=covResellersGJ.features.length+' resellers'
   }catch(e){
     console.error('loadSitesFromSupabase:',e)
-    st.textContent='❌ '+e.message
   }
 }
-document.getElementById('load-sb-sites-btn').addEventListener('click',loadSitesFromSupabase)
-
-// ── Tower loader — OpenCelliD API ─────────────────
-async function loadTowers(){
-  const token=document.getElementById('ocid-token').value.trim()
-  if(!token){document.getElementById('tower-status').textContent='⚠ Enter API token';return}
-  const st=document.getElementById('tower-status')
-  st.textContent='⏳ Loading…'
-  try{
-    const b=mapCov.getBounds()
-    const url=`https://opencellid.org/cell/getInArea?key=${encodeURIComponent(token)}&BBOX=${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}&format=json&limit=2000`
-    const resp=await fetch(url)
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const json=await resp.json()
-    covTowersGJ={type:'FeatureCollection',features:(json.cells||[]).filter(c=>c.lat&&c.lon).map(c=>({
-      type:'Feature',
-      geometry:{type:'Point',coordinates:[+c.lon,+c.lat]},
-      properties:{radio:c.radio,mcc:c.mcc,net:c.net,area:c.area,cell:c.cell,
-        has5g:c.radio==='NR',
-        operator:{1:'Cellcard',2:'Smart',4:'Metfone'}[+c.net]||`MNC${c.net}`}
-    }))}
-    if(mapCovReady) mapCov.getSource('cov-towers').setData(covTowersGJ)
-    st.textContent=`✅ ${covTowersGJ.features.length} towers loaded`
-    document.getElementById('cov-stat-towers').textContent=covTowersGJ.features.length+' towers'
-    document.getElementById('lyr-towers').checked=true
-    covLayer(['tow-4g','tow-5g','tow-lbl'],true)
-  }catch(e){
-    st.textContent=`❌ ${e.message} — try CSV upload if CORS blocked`
-  }
-}
-document.getElementById('load-towers-btn').addEventListener('click',loadTowers)
-document.getElementById('csv-btn').addEventListener('click',()=>document.getElementById('tower-csv-input').click())
-document.getElementById('tower-csv-input').addEventListener('change',async e=>{
-  const file=e.target.files[0]; if(!file) return
-  const st=document.getElementById('tower-status')
-  st.textContent='⏳ Parsing CSV…'
-  const text=await file.text()
-  const lines=text.split('\n')
-  const feats=[]
-  for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(',')
-    if(c.length<8) continue
-    const [radio,mcc,net,area,cell,,lon,lat]=c
-    if(!lat||!lon||isNaN(+lat)||isNaN(+lon)||+mcc!==456) continue
-    feats.push({type:'Feature',
-      geometry:{type:'Point',coordinates:[+lon,+lat]},
-      properties:{radio,mcc:+mcc,net:+net,area:+area,cell:+cell,
-        has5g:radio==='NR',
-        operator:{1:'Cellcard',2:'Smart',4:'Metfone'}[+net]||`MNC${net}`}})
-  }
-  covTowersGJ={type:'FeatureCollection',features:feats}
-  if(mapCovReady){ mapCov.getSource('cov-towers').setData(covTowersGJ); }
-  document.getElementById('lyr-towers').checked=true
-  covLayer(['tow-4g','tow-5g','tow-lbl'],true)
-  st.textContent=`✅ ${feats.length} towers loaded from CSV`
-  document.getElementById('cov-stat-towers').textContent=feats.length+' towers'
-  e.target.value=''
-})
 
 // ── Sortable tables — click any data-table header to sort ──
 document.addEventListener('click', e=>{
