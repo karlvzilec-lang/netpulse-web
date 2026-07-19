@@ -4639,10 +4639,26 @@ async function initFindingsTab(){
     document.getElementById('cf-status').textContent='Loading…'
     // Same RPC + pagination pattern as the Coverage Map — up to 40 most-recent points
     // per session so every session is represented, not just whichever is densest right now.
-    const result=await fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000)
-    cfDriveSamples=result.data||[]
-    if(result.error) console.error('initFindingsTab drive_samples:',result.error)
-    document.getElementById('cf-status').textContent=''
+    // Raced against a timeout: a stalled network request here previously left the tab stuck
+    // on "Loading…" forever showing 0 findings, with no error and no way to recover short of
+    // a full page reload — the same failure class as the Coverage Map's stalled tile loads.
+    const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),15000))
+    const result=await Promise.race([
+      fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000),
+      timeout
+    ])
+    if(result){
+      cfDriveSamples=result.data||[]
+      if(result.error) console.error('initFindingsTab drive_samples:',result.error)
+      document.getElementById('cf-status').textContent=''
+    } else {
+      // cfDriveSamples stays null so the next tab visit retries the fetch instead of
+      // permanently giving up.
+      console.error('initFindingsTab drive_samples: timed out after 15s')
+      document.getElementById('cf-status').textContent='⚠ Drive-test data timed out — showing speed-test findings only. Reopen this tab to retry.'
+      renderFindings()
+      return
+    }
   }
   renderFindings()
 }
