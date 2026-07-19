@@ -12,6 +12,12 @@
 <link rel="preconnect" href="https://bauiffaqfboqlqnmxffc.supabase.co">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* The Coverage Map tab intentionally bleeds edge-to-edge via a negative margin
+   (#tp-cov.on below) — without this, that overflow can shift the whole page
+   horizontally by a few px, clipping the first character of every sidebar label.
+   Every scrollable region in this app already opts into its own overflow-x:auto;
+   the page itself should never scroll sideways. */
+html,body{overflow-x:hidden}
 *:focus-visible{outline:2px solid var(--bl);outline-offset:2px;border-radius:3px}
 @keyframes spin{to{transform:rotate(360deg)}}
 :root{
@@ -5253,6 +5259,12 @@ function buildCompareMaps(n){
 
     map.on('load',()=>{
       clearTimeout(cmpLoadTimeout)
+      // Same container-not-settled-yet risk as the main map: each panel sits in a CSS grid
+      // that may not have its final width yet at construction time. Re-measure and re-assert
+      // the intended view now that the panel is definitely laid out.
+      const resetPanelView=()=>{ map.resize(); map.jumpTo({center:[center.lng,center.lat],zoom}) }
+      resetPanelView()
+      setTimeout(resetPanelView, 250)
       map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
       map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
         cluster:true,clusterMaxZoom:13,clusterRadius:40})
@@ -5347,6 +5359,18 @@ function initCovMap(){
 
   mapCov.on('load',async()=>{
     clearTimeout(covLoadTimeout)
+    // MapLibre sizes its canvas — and computes its initial center/zoom projection — from the
+    // container's dimensions at construction time. If the flex layout (sidebar + map area)
+    // hadn't fully settled yet at that exact moment (e.g. right after switching tabs), the
+    // container can measure as near-zero width, which corrupts BOTH the canvas size and the
+    // effective zoom level (observed live: a Cambodia-centered map rendering zoomed out far
+    // enough to show Mongolia/China, in a canvas confined to a narrow sliver of the page).
+    // CSS alone can't fix this after the fact. Force a re-measure and explicitly re-assert the
+    // intended view now that the tab is definitely visible and laid out, plus once more after
+    // a short delay to catch any layout that was still settling.
+    const resetCovView=()=>{ if(!mapCov) return; mapCov.resize(); mapCov.jumpTo({center:[104.9282,11.5564],zoom:11}) }
+    resetCovView()
+    setTimeout(resetCovView, 250)
     mapCovReady=true
 
     // Sources
