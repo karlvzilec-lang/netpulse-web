@@ -2285,7 +2285,7 @@ function showMapError(containerId, err, kind){
 
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
-  if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); return }
+  if(map){ map.resize(); if(activeSess&&driveSamples.length) paintMap(); else paintAllSessionsOverview(); return }
   const dmapEl=document.getElementById('dmap')
   if(!webglSupported()){ showMapError('dmap',null,'webgl'); return }
   if(dmapEl)dmapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Loading map…</div>'
@@ -2301,13 +2301,34 @@ function initDriveMap() {
   }catch(e){ showMapError('dmap', e); return }
   map.addControl(new maplibregl.NavigationControl(),'top-right')
   map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
-  map.on('error', e=>showMapError('dmap', e))
+
+  // Same stalled-load watchdog as the Coverage Map: a style fetch that silently never
+  // resolves (no 'error' event) leaves a permanently black canvas with no feedback and no
+  // retry. If 'load' hasn't fired within 12s, show an actionable message and reset so the
+  // next tab visit actually retries.
+  const drvLoadTimeout=setTimeout(()=>{
+    if(!mapReady){
+      showMapError('dmap', new Error('Map tiles did not load in time. Check your network connection, then reopen this tab to retry.'), 'timeout')
+      try{ map.remove() }catch(e){}
+      map=null
+    }
+  }, 12000)
+  map.on('error', e=>{ clearTimeout(drvLoadTimeout); showMapError('dmap', e); map=null })
 
   // Android WebView WebGL context recovery
   map.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
   map.getCanvas().addEventListener('webglcontextrestored',()=>{ map.setStyle(map.getStyle()) },false)
 
   map.on('load',()=>{
+    clearTimeout(drvLoadTimeout)
+    // MapLibre sizes its canvas and computes its initial center/zoom from the container's
+    // dimensions at construction time — same fix as the Coverage Map for a container that
+    // hadn't finished settling into its flex layout yet. Only the immediate call re-centers;
+    // paintMap()/paintAllSessionsOverview() (called at the bottom of this handler) set their
+    // own, more specific view right after via fitBounds/flyTo, so the delayed follow-up only
+    // re-measures the canvas — re-centering it too would undo whatever those just set.
+    if(map){ map.resize(); map.jumpTo({center:[104.9282,11.5564],zoom:11}) }
+    setTimeout(()=>{ if(map) map.resize() }, 250)
     mapReady=true
 
   // Route — RSRP-colored segments (CellMapper style: each 2-pt segment colored by signal strength)
@@ -2428,7 +2449,7 @@ function initDriveMap() {
   map.on('mouseenter','dots-layer',()=>map.getCanvas().style.cursor='pointer')
   map.on('mouseleave','dots-layer',()=>map.getCanvas().style.cursor='')
 
-  if(activeSess) paintMap()
+  if(activeSess) paintMap(); else paintAllSessionsOverview()
   })  // end map.on('load')
 }  // end initDriveMap
 
@@ -3585,10 +3606,43 @@ window.pickSess = async function(id) {
 function closeDrvAnalysis(){
   document.getElementById('drv-analysis').style.display='none'
   activeSess=null
+  renderSessions()   // clears the sidebar's selected-row highlight
+  paintAllSessionsOverview()
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrvAnalysis()})
 
 // ── Render: Drive map ─────────────────────────────
+// Default state before any session is picked — every session's sampled points shown at
+// once (reusing the same up-to-40-per-session dataset Coverage Map loads, so opening either
+// tab first loads it exactly once), no route lines (100+ overlapping session routes would be
+// unreadable). Clicking a session in the sidebar list narrows the map down via paintMap().
+async function paintAllSessionsOverview(){
+  if(!mapReady) return
+  const overlay=document.getElementById('dmap-no-data')
+  if(overlay) overlay.style.display='none'   // the "this session hasn't synced" message doesn't apply here
+
+  await ensureCovDriveSamplesLoaded()
+  const valid=covDriveSamples.filter(s=>s.latitude!=null&&s.longitude!=null)
+  const sessionCount=new Set(valid.map(s=>s.session_id)).size
+
+  const lbl=document.getElementById('dmap-lbl')
+  if(lbl) lbl.textContent = valid.length
+    ? `All ${sessionCount.toLocaleString()} session${sessionCount!==1?'s':''} — click one below to view its route`
+    : '← Select a session'
+
+  const feats=valid.map(s=>({
+    type:'Feature',
+    geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
+    properties:{rsrp:s.rsrp,sinr:s.sinr,rat:s.rat,operator:normOp(s.operator),dl:s.download_mbps,at:s.sampled_at,grade:rsrpGrade(s.rsrp),active:s.event_type==='user_initiated'?1:0,pci:s.pci}
+  }))
+  map.getSource('dots').setData({type:'FeatureCollection',features:feats})
+  map.getSource('route').setData({type:'FeatureCollection',features:[]})
+
+  if(feats.length){
+    const lngs=feats.map(f=>f.geometry.coordinates[0]), lats=feats.map(f=>f.geometry.coordinates[1])
+    map.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:60,maxZoom:14,duration:600})
+  }
+}
 function paintMap() {
   if(!mapReady) return
   const valid=driveSamples.filter(s=>s.latitude!=null&&s.longitude!=null)
@@ -4613,15 +4667,6 @@ function setupRealtime() {
     })
 }
 
-function autoPickDriveSession(){
-  if(activeSess) return
-  const first=[...sessAll].sort((a,b)=>{
-    const aH=sampledSessionIds.has(a.id)?1:0,bH=sampledSessionIds.has(b.id)?1:0
-    return bH-aH||new Date(b.start_time)-new Date(a.start_time)
-  }).find(s=>sampledSessionIds.has(s.id))
-  if(first) pickSess(first.id)
-}
-
 // ── Critical Findings page ────────────────────────
 let cfDriveSamples=null   // null = not yet loaded; lazy-loaded once on first tab visit
 let CFOP='Cellcard'
@@ -4917,7 +4962,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
   // Global filter bar is only relevant to the three analytics tabs
   const gf=document.getElementById('gfbar'); if(gf) gf.style.display=['dash','net','cx'].includes(b.dataset.tab)?'flex':'none'
-  if(b.dataset.tab==='drv' && hasPermission('drive_test')) setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
+  if(b.dataset.tab==='drv' && hasPermission('drive_test')) setTimeout(initDriveMap,80)
   if(b.dataset.tab==='cov' && hasPermission('coverage_map')) setTimeout(initCovMap,80)
   if(b.dataset.tab==='findings' && hasPermission('critical_findings')) setTimeout(initFindingsTab,80)
   if(b.dataset.tab==='admin') loadAdminData()
@@ -5009,6 +5054,27 @@ document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',(
 // ══════════════════════════════════════════════════
 let mapCov=null, mapCovReady=false
 let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}, covResellersGJ={type:'FeatureCollection',features:[]}
+let covDriveSamplesLoaded=false   // fetch is shared between Coverage Map and Drive Test's all-sessions overview — whichever tab is opened first loads it once
+async function ensureCovDriveSamplesLoaded(){
+  if(covDriveSamplesLoaded) return
+  covDriveSamplesLoaded=true
+  // Up to 40 most-recent points PER SESSION (not per row) via the top_n_per_session() RPC,
+  // so a single dense recent session can't crowd out every other historical session. Falls
+  // back to a flat fetch if the RPC isn't deployed, matching fetchSampledSessionIds()'s
+  // fallback pattern.
+  const rpcResult=await fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000)
+  if(rpcResult.error){
+    console.error('top_n_per_session RPC failed, falling back to flat fetch:',rpcResult.error)
+    const flatResult=await fetchPaginated((from,to)=>
+      db.from('drive_samples')
+        .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id')
+        .order('sampled_at',{ascending:false}).range(from,to),6000)
+    if(flatResult.error){ console.error('flat fetch fallback also failed:',flatResult.error) }
+    covDriveSamples=flatResult.data||[]
+  } else {
+    covDriveSamples=rpcResult.data
+  }
+}
 const CF={op:'Cellcard',tech:'all',device:'all',type:'all',prov:'all'}
 
 // Cambodia province bounding boxes [west, south, east, north]
@@ -5578,23 +5644,7 @@ function initCovMap(){
       mapCov.on('mouseleave',id,()=>mapCov.getCanvas().style.cursor='')
     })
 
-    // Load drive samples for coverage map: up to 40 most-recent points PER SESSION
-    // (not per row) via the top_n_per_session() RPC, so a single dense recent session
-    // can't crowd out every other historical session/province — the flat "most recent
-    // N rows" approach used to do exactly that. Falls back to the old flat fetch if the
-    // RPC isn't deployed, matching fetchSampledSessionIds()'s fallback pattern.
-    const rpcResult=await fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000)
-    if(rpcResult.error){
-      console.error('top_n_per_session RPC failed, falling back to flat fetch:',rpcResult.error)
-      const flatResult=await fetchPaginated((from,to)=>
-        db.from('drive_samples')
-          .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id')
-          .order('sampled_at',{ascending:false}).range(from,to),6000)
-      if(flatResult.error){ console.error('flat fetch fallback also failed:',flatResult.error) }
-      covDriveSamples=flatResult.data
-    } else {
-      covDriveSamples=rpcResult.data
-    }
+    await ensureCovDriveSamplesLoaded()
 
     // Populate province + device dropdowns from actual data
     populateCovProvinces()
