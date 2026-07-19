@@ -5295,13 +5295,28 @@ function initCovMap(){
   }catch(e){ showMapError('cov-map', e); return }
   mapCov.addControl(new maplibregl.NavigationControl(),'top-right')
   mapCov.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left')
-  mapCov.on('error', e=>showMapError('cov-map', e))
+
+  // Some networks/tabs stall the style fetch indefinitely with no MapLibre 'error' event at
+  // all (confirmed: e.g. a backgrounded tab can skip issuing the style request entirely),
+  // leaving a permanently black canvas with no feedback. If 'load' hasn't fired within 12s,
+  // treat it as failed: show an actionable message, tear down the stuck instance, and null
+  // mapCov so the guard at the top of this function actually retries on the next tab visit
+  // instead of forever calling .resize() on a map that never loaded.
+  const covLoadTimeout=setTimeout(()=>{
+    if(!mapCovReady){
+      showMapError('cov-map', new Error('Map tiles did not load in time. Check your network connection, then reopen this tab to retry.'), 'timeout')
+      try{ mapCov.remove() }catch(e){}
+      mapCov=null
+    }
+  }, 12000)
+  mapCov.on('error', e=>{ clearTimeout(covLoadTimeout); showMapError('cov-map', e); mapCov=null })
 
   // Android WebView WebGL context recovery
   mapCov.getCanvas().addEventListener('webglcontextlost',e=>{ e.preventDefault() },false)
   mapCov.getCanvas().addEventListener('webglcontextrestored',()=>{ mapCov.setStyle(mapCov.getStyle()) },false)
 
   mapCov.on('load',async()=>{
+    clearTimeout(covLoadTimeout)
     mapCovReady=true
 
     // Sources
