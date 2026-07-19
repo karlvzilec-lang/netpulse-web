@@ -1403,11 +1403,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span class="ch-s" id="cf-count">0</span>
       </div>
       <div class="tw"><table><thead><tr>
-        <th scope="col">Time</th><th scope="col">Category</th><th scope="col">Severity</th><th scope="col">Source</th>
-        <th scope="col">Operator</th><th scope="col">Province</th><th scope="col">Device</th><th scope="col">RAT</th>
+        <th scope="col">Time</th><th scope="col">Category</th><th scope="col">Severity</th>
+        <th scope="col">Province</th><th scope="col">RAT</th>
         <th scope="col">PCI</th><th scope="col">Cell ID</th><th scope="col">TAC</th>
         <th scope="col">RSRP</th><th scope="col">SINR</th>
         <th scope="col">DL (Mbps)</th><th scope="col">UL (Mbps)</th><th scope="col">Ping (ms)</th>
+        <th scope="col">Latitude</th><th scope="col">Longitude</th>
         <th scope="col">Detail</th>
       </tr></thead><tbody id="cf-tbody"></tbody></table></div>
     </div>
@@ -3898,7 +3899,8 @@ function computeNetworkFindings(nxRows, driveSessionGroups){
     const base={
       timestamp:r.tested_at, source:'Speed Test', operator:normOp(r.operator), province:r.province||null,
       device:r.device_id||null, rat:r.rat||null, pci:r.pci??null, cellId:null, tac:null,
-      rsrp:r.rsrp??null, sinr:r.sinr??null, dl:r.download_mbps??null, ul:r.upload_mbps??null, ping:r.ping_ms??null
+      rsrp:r.rsrp??null, sinr:r.sinr??null, dl:r.download_mbps??null, ul:r.upload_mbps??null, ping:r.ping_ms??null,
+      lat:r.latitude??null, lng:r.longitude??null
     }
     if(r.download_mbps!=null){
       const isCongestion = r.rsrp!=null && r.rsrp>=CF_CONGESTION_GOOD_RSRP && r.sinr!=null && r.sinr>=CF_CONGESTION_GOOD_SINR
@@ -3930,7 +3932,8 @@ function computeNetworkFindings(nxRows, driveSessionGroups){
       const base={
         timestamp:s.sampled_at, source:'Drive Test', operator:normOp(g.operator||s.operator), province:null,
         device:g.deviceId||s.device_id||null, rat:s.rat||null, pci:s.pci??null, cellId:s.cell_id??null, tac:s.tac??null,
-        rsrp:s.rsrp??null, sinr:s.sinr??null, dl:s.download_mbps??null, ul:null, ping:null
+        rsrp:s.rsrp??null, sinr:s.sinr??null, dl:s.download_mbps??null, ul:null, ping:null,
+        lat:s.latitude??null, lng:s.longitude??null
       }
       if(ev.type==='abrupt_drop'){
         findings.push({...base, category:'Handover', severity:'fail', detail:`Abrupt RSRP drop of ${ev.dropDb.toFixed(0)}dB (session ${g.sessionId})`})
@@ -4530,11 +4533,15 @@ function autoPickDriveSession(){
 let cfDriveSamples=null   // null = not yet loaded; lazy-loaded once on first tab visit
 let CFOP='Cellcard'
 let cfFindings=[]
+// Device/Source/Operator dropped from the displayed columns (operator is already stated
+// once in the page filter/report subtitle, so a per-row column was redundant; device/source
+// stay on the underlying finding objects for internal use, just not shown). Latitude/
+// Longitude added — real GPS decimal-degree values are available on every finding regardless
+// of which source table it came from.
 const CF_COLUMNS=[
-  ['timestamp','Time'],['category','Category'],['severity','Severity'],['source','Source'],
-  ['operator','Operator'],['province','Province'],['device','Device'],['rat','RAT'],
-  ['pci','PCI'],['cellId','Cell ID'],['tac','TAC'],['rsrp','RSRP'],['sinr','SINR'],
-  ['dl','DL Mbps'],['ul','UL Mbps'],['ping','Ping ms'],['detail','Detail'],
+  ['timestamp','Time'],['category','Category'],['severity','Severity'],['province','Province'],
+  ['rat','RAT'],['pci','PCI'],['cellId','Cell ID'],['tac','TAC'],['rsrp','RSRP'],['sinr','SINR'],
+  ['dl','DL Mbps'],['ul','UL Mbps'],['ping','Ping ms'],['lat','Latitude'],['lng','Longitude'],['detail','Detail'],
 ]
 
 function groupDriveSamplesBySession(samples){
@@ -4592,10 +4599,7 @@ function renderFindingRow(f){
     <td>${ts(f.timestamp)}</td>
     <td><span class="badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}44">${h(f.category)}</span></td>
     <td><span style="color:${sevColor};font-weight:700;text-transform:uppercase;font-size:10px">${h(f.severity)}</span></td>
-    <td>${h(f.source)}</td>
-    <td style="font-weight:600">${h(f.operator)}</td>
     <td>${h(f.province||'—')}</td>
-    <td class="mono">${f.device?sid(f.device):'—'}</td>
     <td>${ratBadge(f.rat)}</td>
     <td>${f.pci??'—'}</td>
     <td>${f.cellId??'—'}</td>
@@ -4605,6 +4609,8 @@ function renderFindingRow(f){
     <td>${f.dl!=null?n(f.dl):'—'}</td>
     <td>${f.ul!=null?n(f.ul):'—'}</td>
     <td>${f.ping!=null?n(f.ping,0):'—'}</td>
+    <td class="mono">${f.lat!=null?f.lat.toFixed(5):'—'}</td>
+    <td class="mono">${f.lng!=null?f.lng.toFixed(5):'—'}</td>
     <td style="font-size:11px;color:var(--mu);max-width:280px">${h(f.detail)}</td>
   </tr>`
 }
@@ -4648,31 +4654,133 @@ function exportFindingsXLS(){
   const html=`<html><head><meta charset="UTF-8"></head><body><table border="1">${head}${body}</table></body></html>`
   downloadBlob(cfFilename('xls'), html, 'application/vnd.ms-excel')
 }
+// Professional print-first design, matched to the same restrained palette convention
+// the Drive Test session PDF (exportPDF()) already established: charcoal/gray/hairline,
+// brand blue used sparingly as an accent rather than a full-bleed fill. Severity is the
+// one dimension worth spending color on (left-edge bar + bold text); category gets a
+// single muted dot; every other value stays plain ink. Designed via an expert design
+// panel — synthesized spec kept in the commit message for this change.
 function exportFindingsPDF(){
   if(!cfFindings.length){ showToast('No findings to export'); return }
   if(!window.jspdf){ showToast('PDF library not loaded'); return }
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('l','mm','a4')
-  const M=10
+  const M=10, W=297
+  const INK=[26,29,33], SUB=[107,114,128], HAIR=[226,229,233], BRAND=[31,111,235]
+  const BAD=[196,52,28], WARN=[180,83,9]
+  const CAT_COLOR={Congestion:[107,63,160], Handover:[14,116,148], 'Low Throughput':[44,90,160], 'High Latency':[107,91,77]}
   const S=s=>String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')
   const T=(txt,x,y,opt)=>doc.text(S(txt),x,y,opt)
+  const fmtDate=d=>{
+    const t=new Date(d), mon=t.toLocaleString('en-US',{month:'short'})
+    return `${String(t.getDate()).padStart(2,'0')} ${mon} ${t.getFullYear()}, ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
+  }
+  const fmtTime=d=>{
+    const t=new Date(d), mon=t.toLocaleString('en-US',{month:'short'})
+    return `${String(t.getDate()).padStart(2,'0')} ${mon} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
+  }
 
-  doc.setFontSize(15); doc.setFont(undefined,'bold')
-  T('NetPulse — Critical Findings Report', M, 14)
-  doc.setFontSize(9); doc.setFont(undefined,'normal'); doc.setTextColor(120)
-  T(`Operator: ${CFOP} | Generated ${new Date().toLocaleString()} | ${cfFindings.length} findings`, M, 20)
-  doc.setTextColor(0)
+  const counts={Congestion:0,Handover:0,'Low Throughput':0,'High Latency':0}
+  let fails=0, warns=0
+  cfFindings.forEach(f=>{ counts[f.category]=(counts[f.category]||0)+1; f.severity==='fail'?fails++:warns++ })
+
+  // ── Page 1 header + KPI strip ──
+  doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(...BRAND)
+  T('NetPulse', M, 14)
+  const wordmarkW=doc.getTextWidth('NetPulse')
+  doc.setFont(undefined,'normal'); doc.setFontSize(10); doc.setTextColor(...SUB)
+  T(' Critical Findings Report', M+wordmarkW, 14)
+  doc.setFontSize(8)
+  T(`Generated ${fmtDate(new Date())}`, W-M, 14, {align:'right'})
+  doc.setDrawColor(...BRAND); doc.setLineWidth(.5); doc.line(M,17.5,W-M,17.5)
+  doc.setFontSize(8); doc.setTextColor(...SUB)
+  T(`${CFOP==='all'?'All Operators':'Operator: '+CFOP}  |  ${cfFindings.length} findings`, M, 22)
+
+  const kpis=[
+    ['TOTAL FINDINGS', cfFindings.length, INK],
+    ['CRITICAL (FAIL)', fails, BAD],
+    ['WARNINGS', warns, WARN],
+    ['CONGESTION', counts.Congestion, CAT_COLOR.Congestion],
+    ['HANDOVER', counts.Handover, CAT_COLOR.Handover],
+    ['LOW THROUGHPUT', counts['Low Throughput'], CAT_COLOR['Low Throughput']],
+    ['HIGH LATENCY', counts['High Latency'], CAT_COLOR['High Latency']],
+  ]
+  const cellW=(W-2*M)/kpis.length
+  kpis.forEach(([label,val,color],i)=>{
+    const x=M+i*cellW
+    doc.setFont(undefined,'bold'); doc.setFontSize(6.5); doc.setTextColor(...SUB)
+    T(label, x, 28.5)
+    doc.setFontSize(14); doc.setTextColor(...color)
+    T(String(val), x, 35)
+    if(i>0){ doc.setDrawColor(...HAIR); doc.setLineWidth(.2); doc.line(x,25,x,37) }
+  })
+  doc.setDrawColor(...HAIR); doc.setLineWidth(.3); doc.line(M,39,W-M,39)
+  doc.setTextColor(...INK)
+
+  // ── Table ──
+  const body=cfFindings.map(f=>[
+    fmtTime(f.timestamp), f.category, f.severity.toUpperCase(), f.province||'—', f.rat||'—',
+    f.pci??'—', f.cellId??'—', f.tac??'—', f.rsrp??'—', f.sinr??'—',
+    f.dl!=null?n(f.dl):'—', f.ul!=null?n(f.ul):'—', f.ping!=null?n(f.ping,0):'—',
+    f.lat!=null?f.lat.toFixed(5):'—', f.lng!=null?f.lng.toFixed(5):'—', S(f.detail),
+  ])
 
   doc.autoTable({
-    startY:25,
+    startY:43,
     head:[CF_COLUMNS.map(([,l])=>S(l))],
-    body:cfFindings.map(f=>CF_COLUMNS.map(([k])=>S(f[k]??'—'))),
-    theme:'grid',
-    styles:{fontSize:6.5,cellPadding:1.2,overflow:'linebreak'},
-    headStyles:{fillColor:[31,111,235],textColor:255,fontStyle:'bold'},
-    columnStyles:{16:{cellWidth:60}},
-    margin:{left:M,right:M},
+    body,
+    theme:'plain',
+    styles:{font:'helvetica',fontSize:7,textColor:INK,cellPadding:{top:1.8,right:2.2,bottom:1.8,left:2.4},
+      lineWidth:{top:0,left:0,right:0,bottom:.15}, lineColor:HAIR, fillColor:255, overflow:'linebreak'},
+    headStyles:{fontSize:7.5,fontStyle:'bold',textColor:255,fillColor:INK,
+      lineWidth:{top:0,left:0,right:0,bottom:.3}, lineColor:INK},
+    columnStyles:{
+      0:{cellWidth:20}, 1:{cellWidth:24,cellPadding:{top:1.8,right:2.2,bottom:1.8,left:5}}, 2:{cellWidth:14,halign:'center'},
+      3:{cellWidth:20}, 4:{cellWidth:12}, 5:{cellWidth:12,halign:'right'}, 6:{cellWidth:16,halign:'right'},
+      7:{cellWidth:12,halign:'right'}, 8:{cellWidth:13,halign:'right'}, 9:{cellWidth:12,halign:'right'},
+      10:{cellWidth:14,halign:'right'}, 11:{cellWidth:14,halign:'right'}, 12:{cellWidth:13,halign:'right'},
+      13:{cellWidth:18,halign:'right'}, 14:{cellWidth:18,halign:'right'}, 15:{cellWidth:45,textColor:SUB},
+    },
+    margin:{top:17,left:M,right:M,bottom:18},
+    didParseCell:(data)=>{
+      if(data.section==='body' && data.column.index===2){
+        data.cell.styles.textColor = data.cell.raw==='FAIL' ? BAD : WARN
+        data.cell.styles.fontStyle = 'bold'
+      }
+    },
+    didDrawCell:(data)=>{
+      if(data.section!=='body') return
+      if(data.column.index===0){
+        const sev=data.row.raw[2]
+        doc.setFillColor(...(sev==='FAIL'?BAD:WARN))
+        doc.rect(data.cell.x, data.cell.y, 1.2, data.cell.height, 'F')
+      }
+      if(data.column.index===1){
+        const cat=data.row.raw[1]
+        doc.setFillColor(...(CAT_COLOR[cat]||SUB))
+        doc.circle(data.cell.x+2.2, data.cell.y+data.cell.height/2, 1.1, 'F')
+      }
+    },
+    didDrawPage:(data)=>{
+      if(data.pageNumber>1){
+        doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...SUB)
+        T('NetPulse — Critical Findings Report (continued)', M, 10)
+        doc.setDrawColor(...BRAND); doc.setLineWidth(.5); doc.line(M,13,W-M,13)
+      }
+      doc.setDrawColor(...HAIR); doc.setLineWidth(.2); doc.line(M,196.5,W-M,196.5)
+      doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...SUB)
+      T('Cellcard — Network Intelligence — Internal Use', M, 200.5)
+      T(`Page ${data.pageNumber} `, W-M, 200.5, {align:'right'})
+    },
   })
+
+  const totalPages=doc.internal.getNumberOfPages()
+  for(let i=1;i<=totalPages;i++){
+    doc.setPage(i)
+    doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...SUB)
+    T(`Page ${i} of ${totalPages}`, W-M, 200.5, {align:'right'})
+  }
+
   doc.save(cfFilename('pdf'))
 }
 
