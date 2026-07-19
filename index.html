@@ -513,7 +513,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
 <!-- AUTH MODAL -->
 <div class="auth-modal-backdrop" id="auth-modal-backdrop">
-  <div class="auth-modal">
+  <div class="auth-modal" id="auth-modal-signin">
     <h2>Sign in</h2>
     <p class="sub">Drive Test and Coverage Map require a login.</p>
     <div class="auth-field">
@@ -528,6 +528,22 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="auth-actions">
       <button class="secondary" onclick="closeAuthModal()">Cancel</button>
       <button id="auth-submit" onclick="onAuthSubmit()">Sign In</button>
+    </div>
+    <p class="sub" style="margin-top:14px;margin-bottom:0;text-align:center">
+      No account? <a href="#" onclick="event.preventDefault();showRequestAccessForm()" style="color:var(--bl)">Request access</a>
+    </p>
+  </div>
+  <div class="auth-modal" id="auth-modal-request" style="display:none">
+    <h2>Request access</h2>
+    <p class="sub">An admin will create your account once approved, and share your password with you directly.</p>
+    <div class="auth-field">
+      <label for="req-email">Email</label>
+      <input type="email" id="req-email" autocomplete="username"/>
+    </div>
+    <div class="auth-err" id="req-err"></div>
+    <div class="auth-actions">
+      <button class="secondary" onclick="showSignInForm()">Back</button>
+      <button id="req-submit" onclick="onRequestAccessSubmit()">Submit Request</button>
     </div>
   </div>
 </div>
@@ -555,6 +571,10 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
     Coverage Map
     <svg class="lock-ic auth-lock-badge" width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+  </button>
+  <button class="tab-btn" data-tab="admin" role="tab" aria-selected="false" id="admin-tab-btn" style="display:none">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.2 2.4 2.6.4-1.9 1.9.4 2.6L8 7.1 5.7 8.3l.4-2.6L4.2 3.8l2.6-.4L8 1z"/><circle cx="8" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    Admin
   </button>
 </div>
 
@@ -1018,8 +1038,8 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 <div class="tp" id="tp-drv">
   <div class="tp-lock" id="drv-lock">
     <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
-    <div>Sign in to view Drive Test data</div>
-    <button onclick="openAuthModal()">Sign In</button>
+    <div id="drv-lock-msg">Sign in to view Drive Test data</div>
+    <button id="drv-lock-btn" onclick="openAuthModal('drv')">Sign In</button>
   </div>
   <div class="drv-content" id="drv-content">
   <div class="g gmap mb">
@@ -1059,8 +1079,8 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         </div>
         <div class="drv-frow">
           <span class="drv-flbl">Operator</span>
-          <button class="dchip on" data-drv-op="all">All</button>
-          <button class="dchip" data-drv-op="Cellcard" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
+          <button class="dchip" data-drv-op="all">All</button>
+          <button class="dchip on" data-drv-op="Cellcard" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
           <button class="dchip" data-drv-op="Metfone" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
           <button class="dchip" data-drv-op="Smart" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
           <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
@@ -1122,8 +1142,8 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 <div class="tp" id="tp-cov">
   <div class="tp-lock" id="cov-lock">
     <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
-    <div>Sign in to view the Coverage Map</div>
-    <button onclick="openAuthModal()">Sign In</button>
+    <div id="cov-lock-msg">Sign in to view the Coverage Map</div>
+    <button id="cov-lock-btn" onclick="openAuthModal('cov')">Sign In</button>
   </div>
   <div class="cov-content" id="cov-content">
   <div class="cov-wrap">
@@ -1149,12 +1169,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <div class="layer-dot" style="background:#ffc107"></div>
           <div><div class="layer-iname">Experience Hexbin</div><div class="layer-isub">H3 res 9 · ~174m · avg RSRP</div></div>
         </div>
-        <div class="layer-row">
+        <div class="layer-row" id="cell-sites-row" style="display:none">
           <label class="ltog"><input type="checkbox" id="lyr-towers" aria-label="Toggle Cell Sites layer"><span class="lslid"></span></label>
           <div class="layer-dot" style="background:#2563eb"></div>
           <div><div class="layer-iname">Cell Sites</div><div class="layer-isub">4G/5G Blue · 4G Green</div></div>
         </div>
-        <div class="layer-row">
+        <div class="layer-row" id="reseller-sites-row" style="display:none">
           <label class="ltog"><input type="checkbox" id="lyr-resellers" aria-label="Toggle Reseller Sites layer"><span class="lslid"></span></label>
           <div class="layer-dot" style="background:#FF7900"></div>
           <div><div class="layer-iname">Reseller Sites</div><div class="layer-isub">Amber · from KMZ/KML</div></div>
@@ -1177,8 +1197,8 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <button id="cov-op-default-btn" title="Set as default operator" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer">☆ Set Default</button>
         </div>
         <div class="cov-chips">
-          <button class="fchip on" style="font-size:11px;padding:3px 8px" data-cop2="all">All</button>
-          <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Cellcard">Cellcard</button>
+          <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="all">All</button>
+          <button class="fchip on" style="font-size:11px;padding:3px 8px" data-cop2="Cellcard">Cellcard</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Metfone">Metfone</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Smart">Smart</button>
         </div>
@@ -1307,6 +1327,61 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
   </div>
   </div><!-- /cov-content -->
+</div>
+
+<!-- ══════════════ ADMIN ══════════════ -->
+<div class="tp" id="tp-admin">
+  <div class="card mb">
+    <div class="ch">
+      <span class="ch-t" role="heading" aria-level="2">Pending Access Requests</span>
+      <span class="ch-s" id="admin-pending-count">0</span>
+    </div>
+    <div class="cb" id="admin-pending-list"><div class="empty">No pending requests</div></div>
+  </div>
+
+  <div class="card mb">
+    <div class="ch">
+      <span class="ch-t" role="heading" aria-level="2">All Users</span>
+      <span class="ch-s" id="admin-users-count">0</span>
+    </div>
+    <div class="tw"><table><thead><tr>
+      <th scope="col">Email</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th>
+    </tr></thead><tbody id="admin-users-tbody"></tbody></table></div>
+  </div>
+
+  <div class="card mb">
+    <div class="ch">
+      <span class="ch-t" role="heading" aria-level="2">Role Permission Matrix</span>
+      <span class="ch-s">Editable — changes apply immediately</span>
+    </div>
+    <div class="cb">
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+        <input type="text" id="admin-new-role-input" placeholder="New role name…" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:12px">
+        <button class="sb-btn" id="admin-add-role-btn" style="width:auto;padding:6px 14px">+ Add Role</button>
+        <span id="admin-matrix-status" style="font-size:11px;color:var(--mu)"></span>
+      </div>
+      <div class="tw"><table id="admin-role-matrix-table"><thead><tr>
+        <th scope="col">Role</th><th scope="col">Drive Test</th><th scope="col">Coverage Map</th><th scope="col">Cell &amp; Reseller Sites</th>
+      </tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- SET-PASSWORD MODAL (admin action) -->
+<div class="auth-modal-backdrop" id="pw-modal-backdrop">
+  <div class="auth-modal">
+    <h2>Set password</h2>
+    <p class="sub" id="pw-modal-sub">—</p>
+    <div class="auth-field">
+      <label for="pw-modal-input">New password (min 8 characters)</label>
+      <input type="password" id="pw-modal-input" autocomplete="new-password"/>
+    </div>
+    <div class="auth-err" id="pw-modal-err"></div>
+    <div class="auth-actions">
+      <button class="secondary" onclick="closePwModal()">Cancel</button>
+      <button id="pw-modal-submit" onclick="onPwModalSubmit()">Set Password</button>
+    </div>
+  </div>
 </div>
 
 </div><!-- /page -->
@@ -1455,7 +1530,7 @@ const F = {
   // CX — local "Type" filter only (operator/tech/province come from the global bar above)
   cCov:'all',
   // Drive Test
-  drvDate:'all', drvFrom:null, drvTo:null, drvOp:'all', drvDevice:'all',
+  drvDate:'all', drvFrom:null, drvTo:null, drvOp:'Cellcard', drvDevice:'all',
 }
 
 // ── Helpers ───────────────────────────────────────
@@ -1647,25 +1722,54 @@ function gaugeSVG(score, color, label) {
 const {createClient} = supabase
 const db = createClient(SB_URL, SB_KEY)
 
-// ── Auth ──────────────────────────────────────────
-// Drive Test and Coverage Map require a logged-in user — enforced server-side too
-// (drive_samples' anon SELECT policy was removed; only `authenticated` can read it),
-// so this isn't just a UI gate. drive_sessions (names/dates/counts, no GPS points)
-// stays public since the Executive Summary's "Drive Test Trips" KPI needs it and
-// that tab isn't gated.
-const AUTH_GATED_TABS = ['drv','cov']
+// ── Auth + RBAC ───────────────────────────────────
+// Drive Test and Coverage Map require a logged-in, approved user with the
+// matching permission — enforced server-side too (drive_samples' anon SELECT
+// policy was removed; only `authenticated` can read it), not just a UI gate.
+// drive_sessions (names/dates/counts, no GPS points) stays public since the
+// Executive Summary's "Drive Test Trips" KPI needs it and that tab isn't gated.
+const AUTH_GATED_TABS = {drv:'drive_test', cov:'coverage_map'}
 let currentUser = null
+let myProfile = null     // netpulse_profiles row for currentUser, or null
+let permMatrix = {}      // {role: {permission: boolean}}
 let pendingAuthTab = null   // tab the user was trying to reach when the login modal opened
 
 function openAuthModal(tab){
   pendingAuthTab = tab || null
-  document.getElementById('auth-err').textContent = ''
+  showSignInForm()
   document.getElementById('auth-modal-backdrop').classList.add('on')
   document.getElementById('auth-email').focus()
 }
 function closeAuthModal(){
   document.getElementById('auth-modal-backdrop').classList.remove('on')
   pendingAuthTab = null
+}
+function showSignInForm(){
+  document.getElementById('auth-modal-signin').style.display=''
+  document.getElementById('auth-modal-request').style.display='none'
+  document.getElementById('auth-err').textContent=''
+}
+function showRequestAccessForm(){
+  document.getElementById('auth-modal-signin').style.display='none'
+  document.getElementById('auth-modal-request').style.display=''
+  document.getElementById('req-err').textContent=''
+  document.getElementById('req-email').focus()
+}
+async function onRequestAccessSubmit(){
+  const email = document.getElementById('req-email').value.trim()
+  const errEl = document.getElementById('req-err')
+  const btn = document.getElementById('req-submit')
+  if(!email){ errEl.textContent='Enter your email.'; return }
+  btn.disabled=true; btn.textContent='Submitting…'
+  const {error} = await db.from('netpulse_access_requests').insert({email})
+  btn.disabled=false; btn.textContent='Submit Request'
+  if(error){
+    errEl.textContent = error.code==='23505' ? 'A request for this email already exists.' : error.message
+    return
+  }
+  closeAuthModal()
+  document.getElementById('req-email').value=''
+  showToast('Request submitted — an admin will create your account once approved.')
 }
 async function onAuthSubmit(){
   const email = document.getElementById('auth-email').value.trim()
@@ -1680,7 +1784,7 @@ async function onAuthSubmit(){
   currentUser = data.user
   const wantedTab = pendingAuthTab   // read before closeAuthModal() clears it
   closeAuthModal()
-  updateAuthUI()
+  await refreshAccessState()
   document.getElementById('auth-pass').value = ''
   if(wantedTab){
     const b = document.querySelector(`.tab-btn[data-tab="${wantedTab}"]`)
@@ -1690,36 +1794,270 @@ async function onAuthSubmit(){
 async function onSignOut(){
   await db.auth.signOut()
   currentUser = null
-  updateAuthUI()
+  myProfile = null
+  await refreshAccessState()
   // If a gated tab is currently showing, fall back to Executive Summary
   const activeTab = document.querySelector('.tab-btn.on')
-  if(activeTab && AUTH_GATED_TABS.includes(activeTab.dataset.tab)){
+  if(activeTab && (activeTab.dataset.tab in AUTH_GATED_TABS || activeTab.dataset.tab==='admin')){
     document.querySelector('.tab-btn[data-tab="dash"]').click()
   }
 }
 function onAuthBtnClick(){ currentUser ? onSignOut() : openAuthModal() }
 
+function isAdmin(){ return !!myProfile && myProfile.role==='admin' && myProfile.status==='approved' }
+function hasPermission(perm){
+  if(!myProfile || myProfile.status!=='approved') return false
+  return !!(permMatrix[myProfile.role]?.[perm])
+}
+async function loadMyProfile(){
+  if(!currentUser){ myProfile=null; return }
+  const {data,error} = await db.from('netpulse_profiles').select('*').eq('id',currentUser.id).maybeSingle()
+  if(error) console.error('loadMyProfile:',error)
+  myProfile = data||null
+}
+async function loadPermMatrix(){
+  const {data,error} = await db.from('netpulse_role_permissions').select('*')
+  if(error){ console.error('loadPermMatrix:',error); return }
+  permMatrix={}
+  ;(data||[]).forEach(r=>{ (permMatrix[r.role]=permMatrix[r.role]||{})[r.permission]=r.allowed })
+}
+
 function updateAuthUI(){
   const btn = document.getElementById('auth-btn')
   btn.textContent = currentUser ? `Sign Out (${currentUser.email})` : 'Sign In'
   document.querySelectorAll('.auth-lock-badge').forEach(el=>{ el.style.display = currentUser ? 'none' : '' })
-  for(const tab of AUTH_GATED_TABS){
-    const locked = !currentUser
+
+  for(const [tab,perm] of Object.entries(AUTH_GATED_TABS)){
+    const allowed = hasPermission(perm)
     const lockEl = document.getElementById(tab+'-lock')
     const contentEl = document.getElementById(tab+'-content')
-    if(lockEl) lockEl.classList.toggle('on', locked)
-    if(contentEl) contentEl.style.display = locked ? 'none' : ''
+    const msgEl = document.getElementById(tab+'-lock-msg')
+    const btnEl = document.getElementById(tab+'-lock-btn')
+    if(lockEl) lockEl.classList.toggle('on', !allowed)
+    if(contentEl) contentEl.style.display = allowed ? '' : 'none'
+    if(msgEl && btnEl){
+      if(!currentUser){
+        msgEl.textContent = tab==='cov' ? 'Sign in to view the Coverage Map' : 'Sign in to view Drive Test data'
+        btnEl.textContent='Sign In'; btnEl.style.display=''
+      } else if(!myProfile || myProfile.status==='pending'){
+        msgEl.textContent = 'Your access request is awaiting admin approval'
+        btnEl.style.display='none'
+      } else if(myProfile.status==='rejected'){
+        msgEl.textContent = 'Your access request was not approved'
+        btnEl.style.display='none'
+      } else {
+        msgEl.textContent = "You don't have permission to view this"
+        btnEl.style.display='none'
+      }
+    }
   }
+
+  // Admin-only surfaces
+  const adminOk = isAdmin()
+  const adminTabBtn = document.getElementById('admin-tab-btn')
+  if(adminTabBtn) adminTabBtn.style.display = adminOk ? '' : 'none'
+  const cellRow = document.getElementById('cell-sites-row')
+  const resellerRow = document.getElementById('reseller-sites-row')
+  const cellOk = hasPermission('cell_sites')
+  if(cellRow) cellRow.style.display = cellOk ? '' : 'none'
+  if(resellerRow) resellerRow.style.display = cellOk ? '' : 'none'
 }
+
+async function refreshAccessState(){
+  await loadMyProfile()
+  if(!Object.keys(permMatrix).length) await loadPermMatrix()
+  updateAuthUI()
+  if(isAdmin() && document.getElementById('tp-admin')?.classList.contains('on')) loadAdminData()
+}
+
 async function initAuth(){
   const {data:{session}} = await db.auth.getSession()
   currentUser = session?.user || null
-  updateAuthUI()
-  db.auth.onAuthStateChange((_event, session)=>{
+  await refreshAccessState()
+  db.auth.onAuthStateChange(async (_event, session)=>{
     currentUser = session?.user || null
-    updateAuthUI()
+    await refreshAccessState()
   })
 }
+
+// ── Admin panel ────────────────────────────────────
+let adminAllProfiles = []
+const MATRIX_PERMISSIONS = [['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites']]
+
+let adminPendingRequests = []
+
+async function loadAdminData(){
+  if(!isAdmin()) return
+  const [profRes, reqRes] = await Promise.all([
+    db.from('netpulse_profiles').select('*').order('created_at',{ascending:false}),
+    db.from('netpulse_access_requests').select('*').eq('status','pending').order('requested_at',{ascending:false}),
+  ])
+  if(profRes.error) console.error('loadAdminData profiles:',profRes.error)
+  if(reqRes.error) console.error('loadAdminData requests:',reqRes.error)
+  adminAllProfiles = profRes.data||[]
+  adminPendingRequests = reqRes.data||[]
+  renderPendingRequests()
+  renderUsersTable()
+  renderRoleMatrix()
+}
+
+function genPassword(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let out=''
+  const rnd=new Uint32Array(14)
+  crypto.getRandomValues(rnd)
+  for(let i=0;i<14;i++) out+=chars[rnd[i]%chars.length]
+  return out
+}
+
+function renderPendingRequests(){
+  document.getElementById('admin-pending-count').textContent = adminPendingRequests.length
+  const el = document.getElementById('admin-pending-list')
+  if(!adminPendingRequests.length){ el.innerHTML = '<div class="empty">No pending requests</div>'; return }
+  const roles = Object.keys(permMatrix).sort()
+  el.innerHTML = adminPendingRequests.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${h(r.email)}</div>
+        <div style="font-size:11px;color:var(--mu)">Requested ${ts(r.requested_at)}</div>
+      </div>
+      <select id="pending-role-${r.id}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:12px">
+        ${roles.map(role=>`<option value="${role}"${role==='viewer'?' selected':''}>${h(role)}</option>`).join('')}
+      </select>
+      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(0,230,118,.15);border-color:rgba(0,230,118,.4);color:#00e676" onclick="approveRequest('${r.id}')">✓ Approve</button>
+      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.4);color:#f85149" onclick="rejectRequest('${r.id}')">✕ Reject</button>
+    </div>`).join('')
+}
+
+async function approveRequest(id){
+  const req = adminPendingRequests.find(r=>r.id===id)
+  if(!req) return
+  const roleSel = document.getElementById('pending-role-'+id)
+  const role = roleSel ? roleSel.value : 'viewer'
+  const password = genPassword()
+
+  const {data,error} = await db.functions.invoke('netpulse-admin', {
+    body:{action:'create_user', email:req.email, password, role}
+  })
+  if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message)); return }
+
+  await db.from('netpulse_access_requests').update({
+    status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
+  }).eq('id', id)
+
+  loadAdminData()
+  showApprovedCredentials(req.email, password)
+}
+async function rejectRequest(id){
+  const {error} = await db.from('netpulse_access_requests').update({
+    status:'rejected', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
+  }).eq('id', id)
+  if(error){ showToast('Reject failed: '+error.message); return }
+  showToast('Request rejected')
+  loadAdminData()
+}
+function showApprovedCredentials(email, password){
+  const msg = `Account created for ${email}\nTemporary password: ${password}\n\nShare this with them directly — it will not be shown again.`
+  window.alert(msg)
+}
+
+function renderUsersTable(){
+  document.getElementById('admin-users-count').textContent = adminAllProfiles.length
+  const roles = Object.keys(permMatrix).sort()
+  document.getElementById('admin-users-tbody').innerHTML = adminAllProfiles.map(p=>{
+    const statusColor = p.status==='approved'?'#00e676':p.status==='pending'?'#ff9800':'#f85149'
+    return `<tr>
+      <td>${h(p.email)}</td>
+      <td>
+        <select onchange="changeUserRole('${p.id}',this.value)" style="padding:3px 6px;border-radius:5px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px">
+          ${roles.map(r=>`<option value="${r}"${r===p.role?' selected':''}>${h(r)}</option>`).join('')}
+        </select>
+      </td>
+      <td><span style="color:${statusColor};font-weight:600;text-transform:capitalize">${h(p.status)}</span></td>
+      <td>${ts(p.created_at)}</td>
+      <td><button class="sb-btn" style="width:auto;padding:4px 10px;font-size:11px" onclick="openPwModal('${p.id}')">🔑 Reset Password</button></td>
+    </tr>`
+  }).join('')
+}
+
+async function changeUserRole(id, role){
+  const {error} = await db.from('netpulse_profiles').update({role}).eq('id', id)
+  if(error){ showToast('Role change failed: '+error.message); return }
+  showToast('Role updated')
+  loadAdminData()
+}
+
+// ── Password modal (admin-initiated reset via the netpulse-admin Edge
+// Function, never touches the service-role key from the browser) ──
+let pwModalTargetId = null
+function openPwModal(userId){
+  const p = adminAllProfiles.find(x=>x.id===userId)
+  if(!p) return
+  pwModalTargetId = userId
+  document.getElementById('pw-modal-sub').textContent = `Set a new password for ${p.email}`
+  document.getElementById('pw-modal-input').value=''
+  document.getElementById('pw-modal-err').textContent=''
+  document.getElementById('pw-modal-backdrop').classList.add('on')
+  document.getElementById('pw-modal-input').focus()
+}
+function closePwModal(){
+  document.getElementById('pw-modal-backdrop').classList.remove('on')
+  pwModalTargetId = null
+}
+async function onPwModalSubmit(){
+  const pass = document.getElementById('pw-modal-input').value
+  const errEl = document.getElementById('pw-modal-err')
+  const btn = document.getElementById('pw-modal-submit')
+  if(!pass || pass.length<8){ errEl.textContent='Password must be at least 8 characters.'; return }
+  btn.disabled=true; btn.textContent='Setting…'
+  const {data,error} = await db.functions.invoke('netpulse-admin', {
+    body:{action:'reset_password', userId:pwModalTargetId, newPassword:pass}
+  })
+  btn.disabled=false; btn.textContent='Set Password'
+  if(error || data?.error){ errEl.textContent = (data&&data.error) || error.message; return }
+  closePwModal()
+  showToast('Password updated')
+}
+
+// ── Role permission matrix (editable) ─────────────
+function renderRoleMatrix(){
+  const roles = Object.keys(permMatrix).sort()
+  document.getElementById('admin-role-matrix-tbody').innerHTML = roles.map(role=>`
+    <tr>
+      <td style="font-weight:600;text-transform:capitalize">${h(role)}</td>
+      ${MATRIX_PERMISSIONS.map(([perm])=>`
+        <td style="text-align:center">
+          <label class="ltog" style="transform:scale(.85)">
+            <input type="checkbox" ${permMatrix[role]?.[perm]?'checked':''} onchange="toggleMatrixCell('${role}','${perm}',this.checked)">
+            <span class="lslid"></span>
+          </label>
+        </td>`).join('')}
+    </tr>`).join('')
+}
+async function toggleMatrixCell(role, perm, allowed){
+  const statusEl = document.getElementById('admin-matrix-status')
+  statusEl.textContent='Saving…'
+  const {error} = await db.from('netpulse_role_permissions').upsert({role, permission:perm, allowed})
+  if(error){ statusEl.textContent='❌ '+error.message; return }
+  permMatrix[role]=permMatrix[role]||{}; permMatrix[role][perm]=allowed
+  statusEl.textContent='✓ Saved'
+  setTimeout(()=>{ if(statusEl.textContent==='✓ Saved') statusEl.textContent='' }, 2000)
+  updateAuthUI()   // if the current user's own role permissions changed, reflect it immediately
+}
+document.getElementById('admin-add-role-btn').addEventListener('click', async ()=>{
+  const input = document.getElementById('admin-new-role-input')
+  const role = input.value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')
+  if(!role){ return }
+  if(permMatrix[role]){ showToast('That role already exists'); return }
+  const rows = MATRIX_PERMISSIONS.map(([perm])=>({role, permission:perm, allowed:false}))
+  const {error} = await db.from('netpulse_role_permissions').upsert(rows)
+  if(error){ showToast('Add role failed: '+error.message); return }
+  input.value=''
+  await loadPermMatrix()
+  renderRoleMatrix()
+  renderUsersTable()
+  renderPendingRequests()
+})
 
 // ── Chart.js defaults ─────────────────────────────
 Chart.defaults.color = '#8b949e'
@@ -3965,7 +4303,8 @@ function autoPickDriveSession(){
 
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
-  if(AUTH_GATED_TABS.includes(b.dataset.tab) && !currentUser){ openAuthModal(b.dataset.tab); return }
+  if(b.dataset.tab in AUTH_GATED_TABS && !currentUser){ openAuthModal(b.dataset.tab); return }
+  if(b.dataset.tab==='admin' && !isAdmin()) return   // hidden tab, but guard direct access anyway
   document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
   document.querySelectorAll('.tab-btn').forEach(x=>x.setAttribute('aria-selected','false'))
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('on'))
@@ -3974,8 +4313,9 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   document.getElementById('tp-'+b.dataset.tab).classList.add('on')
   // Global filter bar is only relevant to the three analytics tabs
   const gf=document.getElementById('gfbar'); if(gf) gf.style.display=['dash','net','cx'].includes(b.dataset.tab)?'flex':'none'
-  if(b.dataset.tab==='drv') setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
-  if(b.dataset.tab==='cov') setTimeout(initCovMap,80)
+  if(b.dataset.tab==='drv' && hasPermission('drive_test')) setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
+  if(b.dataset.tab==='cov' && hasPermission('coverage_map')) setTimeout(initCovMap,80)
+  if(b.dataset.tab==='admin') loadAdminData()
   history.pushState({tab:b.dataset.tab},'','#'+b.dataset.tab)
 }))
 
@@ -4064,7 +4404,7 @@ document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',(
 // ══════════════════════════════════════════════════
 let mapCov=null, mapCovReady=false
 let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}, covResellersGJ={type:'FeatureCollection',features:[]}
-const CF={op:'all',tech:'all',device:'all',type:'all',prov:'all'}
+const CF={op:'Cellcard',tech:'all',device:'all',type:'all',prov:'all'}
 
 // Cambodia province bounding boxes [west, south, east, north]
 const KH_PROV_BBOX={
@@ -4624,8 +4964,9 @@ function initCovMap(){
       ],{padding:40,maxZoom:14})
     }
 
-    // Auto-load cell/reseller sites from Supabase
-    loadSitesFromSupabase()
+    // Auto-load cell/reseller sites from Supabase — admin-only feature, so
+    // non-permitted users don't even trigger the fetch, not just a hidden toggle.
+    if(hasPermission('cell_sites')) loadSitesFromSupabase()
   })
 }
 
