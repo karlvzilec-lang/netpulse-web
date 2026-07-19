@@ -2274,6 +2274,22 @@ function watchMapContainerResize(getMapInstance, containerEl){
   if(!containerEl || !window.ResizeObserver) return
   new ResizeObserver(()=>{ const m=getMapInstance(); if(m) m.resize() }).observe(containerEl)
 }
+// 'load' can fire successfully even when the map's actual tile requests are silently
+// blocked — a documented MapLibre gap (a source that fails to load doesn't reliably surface
+// as an 'error' event: github.com/maplibre/maplibre-gl-js/issues/5430). MapLibre's 'idle'
+// event, by contrast, is only fired once every currently-requested tile has actually
+// finished loading (success or failure). If 'idle' never fires within a few seconds of
+// 'load', the canvas is very likely rendering nothing because the real tile requests (not
+// just the small style document, which can succeed independently) are being blocked
+// somewhere between the browser and the tile host — e.g. a corporate firewall/proxy that
+// allows the style JSON through but blocks the much higher-volume vector-tile requests.
+function watchTilesActuallyRender(mapInstance, containerId){
+  let idleFired=false
+  mapInstance.once('idle', ()=>{ idleFired=true })
+  setTimeout(()=>{
+    if(!idleFired) showMapError(containerId, new Error('The map loaded but its tiles never rendered. This usually means your network is blocking the tile server even though the rest of NetPulse is reachable — check with your network/IT team, or try a different network.'), 'tiles-blocked')
+  }, 8000)
+}
 
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
@@ -2319,6 +2335,7 @@ function initDriveMap() {
     // of this handler) set their own, more specific view right after via fitBounds/flyTo.
     if(map){ map.resize(); map.jumpTo({center:[104.9282,11.5564],zoom:11}) }
     watchMapContainerResize(()=>map, document.getElementById('dmap'))
+    watchTilesActuallyRender(map, 'dmap')
     mapReady=true
 
   // Route — RSRP-colored segments (CellMapper style: each 2-pt segment colored by signal strength)
@@ -5311,6 +5328,7 @@ function buildCompareMaps(n){
       map.addLayer({id:`cmp-dots-${i}`,type:'circle',source:'cmp-samples',filter:['!',['has','point_count']],
         paint:{'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#1e293b','circle-opacity':.75,
           'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
+      watchTilesActuallyRender(map, panelId)
       entry.ready=true
       renderComparePanel(i)
     })
@@ -5405,6 +5423,7 @@ function initCovMap(){
     // the intended view now that the tab is definitely visible and laid out.
     mapCov.resize(); mapCov.jumpTo({center:[104.9282,11.5564],zoom:11})
     watchMapContainerResize(()=>mapCov, document.getElementById('cov-map'))
+    watchTilesActuallyRender(mapCov, 'cov-map')
     mapCovReady=true
 
     // Sources
