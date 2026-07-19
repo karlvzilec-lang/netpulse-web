@@ -1111,29 +1111,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     </div>
   </div>
 
-  <div class="card mb" id="upload-card">
-    <div class="ch">
-      <span class="ch-t" role="heading" aria-level="2">📂 Manual Upload</span>
-      <span class="ch-s">CSV or GPX drive test data</span>
-    </div>
-    <div style="padding:12px 16px">
-      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">
-        Upload a CSV or GPX file to visualize drive test data not yet synced from the Android app.
-        <br><b style="color:var(--tx)">CSV columns:</b> timestamp, latitude, longitude, rsrp, sinr, rat, operator, download_mbps (header row required)
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="file" id="upload-drv-input" accept=".csv,.gpx" style="display:none">
-        <button id="upload-drv-btn" style="padding:6px 14px;background:rgba(31,111,235,.2);border:1px solid rgba(31,111,235,.4);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer">📂 Choose File</button>
-        <button id="upload-clear-btn" style="padding:6px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:12px;cursor:pointer;display:none">✕ Clear Upload</button>
-        <span id="upload-status" style="font-size:11px;color:var(--mu)"></span>
-      </div>
-      <div id="upload-preview" style="margin-top:10px;display:none">
-        <div style="font-size:10px;color:var(--mu);margin-bottom:4px">Preview (first 3 rows)</div>
-        <div id="upload-preview-rows" style="font-size:10px;font-family:monospace;color:var(--tx);background:var(--s2);border-radius:6px;padding:8px;overflow-x:auto"></div>
-      </div>
-    </div>
-  </div>
-
   <div class="card">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
     <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
@@ -2990,29 +2967,26 @@ function renderSessions() {
     const dur=s.end_time&&s.start_time?Math.round((new Date(s.end_time)-new Date(s.start_time))/60000)+'min':'Active'
     const isSel=activeSess&&activeSess.id===s.id
     const hasSamples=sampledSessionIds.has(s.id)
-    const isManual=s.id==='manual'
     const opName=normOp(s.operator)
     const opColor=opName==='Cellcard'?'#FF7900':opName==='Metfone'?'#DB1A21':opName==='Smart'?'#009639':'var(--mu)'
 
-    const syncBadge=isManual
-      ? `<span class="sess-badge" style="background:rgba(31,111,235,.18);color:var(--bl);border-color:rgba(31,111,235,.35)">📂 File</span>`
-      : hasSamples
-        ? `<span class="sess-badge" style="background:#00e67618;color:#00e676;border-color:#00e67640">✓ Synced</span>`
-        : `<span class="sess-badge" style="background:#ff980014;color:#ff9800;border-color:#ff980032">📱 Pending</span>`
+    const syncBadge=hasSamples
+      ? `<span class="sess-badge" style="background:#00e67618;color:#00e676;border-color:#00e67640">✓ Synced</span>`
+      : `<span class="sess-badge" style="background:#ff980014;color:#ff9800;border-color:#ff980032">📱 Pending</span>`
 
-    const syncIcon=isManual||hasSamples
+    const syncIcon=hasSamples
       ? `<button class="sess-sync-btn synced" title="Already synced" aria-label="Already synced" onclick="event.stopPropagation()">✓</button>`
       : `<button class="sess-sync-btn" title="Check for GPS data" aria-label="Sync session data" id="sync-btn-${s.id}" onclick="event.stopPropagation();recheckSession(${s.id})">↻</button>`
 
-    const actionBtn=(isManual||hasSamples)
-      ? `<button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${isManual?'\'manual\'':s.id})">📄 Analyze &amp; Export PDF</button>`
+    const actionBtn=hasSamples
+      ? `<button class="pdf-btn" onclick="event.stopPropagation();exportPDF(${s.id})">📄 Analyze &amp; Export PDF</button>`
       : ''
 
     return `
-    <div class="sess-item${isSel?' sel':''}" role="button" tabindex="0" onclick="pickSess(${isManual?'\'manual\'':s.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSess(${isManual?'\'manual\'':s.id})}">
+    <div class="sess-item${isSel?' sel':''}" role="button" tabindex="0" onclick="pickSess(${s.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pickSess(${s.id})}">
       <div class="sess-dev">
         <div class="sess-dev-left">
-          <span style="color:var(--mu);font-size:11px">${isManual?'📂':('📱 '+sid(s.device_id))}</span>
+          <span style="color:var(--mu);font-size:11px">📱 ${sid(s.device_id)}</span>
           ${s.name?`<span style="color:var(--tx);font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(s.name)}</span>`:''}
           ${syncBadge}
         </div>
@@ -3031,150 +3005,7 @@ function renderSessions() {
   }).join('')
 }
 
-// ── Manual Upload (CSV / GPX) ─────────────────────
-let manualSamples = []
-let manualSess = null
-
-function parseCSVUpload(text, filename) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim())
-  if (lines.length < 2) return null
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
-  const colMap = {
-    sampled_at: headers.findIndex(h => ['timestamp','time','sampled_at'].includes(h)),
-    latitude:   headers.findIndex(h => ['lat','latitude'].includes(h)),
-    longitude:  headers.findIndex(h => ['lon','lng','longitude'].includes(h)),
-    rsrp:       headers.findIndex(h => h === 'rsrp'),
-    sinr:       headers.findIndex(h => h === 'sinr'),
-    rat:        headers.findIndex(h => h === 'rat'),
-    operator:   headers.findIndex(h => ['operator','op'].includes(h)),
-    download_mbps: headers.findIndex(h => ['dl','download','download_mbps'].includes(h))
-  }
-  const rows = []
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',')
-    const lat = parseFloat(cols[colMap.latitude])
-    const lng = parseFloat(cols[colMap.longitude])
-    if (isNaN(lat) || isNaN(lng)) continue
-    rows.push({
-      sampled_at:   colMap.sampled_at >= 0 ? cols[colMap.sampled_at]?.trim() : null,
-      latitude:     lat,
-      longitude:    lng,
-      rsrp:         colMap.rsrp >= 0 ? parseFloat(cols[colMap.rsrp]) || null : null,
-      sinr:         colMap.sinr >= 0 ? parseFloat(cols[colMap.sinr]) || null : null,
-      rat:          colMap.rat >= 0 ? cols[colMap.rat]?.trim() : null,
-      operator:     colMap.operator >= 0 ? cols[colMap.operator]?.trim() : null,
-      download_mbps:colMap.download_mbps >= 0 ? parseFloat(cols[colMap.download_mbps]) || null : null
-    })
-  }
-  return rows.length ? rows : null
-}
-
-function parseGPXUpload(text) {
-  const doc = new DOMParser().parseFromString(text, 'application/xml')
-  const trkpts = [...doc.querySelectorAll('trkpt')]
-  const rows = []
-  trkpts.forEach(pt => {
-    const lat = parseFloat(pt.getAttribute('lat'))
-    const lng = parseFloat(pt.getAttribute('lon'))
-    if (isNaN(lat) || isNaN(lng)) return
-    const timeEl = pt.querySelector('time')
-    const rsrpEl = pt.querySelector('rsrp') || pt.querySelector('SignalStrength')
-    const eleEl  = pt.querySelector('ele')
-    rows.push({
-      sampled_at:    timeEl ? timeEl.textContent.trim() : null,
-      latitude:      lat,
-      longitude:     lng,
-      rsrp:          rsrpEl ? parseFloat(rsrpEl.textContent) || null : (eleEl ? parseFloat(eleEl.textContent) || null : null),
-      sinr:          null,
-      rat:           null,
-      operator:      null,
-      download_mbps: null
-    })
-  })
-  return rows.length ? rows : null
-}
-
-function loadUploadedSamples(rows, filename) {
-  manualSamples = rows
-  const rsrpVals = rows.map(r => r.rsrp).filter(v => v != null)
-  const avgRsrp = rsrpVals.length ? rsrpVals.reduce((a,b) => a+b, 0) / rsrpVals.length : null
-  manualSess = {
-    id: 'manual',
-    device_id: 'uploaded-file',
-    name: filename,
-    start_time: rows[0]?.sampled_at || null,
-    sample_count: rows.length,
-    distance_km: null,
-    avg_rsrp: avgRsrp
-  }
-  // Prepend if not already present
-  if (!sessAll.find(s => s.id === 'manual')) sessAll.unshift(manualSess)
-  else { const idx = sessAll.findIndex(s => s.id === 'manual'); sessAll[idx] = manualSess }
-  sampledSessionIds.add('manual')
-  renderSessions()
-  document.getElementById('upload-status').textContent = `✓ ${rows.length} points loaded`
-  document.getElementById('upload-status').style.color = 'var(--gr)'
-  document.getElementById('upload-clear-btn').style.display = ''
-  // Preview
-  const preview = rows.slice(0, 3).map(r =>
-    `lat:${n(r.latitude,4)} lng:${n(r.longitude,4)} rsrp:${r.rsrp??'—'} rat:${r.rat||'—'}`
-  ).join('\n')
-  document.getElementById('upload-preview-rows').textContent = preview
-  document.getElementById('upload-preview').style.display = ''
-}
-
-document.getElementById('upload-drv-btn').addEventListener('click', () => document.getElementById('upload-drv-input').click())
-document.getElementById('upload-drv-input').addEventListener('change', e => {
-  const file = e.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = ev => {
-    const text = ev.target.result
-    const isGPX = file.name.toLowerCase().endsWith('.gpx')
-    const rows = isGPX ? parseGPXUpload(text) : parseCSVUpload(text, file.name)
-    if (!rows) {
-      document.getElementById('upload-status').textContent = '⚠ Could not parse file — check format'
-      document.getElementById('upload-status').style.color = 'var(--re)'
-      return
-    }
-    loadUploadedSamples(rows, file.name)
-  }
-  reader.readAsText(file)
-  e.target.value = ''
-})
-document.getElementById('upload-clear-btn').addEventListener('click', () => {
-  manualSamples = []
-  manualSess = null
-  const idx = sessAll.findIndex(s => s.id === 'manual')
-  if (idx >= 0) sessAll.splice(idx, 1)
-  sampledSessionIds.delete('manual')
-  if (activeSess?.id === 'manual') activeSess = null
-  renderSessions()
-  document.getElementById('upload-status').textContent = ''
-  document.getElementById('upload-clear-btn').style.display = 'none'
-  document.getElementById('upload-preview').style.display = 'none'
-})
-
 window.pickSess = async function(id) {
-  if (id === 'manual') {
-    activeSess = manualSess
-    driveSamples = manualSamples
-    renderSessions()
-    document.getElementById('dmap-lbl').textContent = `📂 ${manualSess.name}`
-    document.getElementById('drv-analysis').style.display = 'block'
-    document.getElementById('drv-analysis-title').textContent = `Drive Analysis — ${manualSess.name}`
-    document.getElementById('da-samples').textContent = manualSess.sample_count ?? '—'
-    document.getElementById('da-dist').textContent = '—'
-    document.getElementById('da-rsrp').textContent = manualSess.avg_rsrp != null ? n(manualSess.avg_rsrp,0)+' dBm' : '—'
-    document.getElementById('da-rsrp').style.color = rsrpColor(manualSess.avg_rsrp)
-    document.getElementById('da-ho').textContent = '—'
-    document.getElementById('da-dl').textContent = '—'
-    document.getElementById('da-dur').textContent = '—'
-    paintMap()
-    renderSamples()
-    if (driveSamples.length) renderDriveRules(driveSamples, activeSess)
-    return
-  }
   activeSess=sessAll.find(s=>s.id===id)
   if(!activeSess) return
   renderSessions()
@@ -3227,7 +3058,7 @@ function paintMap() {
     document.getElementById('dmap').parentElement.style.position='relative'
     document.getElementById('dmap').after(overlay)
   }
-  if(activeSess?.id!=='manual'&&!sampledSessionIds.has(activeSess?.id)){
+  if(!sampledSessionIds.has(activeSess?.id)){
     overlay.style.display='flex'
     const cnt=activeSess?.sample_count??0
     const rsrp=activeSess?.avg_rsrp!=null?`avg RSRP ${n(activeSess.avg_rsrp,0)} dBm`:'no signal data'
@@ -3383,7 +3214,6 @@ function renderMetadataAnalysis(sess) {
       <div style="margin-top:6px;padding:6px 8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.25);border-radius:6px;color:#ff9800;font-size:9px;line-height:1.5">
         GPS route not yet synced from device.<br>
         <button onclick="recheckSession(${sess.id})" style="margin-top:4px;padding:2px 8px;background:rgba(255,152,0,.2);border:1px solid rgba(255,152,0,.4);border-radius:4px;color:#ff9800;font-size:9px;cursor:pointer;font-weight:700">↻ Check Again</button>
-        <button onclick="document.getElementById('upload-card').scrollIntoView({behavior:'smooth'})" style="margin-top:4px;margin-left:4px;padding:2px 8px;background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);border-radius:4px;color:var(--bl);font-size:9px;cursor:pointer;font-weight:700">↑ Upload CSV/GPX</button>
       </div>
     </div>`
 
@@ -3725,29 +3555,18 @@ function toggleTheme(){
 window.exportPDF = async function(sessId) {
   let sess=sessAll.find(s=>s.id===sessId)
   // Fallback: older sessions scroll out of the top-100 cache — fetch by id so export still works
-  if(!sess && sessId!=='manual'){
+  if(!sess){
     const {data,error}=await db.from('drive_sessions').select('*').eq('id',sessId).maybeSingle()
     if(error) console.error('drive_sessions lookup:',error)
     sess=data||null
   }
   if(!sess){showToast('Select a session first');return}
-  // Manual/uploaded-CSV sessions live only in the client-side manualSamples array — they're
-  // never written to Supabase, so a session_id='manual' query always returns nothing. Read
-  // manualSamples directly (it persists regardless of which session is currently active) rather
-  // than the old fallback to `driveSamples`, which is only populated for the ACTIVE session —
-  // clicking "Export PDF" on the manual row after switching to a different session silently
-  // exported on zero samples (a near-empty/FAIL report for data that was actually populated).
-  let samples=[]
-  if(sessId==='manual'){
-    samples=manualSamples
-  } else {
-    // Fetch the COMPLETE sample set — see fetchPaginated() for why a single query would
-    // silently truncate long drives (a 3186-sample run once only reported the first 1000).
-    const {data:pagedSamples}=await fetchPaginated((from,to)=>
-      db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,to))
-    samples=pagedSamples
-    if(!samples.length && activeSess?.id===sessId) samples=driveSamples
-  }
+  // Fetch the COMPLETE sample set — see fetchPaginated() for why a single query would
+  // silently truncate long drives (a 3186-sample run once only reported the first 1000).
+  const {data:pagedSamples}=await fetchPaginated((from,to)=>
+    db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,to))
+  let samples=pagedSamples
+  if(!samples.length && activeSess?.id===sessId) samples=driveSamples
 
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('p','mm','a4')
