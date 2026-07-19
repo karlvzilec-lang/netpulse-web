@@ -2265,6 +2265,15 @@ function showMapError(containerId, err, kind){
       ? 'Your browser has <b>WebGL disabled</b>, which MapLibre needs to draw maps. Enable hardware acceleration in Chrome settings (or update Chrome), then reload.'
       : 'Failed to load the basemap tiles. Detail: <span style="color:var(--re)">'+msg+'</span>')+'</div>'
 }
+// A fixed-delay retry (setTimeout) only catches a container that finishes settling within
+// that exact window — if a flex layout, animation, or webfont reflow takes longer, the map
+// canvas stays locked to whatever size it had at the last guess. ResizeObserver instead
+// calls .resize() every time the container's actual size changes, for as long as the map
+// exists, so it's correct regardless of how long (or how many times) the layout shifts.
+function watchMapContainerResize(getMapInstance, containerEl){
+  if(!containerEl || !window.ResizeObserver) return
+  new ResizeObserver(()=>{ const m=getMapInstance(); if(m) m.resize() }).observe(containerEl)
+}
 
 // ── MapLibre (Drive Test) — lazy init on first tab click ──
 function initDriveMap() {
@@ -2305,13 +2314,11 @@ function initDriveMap() {
   map.on('load',()=>{
     clearTimeout(drvLoadTimeout)
     // MapLibre sizes its canvas and computes its initial center/zoom from the container's
-    // dimensions at construction time — same fix as the Coverage Map for a container that
-    // hadn't finished settling into its flex layout yet. Only the immediate call re-centers;
-    // paintMap()/paintAllSessionsOverview() (called at the bottom of this handler) set their
-    // own, more specific view right after via fitBounds/flyTo, so the delayed follow-up only
-    // re-measures the canvas — re-centering it too would undo whatever those just set.
+    // dimensions at construction time — corrects a container that hadn't finished settling
+    // into its flex layout yet. paintMap()/paintAllSessionsOverview() (called at the bottom
+    // of this handler) set their own, more specific view right after via fitBounds/flyTo.
     if(map){ map.resize(); map.jumpTo({center:[104.9282,11.5564],zoom:11}) }
-    setTimeout(()=>{ if(map) map.resize() }, 250)
+    watchMapContainerResize(()=>map, document.getElementById('dmap'))
     mapReady=true
 
   // Route — RSRP-colored segments (CellMapper style: each 2-pt segment colored by signal strength)
@@ -5289,11 +5296,9 @@ function buildCompareMaps(n){
     map.on('load',()=>{
       clearTimeout(cmpLoadTimeout)
       // Same container-not-settled-yet risk as the main map: each panel sits in a CSS grid
-      // that may not have its final width yet at construction time. Re-measure and re-assert
-      // the intended view now that the panel is definitely laid out.
-      const resetPanelView=()=>{ map.resize(); map.jumpTo({center:[center.lng,center.lat],zoom}) }
-      resetPanelView()
-      setTimeout(resetPanelView, 250)
+      // that may not have its final width yet at construction time.
+      map.resize(); map.jumpTo({center:[center.lng,center.lat],zoom})
+      watchMapContainerResize(()=>map, document.getElementById(panelId))
       map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
       map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
         cluster:true,clusterMaxZoom:13,clusterRadius:40})
@@ -5396,12 +5401,10 @@ function initCovMap(){
     // container can measure as near-zero width, which corrupts BOTH the canvas size and the
     // effective zoom level (observed live: a Cambodia-centered map rendering zoomed out far
     // enough to show Mongolia/China, in a canvas confined to a narrow sliver of the page).
-    // CSS alone can't fix this after the fact. Force a re-measure and explicitly re-assert the
-    // intended view now that the tab is definitely visible and laid out, plus once more after
-    // a short delay to catch any layout that was still settling.
-    const resetCovView=()=>{ if(!mapCov) return; mapCov.resize(); mapCov.jumpTo({center:[104.9282,11.5564],zoom:11}) }
-    resetCovView()
-    setTimeout(resetCovView, 250)
+    // CSS alone can't fix this after the fact — force a re-measure and explicitly re-assert
+    // the intended view now that the tab is definitely visible and laid out.
+    mapCov.resize(); mapCov.jumpTo({center:[104.9282,11.5564],zoom:11})
+    watchMapContainerResize(()=>mapCov, document.getElementById('cov-map'))
     mapCovReady=true
 
     // Sources
