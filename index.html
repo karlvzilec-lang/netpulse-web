@@ -922,7 +922,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     </div>
     <div class="card mb">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">Recent Tests</span><span class="live-tag">LIVE</span></div>
-      <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">RSRP</th><th scope="col">Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th class="r">↓ DL</th><th class="r">↑ UL</th><th class="r">Ping</th><th scope="col">RSRP</th><th scope="col">Province</th></tr></thead><tbody id="tb-recent"></tbody></table></div>
     </div>
   </div>
 
@@ -930,11 +930,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   <div class="stp" id="st-rankings">
     <div class="card mb">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">Operator Rankings</span><span class="ch-s">All metrics · filtered period</span></div>
-      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th><th scope="col">RSRP (dBm)</th><th scope="col">Jitter</th><th scope="col">Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th class="r">Tests</th><th class="r">↓ DL (Mbps)</th><th class="r">↑ UL (Mbps)</th><th class="r">Ping (ms)</th><th class="r">RSRP (dBm)</th><th class="r">Jitter</th><th class="r">Score</th></tr></thead><tbody id="tb-rankings"></tbody></table></div>
     </div>
     <div class="card mb">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Experience Rankings</span><span class="ch-s">By operator</span></div>
-      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th scope="col">Tests</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Quality</th><th scope="col">Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th scope="col">Rank</th><th scope="col">Operator</th><th class="r">Tests</th><th class="r">Video XP</th><th class="r">Games XP</th><th class="r">Voice XP</th><th class="r">Consistent Quality</th><th class="r">Reliability</th></tr></thead><tbody id="tb-os-rank"></tbody></table></div>
     </div>
   </div>
 
@@ -983,9 +983,9 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span class="ch-s">Uses the Period / Operator / Tech / Province filters above — no separate filter on this view</span>
       </div>
       <div class="tw"><table><thead><tr>
-        <th scope="col">Rank</th><th scope="col">Province</th><th scope="col">Tests</th>
-        <th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th>
-        <th scope="col">RSRP (dBm)</th><th scope="col">Grade</th>
+        <th class="r">Rank</th><th scope="col">Province</th><th class="r">Tests</th>
+        <th class="r">↓ DL (Mbps)</th><th class="r">↑ UL (Mbps)</th><th class="r">Ping (ms)</th>
+        <th class="r">RSRP (dBm)</th><th scope="col">Grade</th>
       </tr></thead><tbody id="tb-prov-rank-exec"></tbody></table></div>
     </div>
     <div class="card mb">
@@ -994,9 +994,9 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span class="ch-s">Video / Games / Voice XP from OpenSignal · same filters as above</span>
       </div>
       <div class="tw"><table><thead><tr>
-        <th scope="col">Rank</th><th scope="col">Province</th><th scope="col">Tests</th>
-        <th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th>
-        <th scope="col">Consistent Quality</th><th scope="col">Reliability</th>
+        <th scope="col">Rank</th><th scope="col">Province</th><th class="r">Tests</th>
+        <th class="r">Video XP</th><th class="r">Games XP</th><th class="r">Voice XP</th>
+        <th class="r">Consistent Quality</th><th class="r">Reliability</th>
       </tr></thead><tbody id="tb-prov-xp-rank"></tbody></table></div>
     </div>
   </div>
@@ -1023,11 +1023,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </div>
   <div class="card mb">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Speed Test Log</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">Bands</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Ping</th><th scope="col">Jitter</th><th scope="col">RSRP</th><th scope="col">SINR</th><th scope="col">PCI</th><th scope="col">Province</th><th scope="col">Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">Bands</th><th class="r">↓ DL</th><th class="r">↑ UL</th><th class="r">Ping</th><th class="r">Jitter</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">PCI</th><th scope="col">Province</th><th scope="col">Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
   </div>
   <div class="card mb">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
-    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Game</th><th scope="col">Avg Ping</th><th scope="col">Min Ping</th><th scope="col">Max Ping</th><th scope="col">Jitter</th><th scope="col">Packet Loss</th><th scope="col">OpenSignal Score</th><th scope="col">Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Game</th><th class="r">Avg Ping</th><th class="r">Min Ping</th><th class="r">Max Ping</th><th class="r">Jitter</th><th class="r">Packet Loss</th><th class="r">OpenSignal Score</th><th scope="col">Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
   <div class="g g2">
     <div class="card mb">
@@ -1077,12 +1077,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
   <div class="card mb">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Scores</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Mode</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">Consistent Q</th><th scope="col">Reliability</th><th scope="col">↓ DL</th><th scope="col">↑ UL</th><th scope="col">Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Mode</th><th class="r">Video XP</th><th class="r">Games XP</th><th class="r">Voice XP</th><th class="r">Consistent Q</th><th class="r">Reliability</th><th class="r">↓ DL</th><th class="r">↑ UL</th><th class="r">Province</th></tr></thead><tbody id="tb-os"></tbody></table></div>
   </div>
 
   <div class="card mb">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">CX Experience Log</span><span class="live-tag">LIVE</span></div>
-    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Coverage</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">DL Score</th><th scope="col">UL Score</th><th scope="col">Overall</th><th scope="col">Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Coverage</th><th class="r">Video XP</th><th class="r">Games XP</th><th class="r">Voice XP</th><th class="r">DL Score</th><th class="r">UL Score</th><th class="r">Overall</th><th class="r">Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
   </div>
   </div><!-- /cx-content -->
 </div>
@@ -1186,7 +1186,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
   <div class="card">
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">Drive Samples</span><span class="ch-s" id="samp-cnt">—</span></div>
-    <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th scope="col">Grade</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th class="r">#</th><th scope="col">Time</th><th class="r">Lat</th><th class="r">Lng</th><th scope="col">RAT</th><th scope="col">Operator</th><th class="r">Grade</th><th class="r">RSRP</th><th class="r">SINR</th><th class="r">DL (Mbps)</th><th class="r">PCI</th><th scope="col">Event</th></tr></thead><tbody id="tb-samples"></tbody></table></div>
   </div>
   </div><!-- /drv-content -->
 </div>
@@ -3472,7 +3472,13 @@ function renderSessions() {
     if(F.drvFrom) filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=new Date(F.drvFrom))
     if(F.drvTo)   filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)<=new Date(F.drvTo+'T23:59:59'))
   }
-  if(F.drvOp!=='all') filtered=filtered.filter(s=>normOp(s.operator)===F.drvOp)
+  // The Operator chip is intentionally NOT applied here — drive_sessions has no operator
+  // column at all (confirmed via information_schema against the live DB: device_id,
+  // local_session_id, name, start_time, end_time, distance_km, sample_count,
+  // avg_download_mbps, avg_rsrp, handover_count, created_at, nothing else). Filtering on
+  // normOp(s.operator) would always evaluate to 'Unknown' and, under the app's own default
+  // operator ("Cellcard", not "All"), silently filter out every single session. If a real
+  // operator field is ever added to this table, wire the filter back in here.
   if(F.drvDevice!=='all') filtered=filtered.filter(s=>s.device_id===F.drvDevice)
 
   // Synced sessions float to top, then newest first
@@ -5222,7 +5228,15 @@ function buildCompareMaps(n){
     const entry={map, op:defaultOps[i], ready:false, idx:i}
     compareMaps.push(entry)
 
+    // Same stalled-load watchdog as the main coverage map (initCovMap) — a panel's style
+    // fetch can silently never resolve with no 'error' event, leaving that panel permanently
+    // black. Toggling compare mode off and back on is the only way to retry otherwise.
+    const cmpLoadTimeout=setTimeout(()=>{
+      if(!entry.ready) showMapError(panelId, new Error('Map tiles did not load in time. Check your network connection, then switch compare mode off and on to retry.'), 'timeout')
+    }, 12000)
+
     map.on('load',()=>{
+      clearTimeout(cmpLoadTimeout)
       map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
       map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
         cluster:true,clusterMaxZoom:13,clusterRadius:40})
@@ -5238,7 +5252,7 @@ function buildCompareMaps(n){
       entry.ready=true
       renderComparePanel(i)
     })
-    map.on('error', e=>showMapError(panelId, e))
+    map.on('error', e=>{ clearTimeout(cmpLoadTimeout); showMapError(panelId, e) })
 
     // Synchronized pan/zoom across all panels (guarded to avoid feedback loops)
     map.on('move', ()=>{
