@@ -613,7 +613,12 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
 <!-- ══════════════ EXPERIENCE DASHBOARD ══════════════ -->
 <div class="tp on" id="tp-dash">
-
+  <div class="tp-lock" id="dash-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div id="dash-lock-msg">Sign in to view Executive Summary</div>
+    <button id="dash-lock-btn" onclick="openAuthModal('dash')">Sign In</button>
+  </div>
+  <div id="dash-content">
 
 
   <!-- KPI row (technical view only — exec view uses hero cards instead) -->
@@ -983,10 +988,17 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       </tr></thead><tbody id="tb-prov-rank-exec"></tbody></table></div>
     </div>
   </div>
+  </div><!-- /dash-content -->
 </div>
 
 <!-- ══════════════ NETWORK ══════════════ -->
 <div class="tp" id="tp-net">
+  <div class="tp-lock" id="net-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div id="net-lock-msg">Sign in to view Network Detail</div>
+    <button id="net-lock-btn" onclick="openAuthModal('net')">Sign In</button>
+  </div>
+  <div id="net-content">
   <div class="g g2">
     <div class="card">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">Throughput &amp; Latency</span><span class="ch-s">Last 100 tests</span></div>
@@ -1015,10 +1027,17 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="cb"><div class="chart-h" style="height:220px"><canvas id="ch-hourly"></canvas></div></div>
     </div>
   </div>
+  </div><!-- /net-content -->
 </div>
 
 <!-- ══════════════ CX RATING ══════════════ -->
 <div class="tp" id="tp-cx">
+  <div class="tp-lock" id="cx-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div id="cx-lock-msg">Sign in to view Customer Experience</div>
+    <button id="cx-lock-btn" onclick="openAuthModal('cx')">Sign In</button>
+  </div>
+  <div id="cx-content">
   <!-- CX-specific dimension; operator, technology and province come from the global bar -->
   <div class="fbar" style="margin:-20px -20px 16px">
     <div class="fbar-group">
@@ -1053,6 +1072,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="ch"><span class="ch-t" role="heading" aria-level="2">CX Experience Log</span><span class="live-tag">LIVE</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Tech</th><th scope="col">Coverage</th><th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th><th scope="col">DL Score</th><th scope="col">UL Score</th><th scope="col">Overall</th><th scope="col">Province</th></tr></thead><tbody id="tb-cx"></tbody></table></div>
   </div>
+  </div><!-- /cx-content -->
 </div>
 
 <!-- ══════════════ DRIVE TEST ══════════════ -->
@@ -1425,9 +1445,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <button class="sb-btn" id="admin-add-role-btn" style="width:auto;padding:6px 14px">+ Add Role</button>
         <span id="admin-matrix-status" style="font-size:11px;color:var(--mu)"></span>
       </div>
-      <div class="tw"><table id="admin-role-matrix-table"><thead><tr>
-        <th scope="col">Role</th><th scope="col">Drive Test</th><th scope="col">Coverage Map</th><th scope="col">Cell &amp; Reseller Sites</th><th scope="col">Critical Findings</th>
-      </tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
+      <div class="tw"><table id="admin-role-matrix-table"><thead><tr id="admin-role-matrix-head"><th scope="col">Role</th></tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1793,7 +1811,12 @@ const db = createClient(SB_URL, SB_KEY)
 // policy was removed; only `authenticated` can read it), not just a UI gate.
 // drive_sessions (names/dates/counts, no GPS points) stays public since the
 // Executive Summary's "Drive Test Trips" KPI needs it and that tab isn't gated.
-const AUTH_GATED_TABS = {drv:'drive_test', cov:'coverage_map', findings:'critical_findings'}
+// Every main tab is permission-gated now, including the ones that used to be
+// unconditionally public — an 'anon' pseudo-role in netpulse_role_permissions
+// represents "not logged in" and is seeded to match the app's original public/
+// private split exactly, so nothing changes in practice until an admin actually
+// edits the matrix. hasPermission() checks permMatrix.anon when logged out.
+const AUTH_GATED_TABS = {dash:'executive_summary', net:'network_detail', cx:'customer_experience', drv:'drive_test', cov:'coverage_map', findings:'critical_findings'}
 let currentUser = null
 let myProfile = null     // netpulse_profiles row for currentUser, or null
 let permMatrix = {}      // {role: {permission: boolean}}
@@ -1871,6 +1894,7 @@ function onAuthBtnClick(){ currentUser ? onSignOut() : openAuthModal() }
 
 function isAdmin(){ return !!myProfile && myProfile.role==='admin' && myProfile.status==='approved' }
 function hasPermission(perm){
+  if(!currentUser) return !!(permMatrix.anon?.[perm])   // 'anon' = not logged in
   if(!myProfile || myProfile.status!=='approved') return false
   return !!(permMatrix[myProfile.role]?.[perm])
 }
@@ -1902,7 +1926,7 @@ function updateAuthUI(){
     if(contentEl) contentEl.style.display = allowed ? '' : 'none'
     if(msgEl && btnEl){
       if(!currentUser){
-        msgEl.textContent = {cov:'Sign in to view the Coverage Map', drv:'Sign in to view Drive Test data', findings:'Sign in to view Critical Findings'}[tab] || 'Sign in required'
+        msgEl.textContent = {dash:'Sign in to view Executive Summary', net:'Sign in to view Network Detail', cx:'Sign in to view Customer Experience', cov:'Sign in to view the Coverage Map', drv:'Sign in to view Drive Test data', findings:'Sign in to view Critical Findings'}[tab] || 'Sign in required'
         btnEl.textContent='Sign In'; btnEl.style.display=''
       } else if(!myProfile || myProfile.status==='pending'){
         msgEl.textContent = 'Your access request is awaiting admin approval'
@@ -1947,7 +1971,7 @@ async function initAuth(){
 
 // ── Admin panel ────────────────────────────────────
 let adminAllProfiles = []
-const MATRIX_PERMISSIONS = [['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites'],['critical_findings','Critical Findings']]
+const MATRIX_PERMISSIONS = [['executive_summary','Executive Summary'],['network_detail','Network Detail'],['customer_experience','Customer Experience'],['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites'],['critical_findings','Critical Findings']]
 
 let adminPendingRequests = []
 
@@ -1979,7 +2003,7 @@ function renderPendingRequests(){
   document.getElementById('admin-pending-count').textContent = adminPendingRequests.length
   const el = document.getElementById('admin-pending-list')
   if(!adminPendingRequests.length){ el.innerHTML = '<div class="empty">No pending requests</div>'; return }
-  const roles = Object.keys(permMatrix).sort()
+  const roles = Object.keys(permMatrix).filter(r=>r!=='anon').sort()   // 'anon' isn't a real assignable user role
   el.innerHTML = adminPendingRequests.map(r=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
       <div style="flex:1">
@@ -2028,7 +2052,7 @@ function showApprovedCredentials(email, password){
 
 function renderUsersTable(){
   document.getElementById('admin-users-count').textContent = adminAllProfiles.length
-  const roles = Object.keys(permMatrix).sort()
+  const roles = Object.keys(permMatrix).filter(r=>r!=='anon').sort()   // 'anon' isn't a real assignable user role
   document.getElementById('admin-users-tbody').innerHTML = adminAllProfiles.map(p=>{
     const statusColor = p.status==='approved'?'#00e676':p.status==='pending'?'#ff9800':'#f85149'
     return `<tr>
@@ -2087,9 +2111,13 @@ async function onPwModalSubmit(){
 // ── Role permission matrix (editable) ─────────────
 function renderRoleMatrix(){
   const roles = Object.keys(permMatrix).sort()
+  // Header generated from MATRIX_PERMISSIONS instead of hardcoded HTML, so adding a
+  // new gated tab/permission can't silently drift out of sync with the table body again.
+  document.getElementById('admin-role-matrix-head').innerHTML =
+    '<th scope="col">Role</th>'+MATRIX_PERMISSIONS.map(([,label])=>`<th scope="col">${h(label)}</th>`).join('')
   document.getElementById('admin-role-matrix-tbody').innerHTML = roles.map(role=>`
     <tr>
-      <td style="font-weight:600;text-transform:capitalize">${h(role)}</td>
+      <td style="font-weight:600;text-transform:capitalize">${h(role==='anon'?'Not signed in':role)}</td>
       ${MATRIX_PERMISSIONS.map(([perm])=>`
         <td style="text-align:center">
           <label class="ltog" style="transform:scale(.85)">
@@ -2113,6 +2141,7 @@ document.getElementById('admin-add-role-btn').addEventListener('click', async ()
   const input = document.getElementById('admin-new-role-input')
   const role = input.value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')
   if(!role){ return }
+  if(role==='anon'){ showToast('"anon" is reserved for not-signed-in visitors'); return }
   if(permMatrix[role]){ showToast('That role already exists'); return }
   const rows = MATRIX_PERMISSIONS.map(([perm])=>({role, permission:perm, allowed:false}))
   const {error} = await db.from('netpulse_role_permissions').upsert(rows)
@@ -4649,7 +4678,10 @@ function exportFindingsPDF(){
 
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
-  if(b.dataset.tab in AUTH_GATED_TABS && !currentUser){ openAuthModal(b.dataset.tab); return }
+  // Not-logged-in + no anon access -> prompt login immediately without switching tabs.
+  // Logged-in + lacking permission still switches tabs — the lock overlay explains why
+  // (pending approval / rejected / role doesn't have it) instead of just doing nothing.
+  if(b.dataset.tab in AUTH_GATED_TABS && !currentUser && !hasPermission(AUTH_GATED_TABS[b.dataset.tab])){ openAuthModal(b.dataset.tab); return }
   if(b.dataset.tab==='admin' && !isAdmin()) return   // hidden tab, but guard direct access anyway
   document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('on'))
   document.querySelectorAll('.tab-btn').forEach(x=>x.setAttribute('aria-selected','false'))
