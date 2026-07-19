@@ -251,6 +251,7 @@ td.r,th.r{text-align:right}
 #tb-recent tr>:nth-child(5),#tb-recent tr>:nth-child(6),#tb-recent tr>:nth-child(7){text-align:right}
 #tb-rankings tr>:nth-child(n+3){text-align:right}
 #tb-os-rank tr>:nth-child(n+3){text-align:right}
+#tb-prov-xp-rank tr>:nth-child(n+3){text-align:right}
 #tb-net tr>:nth-child(6),#tb-net tr>:nth-child(7),#tb-net tr>:nth-child(8),#tb-net tr>:nth-child(9),#tb-net tr>:nth-child(11),#tb-net tr>:nth-child(12){text-align:right}
 #tb-samples tr>:nth-child(1),#tb-samples tr>:nth-child(3),#tb-samples tr>:nth-child(4),#tb-samples tr>:nth-child(7),#tb-samples tr>:nth-child(8),#tb-samples tr>:nth-child(9),#tb-samples tr>:nth-child(10){text-align:right}
 #tb-cx tr>:nth-child(n+6),#tb-os tr>:nth-child(n+6){text-align:right}
@@ -986,6 +987,17 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th>
         <th scope="col">RSRP (dBm)</th><th scope="col">Grade</th>
       </tr></thead><tbody id="tb-prov-rank-exec"></tbody></table></div>
+    </div>
+    <div class="card mb">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">Experience Ranking by Province</span>
+        <span class="ch-s">Video / Games / Voice XP from OpenSignal · same filters as above</span>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th scope="col">Rank</th><th scope="col">Province</th><th scope="col">Tests</th>
+        <th scope="col">Video XP</th><th scope="col">Games XP</th><th scope="col">Voice XP</th>
+        <th scope="col">Consistent Quality</th><th scope="col">Reliability</th>
+      </tr></thead><tbody id="tb-prov-xp-rank"></tbody></table></div>
     </div>
   </div>
   </div><!-- /dash-content -->
@@ -3278,6 +3290,40 @@ function renderProvinceRankingExec(nx) {
   }).join('')
 }
 
+// OpenSignal experience (Video/Games/Voice XP) rolled up by province — same shape as
+// renderRankings()'s by-operator osOps computation, grouped by r.province instead of a
+// fixed operator list.
+function computeProvinceOsStats(os) {
+  const provMap = {}
+  os.forEach(r => {
+    const p = r.province || 'Unknown'
+    if (!provMap[p]) provMap[p] = []
+    provMap[p].push(r)
+  })
+  const avg = (d,col) => d.length ? d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length : null
+  return Object.entries(provMap).map(([prov,d]) => ({
+    prov, tests: d.length,
+    vid: avg(d,'video_experience'), gam: avg(d,'games_experience'), vox: avg(d,'voice_app_experience'),
+    cq: avg(d,'consistent_quality'), rel: avg(d,'reliability_experience')
+  })).sort((a,b) => (((b.vid||0)+(b.gam||0)+(b.vox||0))/3) - (((a.vid||0)+(a.gam||0)+(a.vox||0))/3))
+}
+function renderProvinceXpRankingExec(os) {
+  const tb = document.getElementById('tb-prov-xp-rank')
+  if (!tb) return
+  const rows = computeProvinceOsStats(os)
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No experience data matches the current filters</td></tr>'; return }
+  tb.innerHTML = rows.map((r,i) => `<tr>
+      <td style="color:var(--mu);font-weight:600">${i+1}</td>
+      <td style="font-weight:600">${h(r.prov)}</td>
+      <td>${r.tests}</td>
+      <td style="color:var(--gr)">${r.vid!=null?n(r.vid,1):'—'}</td>
+      <td style="color:var(--bl)">${r.gam!=null?n(r.gam,1):'—'}</td>
+      <td style="color:var(--pu)">${r.vox!=null?n(r.vox,1):'—'}</td>
+      <td style="color:var(--cy)">${r.cq!=null?n(r.cq,1)+'%':'—'}</td>
+      <td style="color:var(--yw)">${r.rel!=null?n(r.rel,0)+'/1000':'—'}</td>
+    </tr>`).join('')
+}
+
 function renderHourly(nx) {
   const buckets = Array.from({length:24}, () => [])
   nx.forEach(r => {
@@ -4395,7 +4441,7 @@ function refreshDash() {
       renderActionsRequired();renderSevLiveCounts();renderAwards()
       // Frame 3: charts and tables (heaviest work, deferred)
       requestAnimationFrame(()=>{
-        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent();renderProvinceRankingExec(_dashNx)
+        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent();renderProvinceRankingExec(_dashNx);renderProvinceXpRankingExec(_dashOs)
       })
     })
   })
@@ -5897,7 +5943,7 @@ document.addEventListener('click', e=>{
     return (/\d/.test(raw) && !isNaN(n)) ? {n} : {t:raw.toLowerCase()}
   }
   const s = dir==='ascending' ? 1 : -1
-  ;[...tbody.rows].sort((a,b)=>{
+  const sorted=[...tbody.rows].sort((a,b)=>{
     const pa=parse(a), pb=parse(b)
     if(pa.e && pb.e) return 0
     if(pa.e) return 1; if(pb.e) return -1                               // blanks always sort last
@@ -5905,7 +5951,17 @@ document.addEventListener('click', e=>{
     if(an && bn) return pa.n<pb.n?-s : pa.n>pb.n?s : 0
     if(an!==bn) return an?-1:1                                          // numbers before text
     return pa.t<pb.t?-s : pa.t>pb.t?s : 0
-  }).forEach(r=>tbody.appendChild(r))
+  })
+  // A leading "Rank" column is a display-position number baked in at render time — once the
+  // table is manually re-sorted by any other column, that number no longer matches where the
+  // row visually sits. Renumber it to the new position so "Rank" always means "current row
+  // position," the same way it did before the click.
+  const firstHeaderTxt = table.querySelector('thead th')?.textContent.trim().toLowerCase()
+  const isRankFirst = firstHeaderTxt === 'rank'
+  sorted.forEach((r,i)=>{
+    tbody.appendChild(r)
+    if(isRankFirst && r.children[0]) r.children[0].textContent = i+1
+  })
 })
 // Keyboard: Enter/Space on a focused sortable header triggers the sort
 document.addEventListener('keydown', e=>{
