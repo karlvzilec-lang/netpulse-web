@@ -699,7 +699,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <button class="stab on" data-st="overview">Overview</button>
     <button class="stab" data-st="rankings">Rankings</button>
     <button class="stab" data-st="compare">Compare</button>
-    <button class="stab" data-st="trends">Trends</button>
     <button class="stab" data-st="province">By Province</button>
   </div>
 
@@ -968,18 +967,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="ch"><span class="ch-t" role="heading" aria-level="2">OpenSignal Experience Comparison</span></div>
         <div class="cb"><div class="chart-h" style="height:200px"><canvas id="ch-cmp-os"></canvas></div></div>
       </div>
-    </div>
-  </div>
-
-  <!-- Trends -->
-  <div class="stp" id="st-trends">
-    <div class="card mb">
-      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Download Trend by Operator</span><span class="ch-s">Daily averages</span></div>
-      <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-trend"></canvas></div></div>
-    </div>
-    <div class="card mb">
-      <div class="ch"><span class="ch-t" role="heading" aria-level="2">RSRP Trend by Operator</span><span class="ch-s">Daily averages</span></div>
-      <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-rsrp-trend"></canvas></div></div>
     </div>
   </div>
 
@@ -2244,10 +2231,6 @@ const chCmpUl   = mk('ch-cmp-ul',  'bar',{labels:[],datasets:[{label:'Avg UL (Mb
 const chCmpPing = mk('ch-cmp-ping','bar',{labels:[],datasets:[{label:'Avg Ping (ms)',data:[],backgroundColor:[...CMP_BAR_DEFAULT_COLORS]}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
 const chCmpOs   = mk('ch-cmp-os', 'bar',{labels:[],datasets:xpDatasets()},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
-// Trend charts
-const chTrend     = mk('ch-trend','line',{labels:[],datasets:[]},{plugins:{legend:{display:true}},scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true,grid:GC}}})
-const chRsrpTrend = mk('ch-rsrp-trend','line',{labels:[],datasets:[]},{plugins:{legend:{display:true}},scales:{x:{ticks:{maxTicksLimit:10}},y:{grid:GC}}})
-
 // Network charts
 const chNetTs = mk('ch-net-ts','line',{
   labels:[],
@@ -3156,43 +3139,6 @@ function renderCompare() {
   }).join('')
 }
 
-// ── Render: Trends ────────────────────────────────
-function renderTrends() {
-  const nx=_dashNx
-  const ops=['Cellcard','Metfone','Smart']
-  const colors=['#00bcd4','#ff9800','#a371f7']
-
-  // Group by day
-  function byDay(data,col){
-    const m={}
-    data.forEach(r=>{
-      if(!r.tested_at) return
-      const day=r.tested_at.slice(0,10)
-      if(!m[day]) m[day]={sum:0,cnt:0}
-      m[day].sum+=(parseFloat(r[col])||0); m[day].cnt++
-    })
-    return Object.keys(m).sort().map(d=>({day:d,avg:m[d].sum/m[d].cnt}))
-  }
-
-  const _allForDays=[...Object.values(_dashAllOpNx)].flat()
-  const allDays=[...new Set(_allForDays.map(r=>r.tested_at?.slice(0,10)).filter(Boolean))].sort()
-  chTrend.data.labels=allDays
-  chTrend.data.datasets=ops.map((op,i)=>{
-    const d=(_dashAllOpNx[op]||[])
-    const byD=Object.fromEntries(byDay(d,'download_mbps').map(x=>[x.day,x.avg]))
-    return {label:op,data:allDays.map(d=>byD[d]??null),borderColor:colors[i],tension:.3,pointRadius:2,spanGaps:true}
-  })
-  chTrend.update('none')
-
-  chRsrpTrend.data.labels=allDays
-  chRsrpTrend.data.datasets=ops.map((op,i)=>{
-    const d=(_dashAllOpNx[op]||[])
-    const byD=Object.fromEntries(byDay(d,'rsrp').map(x=>[x.day,x.avg]))
-    return {label:op,data:allDays.map(d=>byD[d]??null),borderColor:colors[i],tension:.3,pointRadius:2,spanGaps:true}
-  })
-  chRsrpTrend.update('none')
-}
-
 // ── Render: Recent table (dashboard) ─────────────
 function renderRecent() {
   const nx=_dashNx
@@ -3302,7 +3248,7 @@ function renderProvRanking(nx) {
 // Executive Summary > By Province sub-tab. Reads the SAME _dashNx snapshot
 // refreshDash() already computes from the global filter bar (F.dDate/dOp/dTech/dProv)
 // — no filter controls of its own, so it stays in lockstep with Period/Operator/
-// Tech/Province exactly like Rankings/Compare/Trends do.
+// Tech/Province exactly like Rankings/Compare do.
 function renderProvinceRankingExec(nx) {
   const tb = document.getElementById('tb-prov-rank-exec')
   if (!tb) return
@@ -4513,7 +4459,7 @@ function refreshDash() {
       renderActionsRequired();renderSevLiveCounts();renderAwards()
       // Frame 3: charts and tables (heaviest work, deferred)
       requestAnimationFrame(()=>{
-        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent();renderProvinceRankingExec(_dashNx);renderProvinceXpRankingExec(_dashOs)
+        renderSpeedCharts();renderRankings();renderCompare();renderRecent();renderProvinceRankingExec(_dashNx);renderProvinceXpRankingExec(_dashOs)
       })
     })
   })
