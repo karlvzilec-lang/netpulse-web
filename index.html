@@ -572,6 +572,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     Coverage Map
     <svg class="lock-ic auth-lock-badge" width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
   </button>
+  <button class="tab-btn" data-tab="findings" role="tab" aria-selected="false">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 4v4c0 4 3 6.5 7 7 4-.5 7-3 7-7V4L8 1z" fill-opacity=".2"/><path d="M8 1L1 4v4c0 4 3 6.5 7 7 4-.5 7-3 7-7V4L8 1z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5M8 10.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    Critical Findings
+    <svg class="lock-ic auth-lock-badge" width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+  </button>
   <button class="tab-btn" data-tab="admin" role="tab" aria-selected="false" id="admin-tab-btn" style="display:none">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.2 2.4 2.6.4-1.9 1.9.4 2.6L8 7.1 5.7 8.3l.4-2.6L4.2 3.8l2.6-.4L8 1z"/><circle cx="8" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
     Admin
@@ -681,6 +686,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <button class="stab" data-st="rankings">Rankings</button>
     <button class="stab" data-st="compare">Compare</button>
     <button class="stab" data-st="trends">Trends</button>
+    <button class="stab" data-st="province">By Province</button>
   </div>
 
   <!-- Overview -->
@@ -960,6 +966,21 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="card mb">
       <div class="ch"><span class="ch-t" role="heading" aria-level="2">RSRP Trend by Operator</span><span class="ch-s">Daily averages</span></div>
       <div class="cb"><div class="chart-h" style="height:240px"><canvas id="ch-rsrp-trend"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- By Province -->
+  <div class="stp" id="st-province">
+    <div class="card mb">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">Performance Ranking by Province</span>
+        <span class="ch-s">Uses the Period / Operator / Tech / Province filters above — no separate filter on this view</span>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th scope="col">Rank</th><th scope="col">Province</th><th scope="col">Tests</th>
+        <th scope="col">↓ DL (Mbps)</th><th scope="col">↑ UL (Mbps)</th><th scope="col">Ping (ms)</th>
+        <th scope="col">RSRP (dBm)</th><th scope="col">Grade</th>
+      </tr></thead><tbody id="tb-prov-rank-exec"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1329,6 +1350,50 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </div><!-- /cov-content -->
 </div>
 
+<!-- ══════════════ CRITICAL FINDINGS ══════════════ -->
+<div class="tp" id="tp-findings">
+  <div class="tp-lock" id="findings-lock">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg>
+    <div id="findings-lock-msg">Sign in to view Critical Findings</div>
+    <button id="findings-lock-btn" onclick="openAuthModal('findings')">Sign In</button>
+  </div>
+  <div id="findings-content">
+    <div class="fbar" style="position:static;margin-bottom:16px">
+      <div class="fbar-group">
+        <span class="fbar-label">Operator</span>
+        <button class="fchip" data-cfop="all">All</button>
+        <button class="fchip on" data-cfop="Cellcard">Cellcard</button>
+        <button class="fchip" data-cfop="Metfone">Metfone</button>
+        <button class="fchip" data-cfop="Smart">Smart</button>
+      </div>
+      <div class="fbar-sep"></div>
+      <span id="cf-status" style="font-size:11px;color:var(--mu)"></span>
+      <div class="nav-sp"></div>
+      <button class="sb-btn" style="width:auto;padding:6px 14px" onclick="exportFindingsPDF()">🖨 Print / PDF</button>
+      <button class="sb-btn" style="width:auto;padding:6px 14px" onclick="exportFindingsCSV()">⬇ CSV</button>
+      <button class="sb-btn" style="width:auto;padding:6px 14px" onclick="exportFindingsXLS()">⬇ XLS</button>
+      <button class="sb-btn" style="width:auto;padding:6px 14px" onclick="exportFindingsJSON()">⬇ JSON</button>
+    </div>
+
+    <div class="kgrid" id="cf-summary" style="margin-bottom:18px"></div>
+
+    <div class="card">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">Critical Findings</span>
+        <span class="ch-s" id="cf-count">0</span>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th scope="col">Time</th><th scope="col">Category</th><th scope="col">Severity</th><th scope="col">Source</th>
+        <th scope="col">Operator</th><th scope="col">Province</th><th scope="col">Device</th><th scope="col">RAT</th>
+        <th scope="col">PCI</th><th scope="col">Cell ID</th><th scope="col">TAC</th>
+        <th scope="col">RSRP</th><th scope="col">SINR</th>
+        <th scope="col">DL (Mbps)</th><th scope="col">UL (Mbps)</th><th scope="col">Ping (ms)</th>
+        <th scope="col">Detail</th>
+      </tr></thead><tbody id="cf-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ ADMIN ══════════════ -->
 <div class="tp" id="tp-admin">
   <div class="card mb">
@@ -1361,7 +1426,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span id="admin-matrix-status" style="font-size:11px;color:var(--mu)"></span>
       </div>
       <div class="tw"><table id="admin-role-matrix-table"><thead><tr>
-        <th scope="col">Role</th><th scope="col">Drive Test</th><th scope="col">Coverage Map</th><th scope="col">Cell &amp; Reseller Sites</th>
+        <th scope="col">Role</th><th scope="col">Drive Test</th><th scope="col">Coverage Map</th><th scope="col">Cell &amp; Reseller Sites</th><th scope="col">Critical Findings</th>
       </tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
     </div>
   </div>
@@ -1728,7 +1793,7 @@ const db = createClient(SB_URL, SB_KEY)
 // policy was removed; only `authenticated` can read it), not just a UI gate.
 // drive_sessions (names/dates/counts, no GPS points) stays public since the
 // Executive Summary's "Drive Test Trips" KPI needs it and that tab isn't gated.
-const AUTH_GATED_TABS = {drv:'drive_test', cov:'coverage_map'}
+const AUTH_GATED_TABS = {drv:'drive_test', cov:'coverage_map', findings:'critical_findings'}
 let currentUser = null
 let myProfile = null     // netpulse_profiles row for currentUser, or null
 let permMatrix = {}      // {role: {permission: boolean}}
@@ -1837,7 +1902,7 @@ function updateAuthUI(){
     if(contentEl) contentEl.style.display = allowed ? '' : 'none'
     if(msgEl && btnEl){
       if(!currentUser){
-        msgEl.textContent = tab==='cov' ? 'Sign in to view the Coverage Map' : 'Sign in to view Drive Test data'
+        msgEl.textContent = {cov:'Sign in to view the Coverage Map', drv:'Sign in to view Drive Test data', findings:'Sign in to view Critical Findings'}[tab] || 'Sign in required'
         btnEl.textContent='Sign In'; btnEl.style.display=''
       } else if(!myProfile || myProfile.status==='pending'){
         msgEl.textContent = 'Your access request is awaiting admin approval'
@@ -1882,7 +1947,7 @@ async function initAuth(){
 
 // ── Admin panel ────────────────────────────────────
 let adminAllProfiles = []
-const MATRIX_PERMISSIONS = [['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites']]
+const MATRIX_PERMISSIONS = [['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites'],['critical_findings','Critical Findings']]
 
 let adminPendingRequests = []
 
@@ -3132,6 +3197,43 @@ function renderProvRanking(nx) {
   }).join('')
 }
 
+// Executive Summary > By Province sub-tab. Reads the SAME _dashNx snapshot
+// refreshDash() already computes from the global filter bar (F.dDate/dOp/dTech/dProv)
+// — no filter controls of its own, so it stays in lockstep with Period/Operator/
+// Tech/Province exactly like Rankings/Compare/Trends do.
+function renderProvinceRankingExec(nx) {
+  const tb = document.getElementById('tb-prov-rank-exec')
+  if (!tb) return
+  const provMap = {}
+  nx.forEach(r => {
+    const p = r.province || 'Unknown'
+    if (!provMap[p]) provMap[p] = {dl:[],ul:[],ping:[],rsrp:[]}
+    if (r.download_mbps != null) provMap[p].dl.push(r.download_mbps)
+    if (r.upload_mbps   != null) provMap[p].ul.push(r.upload_mbps)
+    if (r.ping_ms       != null) provMap[p].ping.push(r.ping_ms)
+    if (r.rsrp          != null) provMap[p].rsrp.push(r.rsrp)
+  })
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null
+  const rows = Object.entries(provMap).map(([prov,v]) => ({
+    prov, tests: v.dl.length||v.rsrp.length,
+    dl: avg(v.dl), ul: avg(v.ul), ping: avg(v.ping), rsrp: avg(v.rsrp)
+  })).sort((a,b) => (b.dl||0)-(a.dl||0))
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>'; return }
+  tb.innerHTML = rows.map((r,i) => {
+    const grade = rsrpGrade(r.rsrp)
+    return `<tr>
+      <td class="r" style="color:var(--mu);font-weight:600">${i+1}</td>
+      <td style="font-weight:600">${h(r.prov)}</td>
+      <td class="r">${r.tests}</td>
+      <td class="r" style="color:var(--bl);font-weight:600">${r.dl!=null?n(r.dl):'—'}</td>
+      <td class="r" style="color:var(--gr)">${r.ul!=null?n(r.ul):'—'}</td>
+      <td class="r">${r.ping!=null?n(r.ping,0):'—'}</td>
+      <td class="r" style="color:${rsrpColor(r.rsrp)}">${r.rsrp!=null?n(r.rsrp,0):'—'}</td>
+      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:${gradeColor(grade)}22;color:${gradeColor(grade)};border:1px solid ${gradeColor(grade)}44">${grade}</span></td>
+    </tr>`
+  }).join('')
+}
+
 function renderHourly(nx) {
   const buckets = Array.from({length:24}, () => [])
   nx.forEach(r => {
@@ -3718,6 +3820,100 @@ function dlThresholdFor(domRat) {
   return {go:10, fa:5} // unknown RAT — assume 4G rather than penalizing missing metadata
 }
 
+// Time-windowed handover/ping-pong EVENT detection (returns individual events, not just
+// counts) — same MAX_GAP_SEC/PING_PONG_WINDOW_SEC thresholds and 3GPP SON-style
+// time-based logic as computeDriveRules' own handover counting below, kept numerically
+// identical deliberately. Used by the Critical Findings page to list each handover
+// event as its own row across ALL sessions, not just summarize one session's count.
+function detectHandoverEvents(samples){
+  const MAX_GAP_SEC=15, PING_PONG_WINDOW_SEC=8
+  const tOf=s=>s.sampled_at?new Date(s.sampled_at).getTime():null
+  const events=[]
+  for(let i=1;i<samples.length;i++){
+    const tI=tOf(samples[i]), tPrev=tOf(samples[i-1])
+    const gapSec=(tI!=null&&tPrev!=null)?(tI-tPrev)/1000:null
+    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null&&samples[i-1].rsrp-samples[i].rsrp>12&&(gapSec==null||gapSec<=MAX_GAP_SEC)){
+      events.push({type:'abrupt_drop', sample:samples[i], dropDb:samples[i-1].rsrp-samples[i].rsrp})
+    }
+    if(samples[i].pci!=null&&tI!=null){
+      let sawDifferent=false
+      for(let k=i-1;k>=0;k--){
+        const tK=tOf(samples[k])
+        if(tK==null||(tI-tK)/1000>PING_PONG_WINDOW_SEC) break
+        if(samples[k].pci==null) continue
+        if(samples[k].pci!==samples[i].pci){ sawDifferent=true; continue }
+        if(sawDifferent) events.push({type:'ping_pong', sample:samples[i], returnedToPci:samples[i].pci})
+        break
+      }
+    }
+  }
+  return events
+}
+
+// ── Critical Findings (network-wide rule-based analysis) ──────────
+// No prior threshold existed anywhere in this codebase for ping latency (only the
+// RAT-aware throughput thresholds above did) — these are a new judgment call, chosen
+// per common mobile-broadband latency guidance (~150ms as the "good" ceiling for data,
+// ~300ms as clearly poor), not a value carried over from existing code.
+const CF_LATENCY_WARN_MS=150, CF_LATENCY_FAIL_MS=300
+// "Congestion" is classified as low throughput WITH otherwise-good signal (RSRP/SINR) —
+// that combination implicates the network/cell rather than RF pathloss as the cause,
+// distinguishing it from plain "Low Throughput" (which can also be a signal problem).
+const CF_CONGESTION_GOOD_RSRP=-95, CF_CONGESTION_GOOD_SINR=10
+
+function computeNetworkFindings(nxRows, driveSessionGroups){
+  const findings=[]
+  nxRows.forEach(r=>{
+    const rat=(r.rat||'').toUpperCase()
+    const thresh=dlThresholdFor(rat)
+    const base={
+      timestamp:r.tested_at, source:'Speed Test', operator:normOp(r.operator), province:r.province||null,
+      device:r.device_id||null, rat:r.rat||null, pci:r.pci??null, cellId:null, tac:null,
+      rsrp:r.rsrp??null, sinr:r.sinr??null, dl:r.download_mbps??null, ul:r.upload_mbps??null, ping:r.ping_ms??null
+    }
+    if(r.download_mbps!=null){
+      const isCongestion = r.rsrp!=null && r.rsrp>=CF_CONGESTION_GOOD_RSRP && r.sinr!=null && r.sinr>=CF_CONGESTION_GOOD_SINR
+      if(r.download_mbps<thresh.fa){
+        findings.push({...base, category:isCongestion?'Congestion':'Low Throughput', severity:'fail',
+          detail:isCongestion
+            ? `${n(r.download_mbps)} Mbps despite good signal (RSRP ${n(r.rsrp,0)}dBm, SINR ${n(r.sinr,0)}dB) — likely cell congestion`
+            : `${n(r.download_mbps)} Mbps, below the ${thresh.fa} Mbps floor for ${r.rat||'this'} RAT`})
+      } else if(r.download_mbps<thresh.go){
+        findings.push({...base, category:isCongestion?'Congestion':'Low Throughput', severity:'warn',
+          detail:isCongestion
+            ? `${n(r.download_mbps)} Mbps despite good signal — possible early cell congestion`
+            : `${n(r.download_mbps)} Mbps, below the ${thresh.go} Mbps target for ${r.rat||'this'} RAT`})
+      }
+    }
+    if(r.ping_ms!=null){
+      if(r.ping_ms>CF_LATENCY_FAIL_MS){
+        findings.push({...base, category:'High Latency', severity:'fail', detail:`${n(r.ping_ms,0)} ms ping — above the ${CF_LATENCY_FAIL_MS}ms threshold`})
+      } else if(r.ping_ms>CF_LATENCY_WARN_MS){
+        findings.push({...base, category:'High Latency', severity:'warn', detail:`${n(r.ping_ms,0)} ms ping — above the ${CF_LATENCY_WARN_MS}ms threshold`})
+      }
+    }
+  })
+
+  driveSessionGroups.forEach(g=>{
+    const sorted=[...g.samples].sort((a,b)=>new Date(a.sampled_at)-new Date(b.sampled_at))
+    detectHandoverEvents(sorted).forEach(ev=>{
+      const s=ev.sample
+      const base={
+        timestamp:s.sampled_at, source:'Drive Test', operator:normOp(g.operator||s.operator), province:null,
+        device:g.deviceId||s.device_id||null, rat:s.rat||null, pci:s.pci??null, cellId:s.cell_id??null, tac:s.tac??null,
+        rsrp:s.rsrp??null, sinr:s.sinr??null, dl:s.download_mbps??null, ul:null, ping:null
+      }
+      if(ev.type==='abrupt_drop'){
+        findings.push({...base, category:'Handover', severity:'fail', detail:`Abrupt RSRP drop of ${ev.dropDb.toFixed(0)}dB (session ${g.sessionId})`})
+      } else {
+        findings.push({...base, category:'Handover', severity:'warn', detail:`Ping-pong handover back to PCI ${ev.returnedToPci} (session ${g.sessionId})`})
+      }
+    })
+  })
+
+  return findings.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))
+}
+
 function computeDriveRules(samples, sess) {
   const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
   const grades={A:0,B:0,C:0,D:0,F:0}
@@ -4143,7 +4339,7 @@ function refreshDash() {
       renderActionsRequired();renderSevLiveCounts();renderAwards()
       // Frame 3: charts and tables (heaviest work, deferred)
       requestAnimationFrame(()=>{
-        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent()
+        renderSpeedCharts();renderRankings();renderCompare();renderTrends();renderRecent();renderProvinceRankingExec(_dashNx)
       })
     })
   })
@@ -4301,6 +4497,156 @@ function autoPickDriveSession(){
   if(first) pickSess(first.id)
 }
 
+// ── Critical Findings page ────────────────────────
+let cfDriveSamples=null   // null = not yet loaded; lazy-loaded once on first tab visit
+let CFOP='Cellcard'
+let cfFindings=[]
+const CF_COLUMNS=[
+  ['timestamp','Time'],['category','Category'],['severity','Severity'],['source','Source'],
+  ['operator','Operator'],['province','Province'],['device','Device'],['rat','RAT'],
+  ['pci','PCI'],['cellId','Cell ID'],['tac','TAC'],['rsrp','RSRP'],['sinr','SINR'],
+  ['dl','DL Mbps'],['ul','UL Mbps'],['ping','Ping ms'],['detail','Detail'],
+]
+
+function groupDriveSamplesBySession(samples){
+  const bySession={}
+  samples.forEach(s=>{
+    if(!bySession[s.session_id]) bySession[s.session_id]={sessionId:s.session_id, deviceId:s.device_id, operator:s.operator, samples:[]}
+    bySession[s.session_id].samples.push(s)
+  })
+  return Object.values(bySession)
+}
+
+async function initFindingsTab(){
+  if(cfDriveSamples===null){
+    document.getElementById('cf-status').textContent='Loading…'
+    // Same RPC + pagination pattern as the Coverage Map — up to 40 most-recent points
+    // per session so every session is represented, not just whichever is densest right now.
+    const result=await fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000)
+    cfDriveSamples=result.data||[]
+    if(result.error) console.error('initFindingsTab drive_samples:',result.error)
+    document.getElementById('cf-status').textContent=''
+  }
+  renderFindings()
+}
+
+function renderFindings(){
+  const opNx = CFOP==='all' ? nxAll : nxAll.filter(r=>normOp(r.operator)===CFOP)
+  const opDriveGroups = groupDriveSamplesBySession(cfDriveSamples||[])
+    .map(g=>({...g, samples: CFOP==='all' ? g.samples : g.samples.filter(s=>normOp(s.operator)===CFOP)}))
+    .filter(g=>g.samples.length>1)
+
+  cfFindings = computeNetworkFindings(opNx, opDriveGroups)
+
+  const counts={Congestion:0,Handover:0,'Low Throughput':0,'High Latency':0}
+  let fails=0, warns=0
+  cfFindings.forEach(f=>{ counts[f.category]=(counts[f.category]||0)+1; f.severity==='fail'?fails++:warns++ })
+
+  const kcard=(lbl,val,color)=>`<div class="kcard"><div class="kcard-lbl">${lbl}</div><div class="kcard-val" style="color:${color};font-size:22px">${val}</div></div>`
+  document.getElementById('cf-summary').innerHTML =
+    kcard('Total Findings', cfFindings.length, 'var(--tx)') +
+    kcard('Critical (Fail)', fails, '#f44336') +
+    kcard('Warnings', warns, '#ffc107') +
+    kcard('Congestion', counts.Congestion, '#a371f7') +
+    kcard('Handover', counts.Handover, '#ff9800') +
+    kcard('Low Throughput', counts['Low Throughput'], '#58a6ff') +
+    kcard('High Latency', counts['High Latency'], '#f85149')
+
+  document.getElementById('cf-count').textContent = cfFindings.length.toLocaleString()+' findings'
+  paginate('cf-tbody', cfFindings, renderFindingRow)
+}
+
+function renderFindingRow(f){
+  const sevColor = f.severity==='fail' ? '#f44336' : '#ffc107'
+  const catColor = {Congestion:'#a371f7', Handover:'#ff9800', 'Low Throughput':'#58a6ff', 'High Latency':'#f85149'}[f.category]||'#8b949e'
+  return `<tr>
+    <td>${ts(f.timestamp)}</td>
+    <td><span class="badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}44">${h(f.category)}</span></td>
+    <td><span style="color:${sevColor};font-weight:700;text-transform:uppercase;font-size:10px">${h(f.severity)}</span></td>
+    <td>${h(f.source)}</td>
+    <td style="font-weight:600">${h(f.operator)}</td>
+    <td>${h(f.province||'—')}</td>
+    <td class="mono">${f.device?sid(f.device):'—'}</td>
+    <td>${ratBadge(f.rat)}</td>
+    <td>${f.pci??'—'}</td>
+    <td>${f.cellId??'—'}</td>
+    <td>${f.tac??'—'}</td>
+    <td style="color:${rsrpColor(f.rsrp)}">${f.rsrp??'—'}</td>
+    <td>${f.sinr??'—'}</td>
+    <td>${f.dl!=null?n(f.dl):'—'}</td>
+    <td>${f.ul!=null?n(f.ul):'—'}</td>
+    <td>${f.ping!=null?n(f.ping,0):'—'}</td>
+    <td style="font-size:11px;color:var(--mu);max-width:280px">${h(f.detail)}</td>
+  </tr>`
+}
+
+document.querySelectorAll('[data-cfop]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-cfop]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on')
+  CFOP=b.dataset.cfop
+  if(cfDriveSamples!==null) renderFindings()   // no-op until the tab has loaded once
+}))
+
+// ── Critical Findings export (PDF / CSV / XLS / JSON) ─────────────
+function downloadBlob(filename, content, mime){
+  const blob=new Blob([content],{type:mime})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url; a.download=filename
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+function cfFilename(ext){ return `NetPulse-CriticalFindings-${CFOP}-${new Date().toISOString().slice(0,10)}.${ext}` }
+
+function exportFindingsCSV(){
+  if(!cfFindings.length){ showToast('No findings to export'); return }
+  const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`
+  const rows=[CF_COLUMNS.map(([,l])=>esc(l)).join(',')]
+    .concat(cfFindings.map(f=>CF_COLUMNS.map(([k])=>esc(f[k])).join(',')))
+  downloadBlob(cfFilename('csv'), rows.join('\r\n'), 'text/csv;charset=utf-8')
+}
+function exportFindingsJSON(){
+  if(!cfFindings.length){ showToast('No findings to export'); return }
+  downloadBlob(cfFilename('json'), JSON.stringify(cfFindings,null,2), 'application/json')
+}
+function exportFindingsXLS(){
+  // Lightweight XLS export via an HTML table with the Excel MIME type/extension — Excel
+  // opens this as a real spreadsheet (actual cells, not just text) without needing a
+  // client-side XLSX library, avoiding a new CDN dependency for a fairly narrow feature.
+  if(!cfFindings.length){ showToast('No findings to export'); return }
+  const head='<tr>'+CF_COLUMNS.map(([,l])=>`<th>${h(l)}</th>`).join('')+'</tr>'
+  const body=cfFindings.map(f=>'<tr>'+CF_COLUMNS.map(([k])=>`<td>${h(f[k]??'')}</td>`).join('')+'</tr>').join('')
+  const html=`<html><head><meta charset="UTF-8"></head><body><table border="1">${head}${body}</table></body></html>`
+  downloadBlob(cfFilename('xls'), html, 'application/vnd.ms-excel')
+}
+function exportFindingsPDF(){
+  if(!cfFindings.length){ showToast('No findings to export'); return }
+  if(!window.jspdf){ showToast('PDF library not loaded'); return }
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF('l','mm','a4')
+  const M=10
+  const S=s=>String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')
+  const T=(txt,x,y,opt)=>doc.text(S(txt),x,y,opt)
+
+  doc.setFontSize(15); doc.setFont(undefined,'bold')
+  T('NetPulse — Critical Findings Report', M, 14)
+  doc.setFontSize(9); doc.setFont(undefined,'normal'); doc.setTextColor(120)
+  T(`Operator: ${CFOP} | Generated ${new Date().toLocaleString()} | ${cfFindings.length} findings`, M, 20)
+  doc.setTextColor(0)
+
+  doc.autoTable({
+    startY:25,
+    head:[CF_COLUMNS.map(([,l])=>S(l))],
+    body:cfFindings.map(f=>CF_COLUMNS.map(([k])=>S(f[k]??'—'))),
+    theme:'grid',
+    styles:{fontSize:6.5,cellPadding:1.2,overflow:'linebreak'},
+    headStyles:{fillColor:[31,111,235],textColor:255,fontStyle:'bold'},
+    columnStyles:{16:{cellWidth:60}},
+    margin:{left:M,right:M},
+  })
+  doc.save(cfFilename('pdf'))
+}
+
 // ── Tab switching ─────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
   if(b.dataset.tab in AUTH_GATED_TABS && !currentUser){ openAuthModal(b.dataset.tab); return }
@@ -4315,6 +4661,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>
   const gf=document.getElementById('gfbar'); if(gf) gf.style.display=['dash','net','cx'].includes(b.dataset.tab)?'flex':'none'
   if(b.dataset.tab==='drv' && hasPermission('drive_test')) setTimeout(()=>{ initDriveMap(); autoPickDriveSession() },80)
   if(b.dataset.tab==='cov' && hasPermission('coverage_map')) setTimeout(initCovMap,80)
+  if(b.dataset.tab==='findings' && hasPermission('critical_findings')) setTimeout(initFindingsTab,80)
   if(b.dataset.tab==='admin') loadAdminData()
   history.pushState({tab:b.dataset.tab},'','#'+b.dataset.tab)
 }))
