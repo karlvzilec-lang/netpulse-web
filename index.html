@@ -1529,10 +1529,12 @@ function h(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replac
 // two of three weights defaulted) and a floor (bad real data got dragged up toward 50). Now
 // renormalizes the 0.4/0.35/0.25 weights over whichever components are actually present, and
 // returns null (insufficient data) only when none of the three were measured at all.
+function dlToScore(dlMbps){ return Math.min(100,Math.max(0,(dlMbps/50)*100)) }        // 50 Mbps = 100 points
+function rsrpToScore(rsrp){ return Math.min(100,Math.max(0,((rsrp+120)/40)*100)) }    // -80 = 100, -120 = 0
 function computeNetworkHealthScore(dlMbps,avgRsrp,cxScore10){
   const parts=[]
-  if(dlMbps!=null)   parts.push([Math.min(100,Math.max(0,(dlMbps/50)*100)), 0.4])
-  if(avgRsrp!=null)  parts.push([Math.min(100,Math.max(0,((avgRsrp+120)/40)*100)), 0.35])
+  if(dlMbps!=null)   parts.push([dlToScore(dlMbps), 0.4])
+  if(avgRsrp!=null)  parts.push([rsrpToScore(avgRsrp), 0.35])
   if(cxScore10!=null) parts.push([Math.min(100,Math.max(0,cxScore10*10)), 0.25])
   if(!parts.length) return null
   const totalW=parts.reduce((s,[,w])=>s+w,0)
@@ -1600,8 +1602,8 @@ window.goPage = function(tbodyId, newPage, wrapId) {
     'tb-recent': ()=>renderRecent(),
     'tb-net':    ()=>renderNetwork(),
     'tb-gaming': ()=>renderNetwork(),
-    'tb-os':     ()=>paginate('tb-os',_cxOsRows,r=>{const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—';return`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${h(r.technology)||'—'}</td><td><span class="badge buk">${h(r.test_mode)||'—'}</span></td><td style="color:var(--gr);font-weight:600">${n(r.video_experience,1)}</td><td style="color:var(--bl);font-weight:600">${n(r.games_experience,1)}</td><td style="color:var(--pu);font-weight:600">${n(r.voice_app_experience,1)}</td><td style="color:var(--cy)">${cq}</td><td style="color:var(--yw)">${r.reliability_experience??'—'}/1000</td><td style="color:var(--bl)">${n(r.download_speed_mbps)}</td><td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td><td>${h(r.province)||'—'}</td></tr>`}),
-    'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,r=>`<tr><td>${hms(r.tested_at)}</td><td class="mono">${sid(r.device_id)}</td><td style="font-weight:600">${normOp(r.operator)}</td><td>${h(r.technology)||'—'}</td><td><span class="badge buk">${h(r.coverage_type)||'—'}</span></td><td style="color:var(--gr)">${r.video_xp_score??'—'}</td><td style="color:var(--bl)">${r.gaming_xp_score??'—'}</td><td style="color:var(--pu)">${r.voiceapp_xp_score??'—'}</td><td>${r.dl_speed_score??'—'}</td><td>${r.ul_speed_score??'—'}</td><td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td><td>${h(r.province)||'—'}</td></tr>`),
+    'tb-os':     ()=>paginate('tb-os',_cxOsRows,renderOsRow),
+    'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,renderCxRow),
     'tb-samples':()=>{ if(activeSess) selectSession(activeSess.id) },
   }
   if(rerender[tbodyId]) rerender[tbodyId]()
@@ -1645,6 +1647,18 @@ function rsrpGrade(v) {
 function gradeColor(g) {
   return {A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}[g]||'#8b949e'
 }
+// "% of samples with Good+ signal (RSRP >= -100)" — hand-computed independently in
+// several render functions; rsrpGoodPct rounds to an integer (most callers), rsrpGoodPctRaw
+// returns the unrounded float (the two callers that feed it into further math).
+function rsrpGoodPct(vals){ return vals.length?Math.round(vals.filter(v=>v>=-100).length/vals.length*100):null }
+function rsrpGoodPctRaw(vals){ return vals.length?vals.filter(v=>v>=-100).length/vals.length*100:null }
+// "Consistent Quality" pass/fail — dl>=25 & ul>=5 & ping<100 & rsrp>=-100 — computed
+// independently in several places with locally-named vars; kept as one predicate here.
+function isConsistentQuality(r){
+  const d=parseFloat(r.download_mbps)||0, u=parseFloat(r.upload_mbps)||0
+  const p=parseFloat(r.ping_ms)||999, rs=r.rsrp??-120
+  return d>=25&&u>=5&&p<100&&rs>=-100
+}
 function rsrpPill(v) {
   if (v==null) return '<span style="color:var(--mu)">—</span>'
   const c=rsrpColor(v)
@@ -1684,10 +1698,31 @@ function cutoff(range) {
 }
 
 // ── Filter functions ──────────────────────────────
+// Shared match predicates — date/operator matching is byte-identical across every
+// filter function below; tech matching is identical between filterOs/filterCx
+// specifically (both key off r.technology) but intentionally differs from filterNx
+// (which keys off r.rat and additionally recognizes UMTS/EDGE) — kept separate.
+function matchesDate(tested_at, date) {
+  if (!date||date==='all') return true
+  const c=cutoff(date)
+  return !(c&&tested_at<c)
+}
+function matchesOp(r, op) {
+  return !op||op==='all'||(r._op||normOp(r.operator))===op
+}
+function matchesTechOS(value, tech) {
+  if (!tech||tech==='all') return true
+  const t=(value||'').toUpperCase()
+  if (tech==='5g') return t.includes('NR')||t.includes('5G')
+  if (tech==='4g') return t.includes('LTE')||t.includes('4G')
+  if (tech==='3g') return t.includes('3G')||t.includes('WCDMA')
+  if (tech==='2g') return t.includes('2G')||t.includes('GSM')
+  return true
+}
 function filterNx(data, {date,op,tech,prov}={}) {
   return data.filter(r=>{
-    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
-    if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
+    if (!matchesDate(r.tested_at, date)) return false
+    if (!matchesOp(r, op)) return false
     if (tech&&tech!=='all'){
       const rat=(r.rat||'').toUpperCase()
       if (tech==='5g'&&!rat.includes('NR')&&!rat.includes('5G')) return false
@@ -1701,15 +1736,9 @@ function filterNx(data, {date,op,tech,prov}={}) {
 }
 function filterOs(data, {date,op,tech,cov,prov}={}) {
   return data.filter(r=>{
-    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
-    if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
-    if (tech&&tech!=='all'){
-      const t=(r.technology||'').toUpperCase()
-      if (tech==='5g'&&!t.includes('NR')&&!t.includes('5G')) return false
-      if (tech==='4g'&&!t.includes('LTE')&&!t.includes('4G')) return false
-      if (tech==='3g'&&!t.includes('3G')&&!t.includes('WCDMA')) return false
-      if (tech==='2g'&&!t.includes('2G')&&!t.includes('GSM')) return false
-    }
+    if (!matchesDate(r.tested_at, date)) return false
+    if (!matchesOp(r, op)) return false
+    if (!matchesTechOS(r.technology, tech)) return false
     if (cov&&cov!=='all'){
       const m=(r.test_mode||'').toUpperCase()
       if (cov==='mobile'&&!m.includes('MOBILE')) return false
@@ -1721,15 +1750,9 @@ function filterOs(data, {date,op,tech,cov,prov}={}) {
 }
 function filterCx(data, {date,cov,tech,op,prov}={}) {
   return data.filter(r=>{
-    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
-    if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
-    if (tech&&tech!=='all'){
-      const t=(r.technology||'').toUpperCase()
-      if (tech==='5g'&&!t.includes('NR')&&!t.includes('5G')) return false
-      if (tech==='4g'&&!t.includes('LTE')&&!t.includes('4G')) return false
-      if (tech==='3g'&&!t.includes('3G')&&!t.includes('WCDMA')) return false
-      if (tech==='2g'&&!t.includes('2G')&&!t.includes('GSM')) return false
-    }
+    if (!matchesDate(r.tested_at, date)) return false
+    if (!matchesOp(r, op)) return false
+    if (!matchesTechOS(r.technology, tech)) return false
     if (cov&&cov!=='all'){
       const c=(r.coverage_type||'').toLowerCase()
       if (cov==='mobile'&&!c.includes('mobile')) return false
@@ -1743,8 +1766,8 @@ function filterCx(data, {date,cov,tech,op,prov}={}) {
 // so only those two dimensions of the global filter bar apply here.
 function filterGaming(data, {date,op}={}) {
   return data.filter(r=>{
-    if (date&&date!=='all'){const c=cutoff(date);if(c&&r.tested_at<c)return false}
-    if (op&&op!=='all'&&(r._op||normOp(r.operator))!==op) return false
+    if (!matchesDate(r.tested_at, date)) return false
+    if (!matchesOp(r, op)) return false
     return true
   })
 }
@@ -1881,7 +1904,8 @@ async function onAuthSubmit(){
   }
 }
 async function onSignOut(){
-  await db.auth.signOut()
+  const {error} = await db.auth.signOut()
+  if(error) console.error('onSignOut:',error)
   currentUser = null
   myProfile = null
   await refreshAccessState()
@@ -2000,11 +2024,12 @@ function genPassword(){
   return out
 }
 
+function getAssignableRoles(){ return Object.keys(permMatrix).filter(r=>r!=='anon').sort() }   // 'anon' isn't a real assignable user role
 function renderPendingRequests(){
   document.getElementById('admin-pending-count').textContent = adminPendingRequests.length
   const el = document.getElementById('admin-pending-list')
   if(!adminPendingRequests.length){ el.innerHTML = '<div class="empty">No pending requests</div>'; return }
-  const roles = Object.keys(permMatrix).filter(r=>r!=='anon').sort()   // 'anon' isn't a real assignable user role
+  const roles = getAssignableRoles()
   el.innerHTML = adminPendingRequests.map(r=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
       <div style="flex:1">
@@ -2031,9 +2056,10 @@ async function approveRequest(id){
   })
   if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message)); return }
 
-  await db.from('netpulse_access_requests').update({
+  const {error: updateError} = await db.from('netpulse_access_requests').update({
     status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
   }).eq('id', id)
+  if(updateError){ showToast('Approve failed: '+updateError.message); return }
 
   loadAdminData()
   showApprovedCredentials(req.email, password)
@@ -2053,7 +2079,7 @@ function showApprovedCredentials(email, password){
 
 function renderUsersTable(){
   document.getElementById('admin-users-count').textContent = adminAllProfiles.length
-  const roles = Object.keys(permMatrix).filter(r=>r!=='anon').sort()   // 'anon' isn't a real assignable user role
+  const roles = getAssignableRoles()
   document.getElementById('admin-users-tbody').innerHTML = adminAllProfiles.map(p=>{
     const statusColor = p.status==='approved'?'#00e676':p.status==='pending'?'#ff9800':'#f85149'
     return `<tr>
@@ -2183,14 +2209,16 @@ const chRsrp = mk('ch-rsrp','doughnut',{
 },{cutout:'62%',plugins:{legend:{position:'right',labels:{padding:8}}}})
 
 // Comparison charts
-const chCmpDl   = mk('ch-cmp-dl',  'bar',{labels:[],datasets:[{label:'Avg DL (Mbps)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
-const chCmpUl   = mk('ch-cmp-ul',  'bar',{labels:[],datasets:[{label:'Avg UL (Mbps)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
-const chCmpPing = mk('ch-cmp-ping','bar',{labels:[],datasets:[{label:'Avg Ping (ms)',data:[],backgroundColor:['#58a6ff','#3fb950','#ffc107','#f85149']}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
-const chCmpOs   = mk('ch-cmp-os', 'bar',{labels:[],datasets:[
-    {label:'Video XP',    data:[],backgroundColor:'rgba(63,185,80,.7)'},
-    {label:'Games XP',   data:[],backgroundColor:'rgba(88,166,255,.7)'},
-    {label:'Voice XP',   data:[],backgroundColor:'rgba(163,113,247,.7)'},
-]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
+const CMP_BAR_DEFAULT_COLORS=['#58a6ff','#3fb950','#ffc107','#f85149']  // placeholder — overwritten with OP_COLORS-derived colors at render time
+const xpDatasets = () => [
+  {label:'Video XP', data:[], backgroundColor:'rgba(63,185,80,.7)'},
+  {label:'Games XP', data:[], backgroundColor:'rgba(88,166,255,.7)'},
+  {label:'Voice XP', data:[], backgroundColor:'rgba(163,113,247,.7)'},
+]
+const chCmpDl   = mk('ch-cmp-dl',  'bar',{labels:[],datasets:[{label:'Avg DL (Mbps)',data:[],backgroundColor:[...CMP_BAR_DEFAULT_COLORS]}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpUl   = mk('ch-cmp-ul',  'bar',{labels:[],datasets:[{label:'Avg UL (Mbps)',data:[],backgroundColor:[...CMP_BAR_DEFAULT_COLORS]}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpPing = mk('ch-cmp-ping','bar',{labels:[],datasets:[{label:'Avg Ping (ms)',data:[],backgroundColor:[...CMP_BAR_DEFAULT_COLORS]}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:GC}}})
+const chCmpOs   = mk('ch-cmp-os', 'bar',{labels:[],datasets:xpDatasets()},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
 // Trend charts
 const chTrend     = mk('ch-trend','line',{labels:[],datasets:[]},{plugins:{legend:{display:true}},scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true,grid:GC}}})
@@ -2211,7 +2239,7 @@ const chHourly = mk('ch-hourly','bar',{labels:Array.from({length:24},(_,i)=>i),d
 
 // CX charts
 const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
-const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:[{label:'Video XP',data:[],backgroundColor:'rgba(63,185,80,.7)'},{label:'Games XP',data:[],backgroundColor:'rgba(88,166,255,.7)'},{label:'Voice XP',data:[],backgroundColor:'rgba(163,113,247,.7)'}]},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
+const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:xpDatasets()},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
 // ── Map diagnostics — surface WebGL / tile failures instead of a blank box ──
 function webglSupported(){
@@ -2224,7 +2252,7 @@ function showMapError(containerId, err, kind){
   if(!box){ box=document.createElement('div'); box.className='map-err'
     box.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:var(--s1);color:var(--mu);font-size:12px;z-index:5'
     el.style.position='relative'; el.appendChild(box) }
-  const msg=String((err&&(err.message||err.error&&err.error.message))||err||'unknown error').replace(/</g,'&lt;')
+  const msg=h(String((err&&(err.message||err.error&&err.error.message))||err||'unknown error'))
   box.innerHTML='<div style="font-size:26px">🗺️</div><div style="color:var(--tx);font-weight:700;font-size:14px">Map could not load</div>'
     +'<div style="max-width:360px;line-height:1.5">'+(kind==='webgl'
       ? 'Your browser has <b>WebGL disabled</b>, which MapLibre needs to draw maps. Enable hardware acceleration in Chrome settings (or update Chrome), then reload.'
@@ -2399,15 +2427,13 @@ function renderHealthScore() {
   const avg = col => nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length
   const avgDl   = avg('download_mbps')
   const avgRsrp = avg('rsrp')
-  // DL: 50 Mbps = 100 points
-  const dlScore   = Math.min(100, Math.max(0, (avgDl / 50) * 100))
-  // RSRP: -80 = 100, -120 = 0
-  const rsrpScore = Math.min(100, Math.max(0, ((avgRsrp + 120) / 40) * 100))
+  const dlScore   = dlToScore(avgDl)
+  const rsrpScore = rsrpToScore(avgRsrp)
   // CX from OpenSignal (0-100 scale) — cxScore itself stays defaulted-to-50 for the driver-color
   // badges below (unchanged, pre-existing display behavior); hasCxData tracks whether real CX
   // data actually exists, so computeNetworkHealthScore gets a true null instead of a pre-defaulted
   // 50 that would silently defeat its own reweighting logic.
-  const os = _dashOs.length ? _dashOs : (filterOs ? filterOs(osAll,{date:F.dDate,op:F.dOp,tech:F.dTech,cov:F.dCov,prov:F.dProv}) : [])
+  const os = _dashOs
   let cxScore = 50, hasCxData = false
   if (os && os.length) {
     const osAvg = col => os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length
@@ -2510,9 +2536,9 @@ function renderExecSummary() {
   document.getElementById('ex-rating').style.color = color
 
   const nx=_dashNx
-  const avgDl=nx.length?nx.reduce((s,r)=>s+(r.download_mbps||0),0)/nx.length:0
-  const avgUl=nx.length?nx.reduce((s,r)=>s+(r.upload_mbps||0),0)/nx.length:0
-  const avgPing=nx.length?nx.reduce((s,r)=>s+(r.ping_ms||0),0)/nx.length:0
+  const avgDl=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.download_mbps)||0),0)/nx.length:0
+  const avgUl=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.upload_mbps)||0),0)/nx.length:0
+  const avgPing=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.ping_ms)||0),0)/nx.length:0
   document.getElementById('ex-stats').innerHTML=`
     <div class="exec-stat"><div class="exec-stat-v">${nx.length.toLocaleString()}</div><div class="exec-stat-l">Tests</div></div>
     <div class="exec-stat"><div class="exec-stat-v" style="color:#58a6ff">${n(avgDl)}</div><div class="exec-stat-l">Avg DL (Mbps)</div></div>
@@ -2534,7 +2560,7 @@ function renderExecBanner() {
   const cxScore10=cxRaw!=null?cxRaw/10:null
 
   // coverage quality: % of tests with rsrp >= -100 (Good or better)
-  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+  const goodPct=rsrpGoodPct(rsrpVals)
 
   // health score: DL 40%, signal 35%, CX 25% (reweighted over whichever are present — see
   // computeNetworkHealthScore). avgDl is effectively always present here (nx.length>0 is already
@@ -2580,14 +2606,15 @@ function renderHeroKPIs() {
   const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
   const cxRaw=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/3:null
   const cxScore10=cxRaw!=null?+(cxRaw/10).toFixed(1):null
-  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+  const goodPct=rsrpGoodPct(rsrpVals)
 
   // trend: compare recent vs older half
   const trendArrow=(arr,col,higher=true)=>{
     if(arr.length<4)return''
-    const mid=Math.floor(arr.length/2)
-    const oldAvg=arr.slice(0,mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/mid
-    const newAvg=arr.slice(mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/(arr.length-mid)
+    const sorted=[...arr].sort((a,b)=>new Date(a.tested_at)-new Date(b.tested_at))
+    const mid=Math.floor(sorted.length/2)
+    const oldAvg=sorted.slice(0,mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/mid
+    const newAvg=sorted.slice(mid).reduce((s,r)=>s+(parseFloat(r[col])||0),0)/(sorted.length-mid)
     const pct=oldAvg?Math.abs((newAvg-oldAvg)/oldAvg*100):0
     const up=newAvg>oldAvg
     const good=higher?up:!up
@@ -2640,7 +2667,7 @@ function renderActionsRequired() {
   const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
   const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
   const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
-  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+  const goodPct=rsrpGoodPct(rsrpVals)
   const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
   const cx=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/30:null
 
@@ -2688,7 +2715,7 @@ function renderConsistentQuality() {
   ]
 
   const _cqRsrp=nx.map(r=>r.rsrp).filter(v=>v!=null)
-  const covPct=_cqRsrp.length?Math.round(_cqRsrp.filter(v=>v>=-100).length/_cqRsrp.length*100):null
+  const covPct=rsrpGoodPct(_cqRsrp)
   checks[3].val=covPct
 
   const grid=document.getElementById('cq-grid')
@@ -2731,11 +2758,7 @@ function renderOSMatrix() {
       count: rows.length,
       dl, ul, ping,
       video: rows.length ? rows.filter(r=>(parseFloat(r.download_mbps)||0)>=10).length/rows.length*100 : null,
-      cq: rows.length ? rows.filter(r=>{
-        const d=parseFloat(r.download_mbps)||0, u=parseFloat(r.upload_mbps)||0
-        const p=parseFloat(r.ping_ms)||999, rs=r.rsrp??-120
-        return d>=25&&u>=5&&p<100&&rs>=-100
-      }).length/rows.length*100 : null,
+      cq: rows.length ? rows.filter(isConsistentQuality).length/rows.length*100 : null,
       rel: rsrps.length ? rsrps.filter(v=>v>=-110).length/rsrps.length*100 : null,
     }
   }
@@ -2803,8 +2826,8 @@ function renderOSMatrix() {
   const nx = _dashNx
   const avg = col => nx.length ? nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length : null
   const dl=avg('download_mbps'), rsrps=nx.map(r=>r.rsrp).filter(v=>v!=null)
-  const cov=rsrps.length?rsrps.filter(v=>v>=-100).length/rsrps.length*100:null
-  const cq=nx.length?nx.filter(r=>{const d=parseFloat(r.download_mbps)||0,u=parseFloat(r.upload_mbps)||0,p=parseFloat(r.ping_ms)||999,rs=r.rsrp??-120;return d>=25&&u>=5&&p<100&&rs>=-100}).length/nx.length*100:null
+  const cov=rsrpGoodPctRaw(rsrps)
+  const cq=nx.length?nx.filter(isConsistentQuality).length/nx.length*100:null
   const healthParts=[]
   if(dl!=null)  healthParts.push([Math.min(100,(dl/50)*100), 0.4])
   if(cov!=null) healthParts.push([Math.min(100,cov), 0.35])
@@ -2855,11 +2878,9 @@ function calcOpData() {
     const dl=avg('download_mbps'),ul=avg('upload_mbps'),ping=avg('ping_ms')
     out[op.key]={
       count:rows.length, dl, ul, ping,
-      games:ping,
       video:rows.length?rows.filter(r=>(parseFloat(r.download_mbps)||0)>=10).length/rows.length*100:null,
-      cov:rsrps.length?rsrps.filter(v=>v>=-100).length/rsrps.length*100:null,
-      time4g:rows.length?rows.filter(r=>{const rat=(r.rat||'').toUpperCase();return rat.includes('LTE')||rat==='4G'||rat.includes('NR')}).length/rows.length*100:null,
-      cq:rows.length?rows.filter(r=>{const d2=parseFloat(r.download_mbps)||0,u=parseFloat(r.upload_mbps)||0,p=parseFloat(r.ping_ms)||999,rs=r.rsrp??-120;return d2>=25&&u>=5&&p<100&&rs>=-100}).length/rows.length*100:null,
+      cov:rsrpGoodPctRaw(rsrps),
+      cq:rows.length?rows.filter(isConsistentQuality).length/rows.length*100:null,
       rel:rsrps.length?rsrps.filter(v=>v>=-110).length/rsrps.length*100:null,
     }
   }
@@ -2931,7 +2952,7 @@ function renderSevLiveCounts() {
   const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
   const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
   const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
-  const goodPct=rsrpVals.length?Math.round(rsrpVals.filter(v=>v>=-100).length/rsrpVals.length*100):null
+  const goodPct=rsrpGoodPct(rsrpVals)
 
   let sev=[0,0,0,0,0]
   if(avgDl!=null&&avgDl<10) sev[0]++
@@ -2973,11 +2994,12 @@ function renderAwards() {
     },validOps[0])
   }
   const opColor={'Cellcard':'#00bcd4','Metfone':'#ff9800','Smart':'#a371f7'}
+  const bestDl=bestBy('dl'), bestUl=bestBy('ul'), bestPing=bestBy('ping',false), bestRsrp=bestBy('rsrp')
   const awards=[
-    {icon:'🥇',label:'Best Download',op:bestBy('dl'),metric:()=>`${n(opStats[bestBy('dl')]?.dl)} Mbps`},
-    {icon:'🥈',label:'Best Upload',  op:bestBy('ul'),metric:()=>`${n(opStats[bestBy('ul')]?.ul)} Mbps`},
-    {icon:'⚡',label:'Best Latency', op:bestBy('ping',false),metric:()=>`${n(opStats[bestBy('ping',false)]?.ping,0)} ms`},
-    {icon:'📶',label:'Best Signal',  op:bestBy('rsrp'),metric:()=>`${n(opStats[bestBy('rsrp')]?.rsrp,0)} dBm`},
+    {icon:'🥇',label:'Best Download',op:bestDl,metric:()=>`${n(opStats[bestDl]?.dl)} Mbps`},
+    {icon:'🥈',label:'Best Upload',  op:bestUl,metric:()=>`${n(opStats[bestUl]?.ul)} Mbps`},
+    {icon:'⚡',label:'Best Latency', op:bestPing,metric:()=>`${n(opStats[bestPing]?.ping,0)} ms`},
+    {icon:'📶',label:'Best Signal',  op:bestRsrp,metric:()=>`${n(opStats[bestRsrp]?.rsrp,0)} dBm`},
   ]
   document.getElementById('awards-grid').innerHTML=awards.map(a=>`
     <div class="award-card">
@@ -2992,7 +3014,7 @@ function renderAwards() {
 // ── Render: Speed charts ──────────────────────────
 function renderSpeedCharts() {
   const nx=_dashNx
-  const slice=[...nx].reverse().slice(-60)
+  const slice=[...nx].sort((a,b)=>new Date(a.tested_at)-new Date(b.tested_at)).slice(-60)
   chSpeed.data.labels=slice.map(r=>hms(r.tested_at))
   chSpeed.data.datasets[0].data=slice.map(r=>r.download_mbps)
   chSpeed.data.datasets[1].data=slice.map(r=>r.upload_mbps)
@@ -3028,7 +3050,7 @@ function renderRankings() {
       <td style="color:var(--yw)">${n(r.ping,0)}</td>
       <td>${rsrpPill(Math.round(r.rsrp))}</td>
       <td style="color:var(--mu)">${n(r.jitter,0)} ms</td>
-      <td><span style="color:${scoreBand(r.dl/3).color};font-weight:600">${scoreBand(r.dl/3).label}</span></td>
+      <td><span style="color:${scoreBand(dlToScore(r.dl)).color};font-weight:600">${scoreBand(dlToScore(r.dl)).label}</span></td>
     </tr>`).join('')
 
   const osOps=ops.map(op=>{
@@ -3145,7 +3167,6 @@ function renderRecent() {
 
 // ── Render: Network tab ───────────────────────────
 function renderNetwork() {
-  pages['tb-net']=0; pages['tb-gaming']=0;
   const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
   const slice=[...nx].reverse().slice(-100)
   chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
@@ -3196,7 +3217,10 @@ function renderNetwork() {
   renderHourly(nx)
 }
 
-function renderProvRanking(nx) {
+// Shared by renderProvRanking and renderProvinceRankingExec — the two tables render
+// the aggregation differently (rank-index column, empty-state guard) but the
+// province-stats rollup itself is identical.
+function computeProvinceStats(nx) {
   const provMap = {}
   nx.forEach(r => {
     const p = r.province || 'Unknown'
@@ -3207,10 +3231,13 @@ function renderProvRanking(nx) {
     if (r.rsrp          != null) provMap[p].rsrp.push(r.rsrp)
   })
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null
-  const rows = Object.entries(provMap).map(([prov,v]) => ({
+  return Object.entries(provMap).map(([prov,v]) => ({
     prov, tests: v.dl.length||v.rsrp.length,
     dl: avg(v.dl), ul: avg(v.ul), ping: avg(v.ping), rsrp: avg(v.rsrp)
   })).sort((a,b) => (b.dl||0)-(a.dl||0))
+}
+function renderProvRanking(nx) {
+  const rows = computeProvinceStats(nx)
   const tb = document.getElementById('tb-prov-rank')
   if (!tb) return
   tb.innerHTML = rows.map(r => {
@@ -3234,20 +3261,7 @@ function renderProvRanking(nx) {
 function renderProvinceRankingExec(nx) {
   const tb = document.getElementById('tb-prov-rank-exec')
   if (!tb) return
-  const provMap = {}
-  nx.forEach(r => {
-    const p = r.province || 'Unknown'
-    if (!provMap[p]) provMap[p] = {dl:[],ul:[],ping:[],rsrp:[]}
-    if (r.download_mbps != null) provMap[p].dl.push(r.download_mbps)
-    if (r.upload_mbps   != null) provMap[p].ul.push(r.upload_mbps)
-    if (r.ping_ms       != null) provMap[p].ping.push(r.ping_ms)
-    if (r.rsrp          != null) provMap[p].rsrp.push(r.rsrp)
-  })
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null
-  const rows = Object.entries(provMap).map(([prov,v]) => ({
-    prov, tests: v.dl.length||v.rsrp.length,
-    dl: avg(v.dl), ul: avg(v.ul), ping: avg(v.ping), rsrp: avg(v.rsrp)
-  })).sort((a,b) => (b.dl||0)-(a.dl||0))
+  const rows = computeProvinceStats(nx)
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>'; return }
   tb.innerHTML = rows.map((r,i) => {
     const grade = rsrpGrade(r.rsrp)
@@ -3321,9 +3335,19 @@ function renderCX() {
 
   // OS table — paginated
   _cxOsRows = os
-  paginate('tb-os', os, r=>{
-    const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—'
-    return `<tr>
+  paginate('tb-os', os, renderOsRow)
+
+  // CX log table — paginated
+  _cxCxRows = cx
+  paginate('tb-cx', cx, renderCxRow)
+}
+
+// Shared row templates — also used by goPage()'s Next/Prev rerender handlers for
+// tb-os/tb-cx so the two call sites can't drift apart (they previously had, silently
+// dropping the xp_detail spans on paginated views of the CX log table).
+function renderOsRow(r){
+  const cq=r.consistent_quality_total?((r.consistent_quality_passed/r.consistent_quality_total)*100).toFixed(0)+'%':'—'
+  return `<tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
       <td style="font-weight:600">${normOp(r.operator)}</td>
@@ -3338,11 +3362,9 @@ function renderCX() {
       <td style="color:var(--gr)">${n(r.upload_speed_mbps)}</td>
       <td>${h(r.province)||'—'}</td>
     </tr>`
-  })
-
-  // CX log table — paginated
-  _cxCxRows = cx
-  paginate('tb-cx', cx, r=>`
+}
+function renderCxRow(r){
+  return `
     <tr>
       <td>${hms(r.tested_at)}</td>
       <td class="mono">${sid(r.device_id)}</td>
@@ -3356,7 +3378,7 @@ function renderCX() {
       <td>${r.ul_speed_score??'—'}</td>
       <td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td>
       <td>${h(r.province)||'—'}</td>
-    </tr>`)
+    </tr>`
 }
 
 // ── Render: Drive sessions ────────────────────────
@@ -3404,7 +3426,7 @@ function renderSessions() {
     if(F.drvFrom) filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=new Date(F.drvFrom))
     if(F.drvTo)   filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)<=new Date(F.drvTo+'T23:59:59'))
   }
-  if(F.drvOp!=='all') filtered=filtered.filter(s=>normOp(s.operator)===F.drvOp||!s.operator)
+  if(F.drvOp!=='all') filtered=filtered.filter(s=>normOp(s.operator)===F.drvOp)
   if(F.drvDevice!=='all') filtered=filtered.filter(s=>s.device_id===F.drvDevice)
 
   // Synced sessions float to top, then newest first
@@ -3414,7 +3436,7 @@ function renderSessions() {
     return new Date(b.start_time)-new Date(a.start_time)
   })
 
-  const syncedCnt=sessAll.filter(s=>sampledSessionIds.has(s.id)).length
+  const syncedCnt=filtered.filter(s=>sampledSessionIds.has(s.id)).length
   document.getElementById('sess-cnt').textContent=`${filtered.length}${filtered.length!==sessAll.length?' / '+sessAll.length:''} sessions · ${syncedCnt} synced`
 
   if(!sessAll.length){el.innerHTML='<div class="empty">No sessions recorded yet</div>';return}
@@ -3484,6 +3506,7 @@ window.pickSess = async function(id) {
   // session with >1000 GPS points).
   const {data:_samples}=await fetchPaginated((from,to)=>
     db.from('drive_samples').select('*').eq('session_id',id).order('sampled_at',{ascending:true}).range(from,to))
+  if(activeSess.id!==id) return   // a newer pickSess() call already changed the active session while this fetch was in flight
   driveSamples=_samples
   paintMap()
   renderSamples()
@@ -3519,7 +3542,6 @@ function paintMap() {
     overlay.style.display='flex'
     const cnt=activeSess?.sample_count??0
     const rsrp=activeSess?.avg_rsrp!=null?`avg RSRP ${n(activeSess.avg_rsrp,0)} dBm`:'no signal data'
-    const rc=rsrpColor(activeSess?.avg_rsrp)
     overlay.innerHTML=`<div style="font-size:32px">📱</div>
       <div style="font-size:13px;font-weight:700;color:#e6edf3">GPS route not uploaded</div>
       <div style="font-size:11px;color:#8b949e;text-align:center;max-width:260px">This session recorded <b style="color:#ff9800">${cnt.toLocaleString()} pts</b> on the device (${rsrp})<br>but the GPS data has not yet synced to the cloud.</div>
@@ -3550,9 +3572,9 @@ function paintMap() {
   // ── Issue flags: flag only problem spots with cell info ──
   const flagFeats = []
   const RSRP_SEV1 = -110, RSRP_SEV2 = -100, SINR_SEV1 = -3, SINR_SEV2 = 3
-  const DL_SEV1 = 2, DL_SEV2 = 5
   for (let i = 0; i < valid.length; i++) {
     const s = valid[i]
+    const dlThresh = dlThresholdFor(s.rat)
     const issues = [], sev1 = [], sev2 = [], sev3 = []
     // Signal gap (RSRP critical)
     if (s.rsrp != null && s.rsrp < RSRP_SEV1) sev1.push('SIG')
@@ -3566,9 +3588,9 @@ function paintMap() {
       if (drop > 20) sev1.push('HO')
       else if (drop > 12) sev2.push('HO')
     }
-    // Congestion — DL well below expected
-    if (s.download_mbps != null && s.download_mbps < DL_SEV1) sev2.push('CON')
-    else if (s.download_mbps != null && s.download_mbps < DL_SEV2) sev3.push('CON')
+    // Congestion — DL well below expected (RAT-aware, matches the sidebar's Congestion rule)
+    if (s.download_mbps != null && s.download_mbps < dlThresh.fa) sev2.push('CON')
+    else if (s.download_mbps != null && s.download_mbps < dlThresh.go) sev3.push('CON')
     // Determine worst severity for this point
     const allIssues = [...new Set([...sev1,...sev2,...sev3])]
     if (!allIssues.length) continue
@@ -3595,8 +3617,6 @@ function paintMap() {
 
   if(valid.length<2){
     overlay.style.display='flex'
-    const pt=valid[0]
-    const rc=rsrpColor(pt?.rsrp)
     overlay.innerHTML=`<div style="font-size:32px">📍</div>
       <div style="font-size:13px;font-weight:700;color:#e6edf3">Only 1 GPS point — no route</div>
       <div style="font-size:11px;color:#8b949e;text-align:center;max-width:240px">This session has only 1 GPS sample uploaded. At least 2 points are needed to draw a route line.</div>`
@@ -3682,8 +3702,12 @@ function renderMetadataAnalysis(sess) {
     else                   rules.push({ok:false,  txt:`Signal ${sigGrade} (${n(rsrp,0)} dBm) — coverage issue on this route`})
   }
   if (dl != null) {
-    if (dl >= 25)  rules.push({ok:true,  txt:`Download ${n(dl)} Mbps — above GSMA 25 Mbps benchmark`})
-    else if (dl >= 10) rules.push({ok:null, txt:`Download ${n(dl)} Mbps — below target, congestion possible`})
+    // No per-sample RAT available pre-sync — dlThresholdFor(null) falls back to the same
+    // "unknown RAT" default computeDriveRules() uses once GPS samples arrive, so a session's
+    // download verdict doesn't flip depending on whether its GPS route has synced yet.
+    const dlThresh = dlThresholdFor(null)
+    if (dl >= dlThresh.go)  rules.push({ok:true,  txt:`Download ${n(dl)} Mbps — meets drive quality threshold`})
+    else if (dl >= dlThresh.fa) rules.push({ok:null, txt:`Download ${n(dl)} Mbps — below target, congestion possible`})
     else           rules.push({ok:false, txt:`Download ${n(dl)} Mbps — below minimum acceptable threshold`})
   }
   if (ho > 0 && km > 0) {
@@ -3745,14 +3769,9 @@ function renderDriveRules(samples, sess) {
 
   // Grade distribution
   const {rules,fails,warns,verdict:_v,vColor:_vc,vIcon:_vi,
-    grades,tot,GC,avgRsrp,avgSinr,avgDl,rsrpStd,lowSampleCount,
-    rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
-    abPct,distKm,hoRate,domRat,dlThresh,
-    gapPct,maxGapRun,uniquePCIs,pciDensity,
-    abruptDrops,pingPong,congestPct,mobScore,
-    vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore
+    grades,tot,GC,lowSampleCount,
+    rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,dlVals
   } = computeDriveRules(samples, sess)
-  const dlVals = samples.filter(s=>s.download_mbps!=null).map(s=>s.download_mbps)
   // Uses the global rsrpColor() (5-tier, matches the RSRP reference table) — this used to
   // shadow it with a 4-tier local copy missing the -80 breakpoint, so a -85 dBm reading (B/Good
   // everywhere else in the app) rendered green/"Excellent" only in this panel.
@@ -3985,32 +4004,13 @@ function computeDriveRules(samples, sess) {
   const pciSet=new Set(samples.map(s=>s.pci).filter(v=>v!=null))
   const uniquePCIs=pciSet.size
   const pciDensity=distKm>0?uniquePCIs/distKm:null
-  // Time-windowed handover detection — GPS/RF logging interval is device-controlled, not
-  // guaranteed uniform (real sessions show gaps of 10-16s even when the median is ~1s). The
-  // previous version used raw array-index adjacency, so a gradual decline spanning a logging gap
-  // could misread as an "abrupt" handover, and index-window ping-pong detection could mis-fire at
-  // non-uniform rates. Matches 3GPP SON-style ping-pong detection (TS 32.500-series), which is
-  // defined by a TIME threshold (handback within Ttp seconds), not a sample count.
-  let abruptDrops=0,pingPong=0
-  const MAX_GAP_SEC=15        // ignore RSRP deltas spanning more than this — likely a genuine gradual change across a logging gap, not a real handover-triggering drop
-  const PING_PONG_WINDOW_SEC=8 // handback to a PCI last seen within this many seconds, with a different PCI serving in between
-  const tOf=s=>s.sampled_at?new Date(s.sampled_at).getTime():null
-  for(let i=1;i<samples.length;i++){
-    const tI=tOf(samples[i]), tPrev=tOf(samples[i-1])
-    const gapSec=(tI!=null&&tPrev!=null)?(tI-tPrev)/1000:null
-    if(samples[i].rsrp!=null&&samples[i-1].rsrp!=null&&samples[i-1].rsrp-samples[i].rsrp>12&&(gapSec==null||gapSec<=MAX_GAP_SEC))abruptDrops++
-    if(samples[i].pci!=null&&tI!=null){
-      let sawDifferent=false
-      for(let k=i-1;k>=0;k--){
-        const tK=tOf(samples[k])
-        if(tK==null||(tI-tK)/1000>PING_PONG_WINDOW_SEC) break
-        if(samples[k].pci==null) continue
-        if(samples[k].pci!==samples[i].pci){ sawDifferent=true; continue }
-        if(sawDifferent) pingPong++
-        break
-      }
-    }
-  }
+  // Time-windowed handover detection — delegates to detectHandoverEvents(), the canonical
+  // implementation also used by Critical Findings, instead of hand-duplicating the same
+  // MAX_GAP_SEC/PING_PONG_WINDOW_SEC time-based logic in a second loop that could drift out
+  // of sync with it.
+  const hoEvents=detectHandoverEvents(samples)
+  const abruptDrops=hoEvents.filter(e=>e.type==='abrupt_drop').length
+  const pingPong=hoEvents.filter(e=>e.type==='ping_pong').length
   const congestPct=dlVals.length?dlVals.filter(v=>v<dlThresh.fa).length/dlVals.length*100:null
   const rsrpMean=avgRsrp||0
   const rsrpStd=rsrpVals.length>1?Math.sqrt(rsrpVals.reduce((s,v)=>s+Math.pow(v-rsrpMean,2),0)/rsrpVals.length):null
@@ -4057,7 +4057,7 @@ function computeDriveRules(samples, sess) {
   // silently trusting percentages computed from almost no data.
   const lowSampleCount = samples.length < 10
   return {rules,fails,warns,verdict,vColor,vIcon,grades,tot,GC,lowSampleCount,
-    avgRsrp,avgSinr,avgDl,rsrpStd,rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,
+    avgRsrp,avgSinr,avgDl,rsrpStd,rsrpP10,rsrpP50,rsrpP90,dlP10,dlP50,dlP90,dlVals,
     abPct,distKm,hoRate,domRat,dlThresh,gapPct,maxGapRun,uniquePCIs,pciDensity,
     abruptDrops,pingPong,congestPct,mobScore,vidPct,vidScore,gamePct,gameScore,voicePct,voiceScore}
 }
@@ -4074,7 +4074,6 @@ function showToast(msg,type='info'){
 }
 // ── Theme toggle ──────────────────────────────────
 function applyTheme(mode){
-  document.documentElement.setAttribute('data-theme', mode==='light'?'light':'dark')
   document.documentElement.removeAttribute('data-theme')
   if(mode==='light') document.documentElement.setAttribute('data-theme','light')
   const icon=document.getElementById('theme-icon')
@@ -4105,6 +4104,12 @@ function toggleTheme(){
 }
 // Apply saved theme on load
 ;(function(){const t=localStorage.getItem('np-theme')||'dark';if(t==='light')applyTheme('light')})()
+
+// Replace non-WinAnsi glyphs jsPDF's Helvetica can't render (root cause of letter-spacing
+// artifacts) — shared by exportPDF and exportFindingsPDF, which previously each defined
+// their own identical copy.
+function pdfSafe(s){return String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')}
+
 window.exportPDF = async function(sessId) {
   let sess=sessAll.find(s=>s.id===sessId)
   // Fallback: older sessions scroll out of the top-100 cache — fetch by id so export still works
@@ -4116,14 +4121,16 @@ window.exportPDF = async function(sessId) {
   if(!sess){showToast('Select a session first');return}
   // Fetch the COMPLETE sample set — see fetchPaginated() for why a single query would
   // silently truncate long drives (a 3186-sample run once only reported the first 1000).
-  const {data:pagedSamples}=await fetchPaginated((from,to)=>
+  const {data:pagedSamples,error:sampleErr}=await fetchPaginated((from,to)=>
     db.from('drive_samples').select('*').eq('session_id',sessId).order('sampled_at',{ascending:true}).range(from,to))
+  if(sampleErr) console.error('exportPDF drive_samples:',sampleErr)
   let samples=pagedSamples
   if(!samples.length && activeSess?.id===sessId) samples=driveSamples
 
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('p','mm','a4')
   const W=210,M=14,CW=W-2*M
+  const PAGE_BOTTOM=286  // shared page-break threshold — was 4 different unexplained values (286/288/290/272); 286 is the loosest of the original four, so nothing that previously fit starts overflowing
 
   // ── Print-first palette (WCAG-safe on white paper) ──
   const INK=[26,29,33], SUB=[107,114,128], HAIR=[226,229,233], GROUP=[237,241,246], TRACK=[238,240,243]
@@ -4131,9 +4138,7 @@ window.exportPDF = async function(sessId) {
   const OK=[26,127,55], WARN=[180,83,9], BAD=[196,52,28]
   const bandColors=[[26,127,55],[37,99,235],[180,83,9],[234,88,12],[196,52,28]]
   const statusColor={pass:OK,warn:WARN,fail:BAD}, statusLabel={pass:'PASS',warn:'WARN',fail:'FAIL'}
-  // Replace non-WinAnsi glyphs jsPDF's Helvetica can't render (root cause of letter-spacing artifacts)
-  const S=s=>String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')
-  const T=(txt,x,y,opt)=>doc.text(S(txt),x,y,opt)
+  const T=(txt,x,y,opt)=>doc.text(pdfSafe(txt),x,y,opt)
 
   // ── Header — light, with a thin brand rule ──
   doc.setTextColor(...BRAND); doc.setFont('helvetica','bold'); doc.setFontSize(15)
@@ -4191,7 +4196,7 @@ window.exportPDF = async function(sessId) {
     try{
       const mapImg=map.getCanvas().toDataURL('image/jpeg',0.9)
       const mh=58
-      if(yy+mh+8>286){doc.addPage();yy=18}
+      if(yy+mh+8>PAGE_BOTTOM){doc.addPage();yy=18}
       doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
       T('DRIVE ROUTE MAP',M,yy); yy+=3
       doc.addImage(mapImg,'JPEG',M,yy,CW,mh)
@@ -4204,7 +4209,7 @@ window.exportPDF = async function(sessId) {
   const dr=computeDriveRules(samples,sess)
   const half=Math.ceil(dr.rules.length/2)
   const rowsH=half*11
-  if(yy+rowsH+8>288){doc.addPage();yy=18}
+  if(yy+rowsH+8>PAGE_BOTTOM){doc.addPage();yy=18}
   doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
   T('RULE-BASED ASSESSMENT',M,yy); yy+=5
 
@@ -4226,7 +4231,7 @@ window.exportPDF = async function(sessId) {
 
   // ── Verdict — minimalist chip (light tint + colored border/text) ──
   const vc={EXCELLENT:OK,GOOD:BRAND,FAIR:WARN,POOR:BAD}[dr.verdict]||SUB
-  if(yy+13>290){doc.addPage();yy=18}
+  if(yy+13>PAGE_BOTTOM){doc.addPage();yy=18}
   doc.setFillColor(...vc.map(v=>Math.round(v+(255-v)*0.9)))
   doc.setDrawColor(...vc); doc.setLineWidth(.5)
   doc.roundedRect(M,yy,CW,13,1.5,1.5,'FD')
@@ -4249,12 +4254,23 @@ window.exportPDF = async function(sessId) {
   // LOC_ISSUES = show individual lat/lng row; SUMMARY_ISSUES = count-only in PCI header
   const LOC_ISSUES=new Set(['Coverage Gap','Poor Handover','Ping-Pong'])
   const ISSUE_COLORS={'Coverage Gap':[196,52,28],'Poor Handover':[194,65,12],'Ping-Pong':[37,99,235],'Congestion':[180,83,9],'Overlap':[161,98,7]}
+  // Handover/ping-pong classification delegates to detectHandoverEvents(), the canonical
+  // time-based implementation also used by Critical Findings, instead of a naive array-index
+  // window that could disagree with it for the same session.
+  const hoBySample=new Map()
+  detectHandoverEvents(samples).forEach(ev=>{
+    if(!hoBySample.has(ev.sample)) hoBySample.set(ev.sample, new Set())
+    hoBySample.get(ev.sample).add(ev.type)
+  })
   const classified=samples.map((s,i)=>{
     const issues=[]
     if(s.rsrp!=null&&s.rsrp<-110) issues.push('Coverage Gap')
-    if(i>0&&s.rsrp!=null&&samples[i-1].rsrp!=null&&(samples[i-1].rsrp-s.rsrp)>12) issues.push('Poor Handover')
-    if(i>1&&s.pci!=null&&samples[i-2].pci!=null&&samples[i-1].pci!=null&&s.pci===samples[i-2].pci&&s.pci!==samples[i-1].pci) issues.push('Ping-Pong')
-    if(s.download_mbps!=null&&s.download_mbps<conThresh) issues.push('Congestion')
+    const hoTypes=hoBySample.get(s)
+    if(hoTypes?.has('abrupt_drop')) issues.push('Poor Handover')
+    if(hoTypes?.has('ping_pong')) issues.push('Ping-Pong')
+    // Same good-signal gate Critical Findings uses to distinguish "Congestion" (network-side
+    // cause despite good RF) from plain signal-caused low throughput.
+    if(s.download_mbps!=null&&s.download_mbps<conThresh&&s.rsrp!=null&&s.rsrp>=CF_CONGESTION_GOOD_RSRP&&s.sinr!=null&&s.sinr>=CF_CONGESTION_GOOD_SINR) issues.push('Congestion')
     const win=samples.slice(Math.max(0,i-5),Math.min(samples.length,i+6))
     if(new Set(win.map(w=>w.pci).filter(v=>v!=null)).size>=3) issues.push('Overlap')
     return issues.length?{...s,_issues:issues}:null
@@ -4274,7 +4290,7 @@ window.exportPDF = async function(sessId) {
   const pciGroups=[...pciMap.values()].sort((a,b)=>b.samples.length-a.samples.length)
 
   // ── Issue summary table — clean 5-column grid, light theme ──
-  if(yy>272){doc.addPage();yy=18}
+  if(yy>PAGE_BOTTOM){doc.addPage();yy=18}
   doc.setTextColor(...SUB); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
   T(`ISSUE SUMMARY BY PCI   (${classified.length} flagged samples · ${pciGroups.length} cells)`,M,yy); yy+=2
   if(!pciGroups.length){
@@ -4329,7 +4345,7 @@ document.getElementById('pdf-export-btn').addEventListener('click',()=>activeSes
 
 // ── Province dropdowns ────────────────────────────
 function populateProvinces() {
-  const provs=[...new Set(nxAll.map(r=>r.province).filter(Boolean))].sort()
+  const provs=[...new Set([...nxAll,...osAll,...cxAll].map(r=>r.province).filter(Boolean))].sort()
   const addOpts=(id)=>{
     const sel=document.getElementById(id); if(!sel) return
     const existing=new Set([...sel.options].map(o=>o.value))
@@ -4384,7 +4400,7 @@ function refreshDash() {
     })
   })
 }
-function refreshAll() {refreshDash();renderNetwork();renderCX();renderSessions();touch()}
+function refreshAll() {refreshDash();pages['tb-net']=0;pages['tb-gaming']=0;renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
 // Supabase/PostgREST caps every single request at 1000 rows regardless of .limit(N>1000) —
@@ -4413,6 +4429,7 @@ async function fetchSampledSessionIds(){
   try {
     const {data,error}=await db.rpc('sampled_session_ids')
     if(!error && Array.isArray(data)) return new Set(data.map(r=>(r&&r.session_id)||r).filter(Boolean))
+    if(error) console.error('sampled_session_ids RPC failed, falling back to a full scan:',error)
   } catch(e){ /* fall through to scan */ }
   // Capped well below the full table (157k+ rows and growing): this is a last-resort path
   // that should only ever run if the RPC above is unavailable, and a full scan would hang
@@ -4477,27 +4494,32 @@ async function fetchAll() {
 
 // ── Realtime ──────────────────────────────────────
 let _rtChannel=null, _rtRetry=0, _rtReconnect=null
+// Push a fresh realtime row into a capped ring buffer — every INSERT handler below does the
+// same "unshift, then drop the oldest once over cap" dance, previously hand-duplicated 5x.
+function ringPush(arr, item, cap){ arr.unshift(item); if(arr.length>cap) arr.pop() }
 function setupRealtime() {
   if(_rtChannel) { try{db.removeChannel(_rtChannel)}catch(e){} }
   _rtChannel=db.channel('np-live')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'networkxp_data'},p=>{
-      nxAll.unshift(p.new); if(nxAll.length>500)nxAll.pop()
+      p.new._op=normOp(p.new.operator)   // mirrors the same precompute fetchAll() does on load
+      ringPush(nxAll, p.new, 500)
       debouncedRefresh(); debouncedRender('network', renderNetwork); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'opensignal_scores'},p=>{
-      osAll.unshift(p.new); if(osAll.length>500)osAll.pop()
+      p.new._op=normOp(p.new.operator)
+      ringPush(osAll, p.new, 500)
       debouncedRefresh(); debouncedRender('cx', renderCX); touch()  // refreshDash keeps k-cx KPI in sync
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'cx_experience_log'},p=>{
-      cxAll.unshift(p.new); if(cxAll.length>500)cxAll.pop()
+      ringPush(cxAll, p.new, 500)
       debouncedRefresh(); debouncedRender('cx', renderCX); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'gaming_latency_tests'},p=>{
-      gamingAll.unshift(p.new); if(gamingAll.length>200)gamingAll.pop()
+      ringPush(gamingAll, p.new, 200)
       debouncedRender('network', renderNetwork); touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_sessions'},p=>{
-      sessAll.unshift(p.new)
+      ringPush(sessAll, p.new, 500)
       debouncedRefresh()         // keeps k-sess KPI in sync
       debouncedRender('sessions', renderSessions); touch()
     })
@@ -4509,15 +4531,14 @@ function setupRealtime() {
       }
       // Coverage Map: keep covDriveSamples in sync regardless of active session
       if(p.new.latitude&&p.new.longitude){
-        covDriveSamples.unshift(p.new)
-        if(covDriveSamples.length>3000) covDriveSamples.pop()
+        ringPush(covDriveSamples, p.new, 3000)
         if(mapCovReady) debouncedRender('covmap', renderCovMap)
       }
       touch()
     })
     .subscribe(s=>{
       if(s==='SUBSCRIBED'){setConn('live'); _rtRetry=0; console.log('[NP] realtime connected')}
-      if(s==='CLOSED'||s==='CHANNEL_ERROR'){
+      if(s==='CLOSED'||s==='CHANNEL_ERROR'||s==='TIMED_OUT'){
         setConn('err')
         // Exponential backoff (2s→4s→8s…capped at 30s) + jitter, so a Supabase blip
         // doesn't hammer the endpoint with synchronized reconnects.
@@ -4641,11 +4662,23 @@ function downloadBlob(filename, content, mime){
 }
 function cfFilename(ext){ return `NetPulse-CriticalFindings-${CFOP}-${new Date().toISOString().slice(0,10)}.${ext}` }
 
+// Formats a CF_COLUMNS field the same way the on-screen table (renderFindingRow) and the
+// PDF export do — CSV/XLS previously handed raw values straight through, so the same
+// finding could show "0.5" on screen/PDF but "0.500000001" (or blank) in the spreadsheet.
+function cfVal(f,k){
+  if(k==='timestamp') return ts(f.timestamp)
+  if(k==='severity') return (f.severity||'').toUpperCase()
+  if(k==='dl'||k==='ul') return f[k]!=null?n(f[k]):'—'
+  if(k==='ping') return f.ping!=null?n(f.ping,0):'—'
+  if(k==='lat'||k==='lng') return f[k]!=null?f[k].toFixed(5):'—'
+  if(k==='province'||k==='rat') return f[k]||'—'
+  return f[k]??'—'
+}
 function exportFindingsCSV(){
   if(!cfFindings.length){ showToast('No findings to export'); return }
   const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`
   const rows=[CF_COLUMNS.map(([,l])=>esc(l)).join(',')]
-    .concat(cfFindings.map(f=>CF_COLUMNS.map(([k])=>esc(f[k])).join(',')))
+    .concat(cfFindings.map(f=>CF_COLUMNS.map(([k])=>esc(cfVal(f,k))).join(',')))
   downloadBlob(cfFilename('csv'), rows.join('\r\n'), 'text/csv;charset=utf-8')
 }
 function exportFindingsJSON(){
@@ -4658,7 +4691,7 @@ function exportFindingsXLS(){
   // client-side XLSX library, avoiding a new CDN dependency for a fairly narrow feature.
   if(!cfFindings.length){ showToast('No findings to export'); return }
   const head='<tr>'+CF_COLUMNS.map(([,l])=>`<th>${h(l)}</th>`).join('')+'</tr>'
-  const body=cfFindings.map(f=>'<tr>'+CF_COLUMNS.map(([k])=>`<td>${h(f[k]??'')}</td>`).join('')+'</tr>').join('')
+  const body=cfFindings.map(f=>'<tr>'+CF_COLUMNS.map(([k])=>`<td>${h(cfVal(f,k))}</td>`).join('')+'</tr>').join('')
   const html=`<html><head><meta charset="UTF-8"></head><body><table border="1">${head}${body}</table></body></html>`
   downloadBlob(cfFilename('xls'), html, 'application/vnd.ms-excel')
 }
@@ -4677,16 +4710,13 @@ function exportFindingsPDF(){
   const INK=[26,29,33], SUB=[107,114,128], HAIR=[226,229,233], BRAND=[31,111,235]
   const BAD=[196,52,28], WARN=[180,83,9]
   const CAT_COLOR={Congestion:[107,63,160], Handover:[14,116,148], 'Low Throughput':[44,90,160], 'High Latency':[107,91,77]}
-  const S=s=>String(s==null?'':s).replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[−–—]/g,'-').replace(/σ/g,'SD').replace(/Δ/g,'d').replace(/→/g,'->')
-  const T=(txt,x,y,opt)=>doc.text(S(txt),x,y,opt)
-  const fmtDate=d=>{
-    const t=new Date(d), mon=t.toLocaleString('en-US',{month:'short'})
-    return `${String(t.getDate()).padStart(2,'0')} ${mon} ${t.getFullYear()}, ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
+  const T=(txt,x,y,opt)=>doc.text(pdfSafe(txt),x,y,opt)
+  const dparts=d=>{
+    const t=new Date(d)
+    return {day:String(t.getDate()).padStart(2,'0'), mon:t.toLocaleString('en-US',{month:'short'}), hh:String(t.getHours()).padStart(2,'0'), mm:String(t.getMinutes()).padStart(2,'0'), yr:t.getFullYear()}
   }
-  const fmtTime=d=>{
-    const t=new Date(d), mon=t.toLocaleString('en-US',{month:'short'})
-    return `${String(t.getDate()).padStart(2,'0')} ${mon} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
-  }
+  const fmtDate=d=>{ const p=dparts(d); return `${p.day} ${p.mon} ${p.yr}, ${p.hh}:${p.mm}` }
+  const fmtTime=d=>{ const p=dparts(d); return `${p.day} ${p.mon} ${p.hh}:${p.mm}` }
 
   const counts={Congestion:0,Handover:0,'Low Throughput':0,'High Latency':0}
   let fails=0, warns=0
@@ -4730,12 +4760,12 @@ function exportFindingsPDF(){
     fmtTime(f.timestamp), f.category, f.severity.toUpperCase(), f.province||'—', f.rat||'—',
     f.pci??'—', f.cellId??'—', f.tac??'—', f.rsrp??'—', f.sinr??'—',
     f.dl!=null?n(f.dl):'—', f.ul!=null?n(f.ul):'—', f.ping!=null?n(f.ping,0):'—',
-    f.lat!=null?f.lat.toFixed(5):'—', f.lng!=null?f.lng.toFixed(5):'—', S(f.detail),
+    f.lat!=null?f.lat.toFixed(5):'—', f.lng!=null?f.lng.toFixed(5):'—', pdfSafe(f.detail),
   ])
 
   doc.autoTable({
     startY:43,
-    head:[CF_COLUMNS.map(([,l])=>S(l))],
+    head:[CF_COLUMNS.map(([,l])=>pdfSafe(l))],
     body,
     theme:'plain',
     styles:{font:'helvetica',fontSize:7,textColor:INK,cellPadding:{top:1.8,right:2.2,bottom:1.8,left:2.4},
@@ -4778,7 +4808,7 @@ function exportFindingsPDF(){
       doc.setDrawColor(...HAIR); doc.setLineWidth(.2); doc.line(M,196.5,W-M,196.5)
       doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...SUB)
       T('Cellcard — Network Intelligence — Internal Use', M, 200.5)
-      T(`Page ${data.pageNumber} `, W-M, 200.5, {align:'right'})
+      // Page N of M is drawn once totalPages is known, in the loop right after autoTable() returns
     },
   })
 
@@ -4846,7 +4876,7 @@ document.querySelectorAll('.os-drill-grp-tab').forEach(el=>{
 
 // ── Filter wiring ─────────────────────────────────
 // Global filter bar — one bar drives Executive, Network and Customer Experience
-function applyGlobal(){ refreshDash(); renderNetwork(); renderCX() }
+function applyGlobal(){ refreshDash(); pages['tb-net']=0; pages['tb-gaming']=0; renderNetwork(); renderCX() }
 document.querySelectorAll('[data-df]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-df]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); F.dDate=b.dataset.df; applyGlobal()
@@ -4960,6 +4990,16 @@ function buildHexbins(rows) {
 // ── Filter drive samples for coverage map ─────────
 // opOverride lets Compare mode filter by a specific operator per panel without touching
 // the shared CF.op filter state; omit it (or pass undefined) for the normal CF.op-driven behavior.
+// Coverage Map's tech filter (5g/4g/3g — no 2g bucket, unlike the dashboard's filterNx/Os/Cx)
+// checked verbatim in filterCovDrive, filterCovNx, and the tower filter in renderCovMap.
+function techMatch(rat){
+  if(CF.tech==='all') return true
+  const r=(rat||'').toUpperCase()
+  if(CF.tech==='5g') return r.includes('NR')||r.includes('5G')
+  if(CF.tech==='4g') return r.includes('LTE')||r.includes('4G')
+  if(CF.tech==='3g') return r.includes('WCDMA')||r.includes('3G')
+  return true
+}
 function filterCovDrive(opOverride){
   const op = opOverride!==undefined ? opOverride : CF.op
   return covDriveSamples.filter(s=>{
@@ -4967,12 +5007,7 @@ function filterCovDrive(opOverride){
     if(op!=='all'&&normOp(s.operator)!==op) return false
     if(CF.device!=='all'&&s.device_id!==CF.device) return false
     // drive_samples has no province column (device GPS only) — cannot be province-filtered, so it's left unfiltered by CF.prov
-    if(CF.tech!=='all'){
-      const r=(s.rat||'').toUpperCase()
-      if(CF.tech==='5g'&&!r.includes('NR')&&!r.includes('5G')) return false
-      if(CF.tech==='4g'&&!r.includes('LTE')&&!r.includes('4G')) return false
-      if(CF.tech==='3g'&&!r.includes('WCDMA')&&!r.includes('3G')) return false
-    }
+    if(!techMatch(s.rat)) return false
     return true
   })
 }
@@ -4983,12 +5018,7 @@ function filterCovNx(opOverride){
     if(op!=='all'&&normOp(r.operator)!==op) return false
     if(CF.device!=='all'&&r.device_id!==CF.device) return false
     if(CF.prov!=='all'&&(r.province||'')!==CF.prov) return false
-    if(CF.tech!=='all'){
-      const rat=(r.rat||'').toUpperCase()
-      if(CF.tech==='5g'&&!rat.includes('NR')&&!rat.includes('5G')) return false
-      if(CF.tech==='4g'&&!rat.includes('LTE')&&!rat.includes('4G')) return false
-      if(CF.tech==='3g'&&!rat.includes('WCDMA')&&!rat.includes('3G')) return false
-    }
+    if(!techMatch(r.rat)) return false
     return true
   })
 }
@@ -5043,18 +5073,13 @@ function renderCovMap(){
   // filtered by CF.op — there's nothing to filter.
   const towerFeats=covTowersGJ.features.filter(f=>{
     if(CF.op&&CF.op!=='all'&&f.properties.operator!==CF.op) return false
-    if(CF.tech&&CF.tech!=='all'){
-      const r=(f.properties.radio||'').toUpperCase()
-      if(CF.tech==='5g'&&!r.includes('NR')&&!r.includes('5G')) return false
-      if(CF.tech==='4g'&&!r.includes('LTE')&&!r.includes('4G')) return false
-      if(CF.tech==='3g'&&!r.includes('WCDMA')&&!r.includes('3G')) return false
-    }
+    if(!techMatch(f.properties.radio)) return false
     return true
   })
-  if(mapCovReady) mapCov.getSource('cov-towers').setData({type:'FeatureCollection',features:towerFeats})
+  mapCov.getSource('cov-towers').setData({type:'FeatureCollection',features:towerFeats})
 
   // Push resellers (static — only updated by loadSitesFromSupabase)
-  if(mapCovReady) mapCov.getSource('cov-resellers').setData(covResellersGJ)
+  mapCov.getSource('cov-resellers').setData(covResellersGJ)
 
   // Stats
   document.getElementById('cov-stat-drive').textContent=driveRows.length+' drive pts'
@@ -5101,6 +5126,24 @@ function destroyCompareMaps(){
   document.getElementById('cov-compare').innerHTML=''
 }
 
+// Hexbin/cluster paint definitions shared verbatim between the main coverage map
+// (initCovMap) and each compare-mode panel (buildCompareMaps) — hoisted so the two can't
+// silently drift apart. cov-dots/cmp-dots deliberately NOT unified here: compare-mode dots
+// use a flat opacity while the main map's use an active/inactive case — a real (if
+// undocumented) difference, not accidental duplication, so left as two separate literals.
+const RSRP_HEX_FILL_PAINT={
+  'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
+    -120,'#d73027',-110,'#fc8d59',-100,'#fee08b',-90,'#d9ef8b',-80,'#1a9850'],
+  'fill-opacity':0.55,
+  'fill-outline-color':'rgba(0,0,0,0.2)'
+}
+const RSRP_CLUSTER_PAINT={
+  'circle-color':'#607d8b',
+  'circle-radius':['step',['get','point_count'],14,50,20,200,28],
+  'circle-opacity':.8,'circle-stroke-width':1,'circle-stroke-color':'rgba(255,255,255,.3)'
+}
+const RSRP_CLUSTER_COUNT_LAYOUT={'text-field':'{point_count_abbreviated}','text-size':11,'text-font':['Noto Sans Bold'],'text-allow-overlap':true}
+const RSRP_CLUSTER_COUNT_PAINT={'text-color':'#fff'}
 function buildCompareMaps(n){
   destroyCompareMaps()
   const cmpEl=document.getElementById('cov-compare')
@@ -5137,24 +5180,19 @@ function buildCompareMaps(n){
       map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
       map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
         cluster:true,clusterMaxZoom:13,clusterRadius:40})
-      map.addLayer({id:`hex-fill-${i}`,type:'fill',source:'cmp-hex',paint:{
-        'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
-          -120,'#d73027',-110,'#fc8d59',-100,'#fee08b',-90,'#d9ef8b',-80,'#1a9850'],
-        'fill-opacity':0.55,'fill-outline-color':'rgba(0,0,0,0.2)'
-      }})
+      map.addLayer({id:`hex-fill-${i}`,type:'fill',source:'cmp-hex',paint:RSRP_HEX_FILL_PAINT})
       map.addLayer({id:`cmp-clusters-${i}`,type:'circle',source:'cmp-samples',filter:['has','point_count'],
-        paint:{'circle-color':'#607d8b','circle-radius':['step',['get','point_count'],14,50,20,200,28],
-          'circle-opacity':.8,'circle-stroke-width':1,'circle-stroke-color':'rgba(255,255,255,.3)'}})
+        paint:RSRP_CLUSTER_PAINT})
       map.addLayer({id:`cmp-cluster-ct-${i}`,type:'symbol',source:'cmp-samples',filter:['has','point_count'],
-        layout:{'text-field':'{point_count_abbreviated}','text-size':11,'text-font':['Noto Sans Bold'],'text-allow-overlap':true},
-        paint:{'text-color':'#fff'}})
+        layout:RSRP_CLUSTER_COUNT_LAYOUT,
+        paint:RSRP_CLUSTER_COUNT_PAINT})
       map.addLayer({id:`cmp-dots-${i}`,type:'circle',source:'cmp-samples',filter:['!',['has','point_count']],
         paint:{'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#1e293b','circle-opacity':.75,
           'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
       entry.ready=true
       renderComparePanel(i)
     })
-    map.on('error', e=>console.error('compare map '+i+':', e))
+    map.on('error', e=>showMapError(panelId, e))
 
     // Synchronized pan/zoom across all panels (guarded to avoid feedback loops)
     map.on('move', ()=>{
@@ -5257,12 +5295,7 @@ function initCovMap(){
       paint:{'fill-color':'#DB1A21','fill-opacity':0.45}})
 
     // ── Hexbin fill (bottom) ──
-    mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:{
-      'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
-        -120,'#d73027',-110,'#fc8d59',-100,'#fee08b',-90,'#d9ef8b',-80,'#1a9850'],
-      'fill-opacity':0.55,
-      'fill-outline-color':'rgba(0,0,0,0.2)'
-    }})
+    mapCov.addLayer({id:'hex-fill',type:'fill',source:'cov-hex',paint:RSRP_HEX_FILL_PAINT})
 
     // ── Route lines — blue, visible on Liberty light tiles, no minzoom ──
     mapCov.addLayer({id:'cov-route-line',type:'line',source:'cov-routes',
@@ -5281,16 +5314,11 @@ function initCovMap(){
     // ── Clusters ──
     mapCov.addLayer({id:'cov-clusters',type:'circle',source:'cov-samples',
       filter:['has','point_count'],
-      paint:{
-        'circle-color':'#607d8b',
-        'circle-radius':['step',['get','point_count'],14,50,20,200,28],
-        'circle-opacity':.8,'circle-stroke-width':1,'circle-stroke-color':'rgba(255,255,255,.3)'
-      }})
+      paint:RSRP_CLUSTER_PAINT})
     mapCov.addLayer({id:'cov-cluster-ct',type:'symbol',source:'cov-samples',
       filter:['has','point_count'],
-      layout:{'text-field':'{point_count_abbreviated}','text-size':11,
-        'text-font':['Noto Sans Bold'],'text-allow-overlap':true},
-      paint:{'text-color':'#fff'}})
+      layout:RSRP_CLUSTER_COUNT_LAYOUT,
+      paint:RSRP_CLUSTER_COUNT_PAINT})
 
     // ── Individual dots — CellMapper style ──
     mapCov.addLayer({id:'cov-dots',type:'circle',source:'cov-samples',
@@ -5377,8 +5405,6 @@ function initCovMap(){
           <div style="color:#8b949e;margin-bottom:6px">${p.has5g?'4G/5G (NR)':'4G LTE only'}</div>
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="color:#8b949e;padding:2px 0">Radio</td><td style="text-align:right">${p.radio||'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Cell ID</td><td style="text-align:right">${p.cell||'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">MCC/MNC</td><td style="text-align:right">456/${p.net||'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     }
@@ -5430,6 +5456,7 @@ function initCovMap(){
         db.from('drive_samples')
           .select('latitude,longitude,rsrp,sinr,rat,operator,sampled_at,session_id,download_mbps,pci,event_type,device_id')
           .order('sampled_at',{ascending:false}).range(from,to),6000)
+      if(flatResult.error){ console.error('flat fetch fallback also failed:',flatResult.error) }
       covDriveSamples=flatResult.data
     } else {
       covDriveSamples=rpcResult.data
@@ -5502,11 +5529,12 @@ function haversineKm([lng1,lat1],[lng2,lat2]) {
 }
 
 let simH3Res = 9   // current resolution choice
+let lastSimRes = simH3Res   // resolution the most recently RUN simulation actually used — gap analysis must compare against this, not the live toggle, or changing the toggle after running silently corrupts every gap-analysis result
 
 async function runSimulation() {
   const towers = covTowersGJ.features
   if(!towers.length) {
-    document.getElementById('sim-status').textContent = '⚠ Load cell sites first (Supabase or OpenCelliD)'
+    document.getElementById('sim-status').textContent = '⚠ Load cell sites first (Supabase)'
     return
   }
   const freqMHz  = +document.getElementById('sim-freq').value
@@ -5515,6 +5543,7 @@ async function runSimulation() {
   const envMap   = {urban:3.5, suburban:3.0, rural:2.5, indoor:4.0}
   const envN     = envMap[document.getElementById('sim-env').value] || 3.0
   const res      = simH3Res
+  lastSimRes     = res
   const btn      = document.getElementById('sim-run-btn')
   const status   = document.getElementById('sim-status')
 
@@ -5593,7 +5622,7 @@ async function runSimulation() {
     const simPopup = new maplibregl.Popup({closeButton:true,maxWidth:'200px'})
     mapCov.on('click','sim-fill', e => {
       const p = e.features[0].properties
-      const gc = p.rsrp >= -80 ? '#00e676' : p.rsrp >= -90 ? '#00bcd4' : p.rsrp >= -100 ? '#ffc107' : p.rsrp >= -110 ? '#ff9800' : '#f44336'
+      const gc = rsrpColor(p.rsrp)
       const band = p.rsrp >= -80 ? 'Excellent' : p.rsrp >= -90 ? 'Good' : p.rsrp >= -100 ? 'Fair' : p.rsrp >= -110 ? 'Poor' : 'Very Poor'
       simPopup.setLngLat(e.lngLat).setHTML(`
         <div style="font-family:system-ui;font-size:12px">
@@ -5627,11 +5656,13 @@ function runGapAnalysis() {
     return
   }
   const simFeatures = src._data.features
-  // Pre-build measured hex set
+  // Pre-build measured hex set — must use the resolution the simulation was actually run
+  // at (lastSimRes), not the live simH3Res toggle, or flipping the toggle after running a
+  // simulation silently corrupts every gap-analysis result against mismatched hex grids.
   const measuredHexMap = {}
   covDriveSamples.forEach(s => {
     if (s.latitude == null || s.longitude == null) return
-    const hid = h3.latLngToCell(+s.latitude, +s.longitude, simH3Res)
+    const hid = h3.latLngToCell(+s.latitude, +s.longitude, lastSimRes)
     if (!measuredHexMap[hid]) measuredHexMap[hid] = []
     measuredHexMap[hid].push(s.rsrp)
   })
@@ -5701,7 +5732,8 @@ document.querySelectorAll('[data-simres]').forEach(b => b.addEventListener('clic
 // Province filter + zoom
 function populateCovProvinces(){
   const provs=new Set()
-  covDriveSamples.forEach(s=>{if(s.province)provs.add(s.province)})
+  // drive_samples (covDriveSamples) has no province column — only networkxp_data does — so
+  // only nxAll can actually contribute a province here.
   nxAll.forEach(r=>{if(r.province)provs.add(r.province)})
   const sel=document.getElementById('cov-prov')
   const cur=sel.value
