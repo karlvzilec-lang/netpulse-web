@@ -380,8 +380,11 @@ td.r,th.r{text-align:right}
 .psev3 .psev-num,.psev3 .psev-label{color:var(--r-fa)}
 .psev4 .psev-num,.psev4 .psev-label{color:var(--r-go)}
 .psev5 .psev-num,.psev5 .psev-label{color:var(--mu)}
-/* ── Tech view hidden by default ── */
-.tech-only{display:none}
+/* ── Tech view hidden by default. Scoped to body:not(.view-tech) rather than an unconditional
+   .tech-only{display:none} so that un-hiding (setDashView) doesn't have to know each element's
+   own display type (grid/flex/block) — it just toggles body.view-tech and lets each element's
+   own other class (.kgrid, .g, .view-hdr, ...) resolve its display normally. ── */
+body:not(.view-tech) .tech-only{display:none}
 /* ══ EXECUTIVE STATUS BANNER ══════════════════════ */
 .exec-status-banner{border-radius:var(--r-card);padding:22px 26px;margin-bottom:18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;transition:background .4s,border-color .4s}
 .esb-green{background:linear-gradient(135deg,rgba(0,230,118,.13) 0%,rgba(0,188,212,.06) 100%);border:1.5px solid rgba(0,230,118,.35)}
@@ -636,6 +639,15 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </div>
   <div id="dash-content">
 
+  <!-- Executive / Technical view toggle — setDashView() has always driven the exec-view vs
+       tech-only split below (KPI grid, SEV live counts, RSRP threshold reference); this control
+       was the only missing piece wiring it to a button. -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <div style="display:inline-flex;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:3px;gap:2px">
+      <button class="vt-btn on" data-view="exec" onclick="setDashView('exec')" aria-pressed="true">Executive</button>
+      <button class="vt-btn" data-view="tech" onclick="setDashView('tech')" aria-pressed="false">Technical</button>
+    </div>
+  </div>
 
   <!-- KPI row (technical view only — exec view uses hero cards instead) -->
   <div class="kgrid tech-only">
@@ -2471,10 +2483,14 @@ function initDriveMap() {
 let dashView = 'exec'
 function setDashView(v) {
   dashView = v
-  document.querySelectorAll('.vt-btn').forEach(b => b.classList.toggle('on', b.dataset.view === v))
+  document.querySelectorAll('.vt-btn').forEach(b => {
+    const on = b.dataset.view === v
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-pressed', on)
+  })
   const isTech = v === 'tech'
+  document.body.classList.toggle('view-tech', isTech)
   document.querySelectorAll('.exec-view').forEach(el => el.style.display = isTech ? 'none' : '')
-  document.querySelectorAll('.tech-only').forEach(el => el.style.display = isTech ? '' : 'none')
   document.querySelectorAll('.exec-lbl').forEach(el => el.style.display = isTech ? 'none' : '')
   document.querySelectorAll('.tech-lbl').forEach(el => el.style.display = isTech ? '' : 'none')
 }
