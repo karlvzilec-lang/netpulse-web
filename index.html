@@ -287,6 +287,15 @@ td.r,th.r{text-align:right}
 .cov-compare-panel .cov-cmp-stat{position:absolute;bottom:8px;left:8px;z-index:5;font-size:10px;color:var(--mu);background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:3px 7px}
 .sb-sec{padding:10px 14px;border-bottom:1px solid var(--bd)}
 .sb-sec-hd{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:8px}
+/* ── Collapsible sidebar sections (Coverage Map) — click a section header to collapse it,
+   so a long control stack doesn't force a long permanent scroll. Chevron + body are siblings
+   of the header rather than nested inside it, so the header's own inline controls (Reset/Set
+   Default/the RF-sim on-off switch) don't need special-casing to avoid toggling collapse. ── */
+.sb-collapse-hd{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.sb-collapse-hd-txt{display:flex;align-items:center;gap:6px}
+.sb-collapse-chev{display:inline-block;transition:transform .15s;font-size:9px;color:var(--mu);flex-shrink:0}
+.sb-collapse-chev.collapsed{transform:rotate(-90deg)}
+.sb-collapse-body.collapsed{display:none}
 .layer-row{display:flex;align-items:center;gap:8px;padding:5px 0}
 .layer-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .layer-iname{font-size:12px;font-weight:600}
@@ -1168,7 +1177,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
       <!-- Layers -->
       <div class="sb-sec">
-        <div class="sb-sec-hd">Layers</div>
+        <div class="sb-sec-hd sb-collapse-hd" onclick="toggleSbSection(this)">
+          <span class="sb-collapse-hd-txt">Layers</span>
+          <span class="sb-collapse-chev">▾</span>
+        </div>
+        <div class="sb-collapse-body">
         <div class="layer-row">
           <label class="ltog"><input type="checkbox" id="lyr-drive" checked aria-label="Toggle Drive Samples layer"><span class="lslid"></span></label>
           <div class="layer-dot" style="background:var(--r-ex)"></div>
@@ -1194,58 +1207,70 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <div class="layer-dot" style="background:#FF7900"></div>
           <div><div class="layer-iname">Reseller Sites</div><div class="layer-isub">Amber · from KMZ/KML</div></div>
         </div>
+        </div>
       </div>
 
       <!-- Filters -->
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl" style="display:flex;align-items:center;justify-content:space-between">
-          Province
-          <button id="cov-prov-reset" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;display:none">✕ Reset</button>
+        <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">
+          <span class="sb-collapse-hd-txt">Province <span class="sb-collapse-chev">▾</span></span>
+          <button id="cov-prov-reset" onclick="event.stopPropagation()" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;display:none">✕ Reset</button>
         </div>
+        <div class="sb-collapse-body">
         <select class="fdrop" id="cov-prov" style="width:100%" aria-label="Coverage map — filter by province">
           <option value="all">All Provinces</option>
         </select>
+        </div>
       </div>
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl" style="display:flex;align-items:center;justify-content:space-between">
-          Operator
-          <button id="cov-op-default-btn" title="Set as default operator" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer">☆ Set Default</button>
+        <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">
+          <span class="sb-collapse-hd-txt">Operator <span class="sb-collapse-chev">▾</span></span>
+          <button id="cov-op-default-btn" onclick="event.stopPropagation()" title="Set as default operator" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer">☆ Set Default</button>
         </div>
+        <div class="sb-collapse-body">
         <div class="cov-chips">
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="all">All</button>
           <button class="fchip on" style="font-size:11px;padding:3px 8px" data-cop2="Cellcard">Cellcard</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Metfone">Metfone</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-cop2="Smart">Smart</button>
         </div>
+        </div>
       </div>
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl">Technology</div>
+        <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">Technology <span class="sb-collapse-chev">▾</span></div>
+        <div class="sb-collapse-body">
         <div class="cov-chips">
           <button class="fchip on" style="font-size:11px;padding:3px 8px" data-ctech="all">All</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-ctech="5g">5G/NR</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-ctech="4g">4G LTE</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-ctech="3g">3G</button>
         </div>
+        </div>
       </div>
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl">Test Type</div>
+        <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">Test Type <span class="sb-collapse-chev">▾</span></div>
+        <div class="sb-collapse-body">
         <div class="cov-chips">
           <button class="fchip on" style="font-size:11px;padding:3px 8px" data-ctype="all">All Tests</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-ctype="drive">Drive Only</button>
           <button class="fchip" style="font-size:11px;padding:3px 8px" data-ctype="exp">Experience Only</button>
         </div>
+        </div>
       </div>
       <div class="cov-fbar">
-        <div class="cov-fbar-lbl">Device / User</div>
+        <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">Device / User <span class="sb-collapse-chev">▾</span></div>
+        <div class="sb-collapse-body">
         <select class="fdrop" id="cov-device" style="width:100%" aria-label="Coverage map — filter by device"><option value="all">All Devices</option></select>
+        </div>
       </div>
 
       <!-- RF Coverage Simulation -->
       <div class="sb-sec" id="sim-sec">
-        <div class="sb-sec-hd" style="display:flex;align-items:center;justify-content:space-between">
-          RF Coverage Simulation
-          <label class="ltog" style="transform:scale(.85)"><input type="checkbox" id="lyr-sim" aria-label="Toggle RF coverage simulation layer"><span class="lslid"></span></label>
+        <div class="sb-sec-hd sb-collapse-hd" onclick="toggleSbSection(this)">
+          <span class="sb-collapse-hd-txt">RF Coverage Simulation <span class="sb-collapse-chev">▾</span></span>
+          <label class="ltog" style="transform:scale(.85)" onclick="event.stopPropagation()"><input type="checkbox" id="lyr-sim" aria-label="Toggle RF coverage simulation layer"><span class="lslid"></span></label>
         </div>
+        <div class="sb-collapse-body">
         <div style="font-size:10px;color:var(--mu);margin-bottom:8px;line-height:1.5">Propagation model applied to loaded cell sites. Estimates RSRP at each H3 hex.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
           <div>
@@ -1297,11 +1322,16 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#ff9800"></div>Poor −100…−110</div>
         <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:#f44336"></div>Very Poor &lt; −110</div>
         <div class="leg-row" style="font-size:10px"><div class="leg-circ" style="background:rgba(100,116,139,.3)"></div>No Coverage</div>
+        </div>
       </div>
 
       <!-- Legend -->
       <div class="sb-sec" style="flex:1;border-bottom:none">
-        <div class="sb-sec-hd">Signal Grade Legend</div>
+        <div class="sb-sec-hd sb-collapse-hd" onclick="toggleSbSection(this)">
+          <span class="sb-collapse-hd-txt">Legend <span class="sb-collapse-chev">▾</span></span>
+        </div>
+        <div class="sb-collapse-body">
+        <div class="sb-sec-hd" style="margin-top:0">Signal Grade Legend</div>
         <div class="leg-row"><div class="leg-circ" style="background:#00e676"></div><b style="color:var(--r-ex)">A</b> · Excellent ≥ −80 dBm</div>
         <div class="leg-row"><div class="leg-circ" style="background:#00bcd4"></div><b style="color:var(--r-go)">B</b> · Good −80…−90</div>
         <div class="leg-row"><div class="leg-circ" style="background:#ffc107"></div><b style="color:var(--r-fa)">C</b> · Fair −90…−100</div>
@@ -1320,6 +1350,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="leg-row"><div class="leg-circ" style="background:#2563eb;border-color:#2563eb"></div>4G/5G (NR) — Blue</div>
         <div class="leg-row"><div class="leg-circ" style="background:#16a34a;border-color:#16a34a"></div>4G LTE only — Green</div>
         <div class="leg-row"><div class="leg-circ" style="background:#FF7900;border-color:#FF7900"></div>Reseller — Amber</div>
+        </div>
       </div>
     </div>
 
@@ -5665,6 +5696,15 @@ function initCovMap(){
 }
 
 // ── Layer visibility toggles ──────────────────────
+// ── Collapsible sidebar sections ──────────────────
+function toggleSbSection(hdEl){
+  const body = hdEl.nextElementSibling
+  const chev = hdEl.querySelector('.sb-collapse-chev')
+  if(!body) return
+  const collapsed = body.classList.toggle('collapsed')
+  if(chev) chev.classList.toggle('collapsed', collapsed)
+}
+
 function covLayer(ids,on){
   if(!mapCovReady) return
   ids.forEach(id=>{try{mapCov.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(e){}})
