@@ -1651,6 +1651,7 @@ window.goPage = function(tbodyId, newPage, wrapId) {
     'tb-os':     ()=>paginate('tb-os',_cxOsRows,renderOsRow),
     'tb-cx':     ()=>paginate('tb-cx',_cxCxRows,renderCxRow),
     'tb-samples':()=>{ if(activeSess) selectSession(activeSess.id) },
+    'cf-tbody':  ()=>renderFindings(),
   }
   if(rerender[tbodyId]) rerender[tbodyId]()
 }
