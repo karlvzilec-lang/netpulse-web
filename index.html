@@ -150,10 +150,10 @@ tr:hover td{background:var(--s2)}
 .tw thead th[aria-sort="descending"]::after{border-top-color:var(--pr)}
 /* ── Badges ── */
 .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600}
-.b5g{background:rgba(63,185,80,.18);color:#3fb950}
-.b4g{background:rgba(31,111,235,.18);color:#58a6ff}
-.b3g{background:rgba(210,153,34,.18);color:#d29922}
-.b2g{background:rgba(248,81,73,.15);color:#f85149}
+.b5g{background:rgba(63,185,80,.18);color:var(--gr)}
+.b4g{background:rgba(31,111,235,.18);color:var(--bl)}
+.b3g{background:rgba(210,153,34,.18);color:var(--yw)}
+.b2g{background:rgba(248,81,73,.15);color:var(--re)}
 .buk{background:var(--s2);color:var(--mu)}
 .rpill{display:inline-block;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:600}
 .live-tag{display:inline-block;padding:1px 6px;background:rgba(63,185,80,.15);color:var(--gr);border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px}
@@ -211,8 +211,8 @@ tr:hover td{background:var(--s2)}
 .sess-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 .sess-stat{font-size:11px}
 .sess-sync-btn{flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1px solid var(--bd);background:none;color:var(--mu);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
-.sess-sync-btn:hover{border-color:rgba(255,152,0,.6);color:#ff9800;background:rgba(255,152,0,.1)}
-.sess-sync-btn.synced{color:#00e67699;border-color:transparent;cursor:default;font-size:12px}
+.sess-sync-btn:hover{border-color:rgba(255,152,0,.6);color:var(--r-po);background:rgba(255,152,0,.1)}
+.sess-sync-btn.synced{color:color-mix(in srgb,var(--r-ex) 60%,transparent);border-color:transparent;cursor:default;font-size:12px}
 .sess-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;border:1px solid;white-space:nowrap}
 .pdf-btn{display:none;width:calc(100% - 28px);margin:8px 14px;padding:7px;background:rgba(31,111,235,.15);border:1px solid rgba(31,111,235,.3);border-radius:6px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
 .pdf-btn:hover{background:rgba(31,111,235,.25)}
@@ -227,16 +227,16 @@ tr:hover td{background:var(--s2)}
 /* ── Rule assessment rows (TEMS/VIAVI style) ── */
 .drv-rule{display:flex;align-items:center;gap:10px;padding:6px 10px;border-left:3px solid transparent;border-bottom:1px solid var(--bd);transition:background .1s}
 .drv-rule:last-child{border-bottom:none}
-.drv-rule.pass{border-left-color:#00e676;background:rgba(0,230,118,.03)}
-.drv-rule.warn{border-left-color:#ffc107;background:rgba(255,193,7,.03)}
-.drv-rule.fail{border-left-color:#f44336;background:rgba(244,67,54,.04)}
+.drv-rule.pass{border-left-color:var(--r-ex);background:rgba(0,230,118,.03)}
+.drv-rule.warn{border-left-color:var(--r-fa);background:rgba(255,193,7,.03)}
+.drv-rule.fail{border-left-color:var(--r-cr);background:rgba(244,67,54,.04)}
 .drv-rule-body{flex:1;min-width:0}
 .drv-rule-lbl{font-size:11px;font-weight:600;line-height:1.3}
 .drv-rule-detail{font-size:10px;color:var(--mu);margin-top:1px;line-height:1.4}
 .drv-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.4px;white-space:nowrap;flex-shrink:0;border:1px solid}
-.drv-pill.pass{color:#00e676;background:rgba(0,230,118,.12);border-color:rgba(0,230,118,.3)}
-.drv-pill.warn{color:#ffc107;background:rgba(255,193,7,.12);border-color:rgba(255,193,7,.3)}
-.drv-pill.fail{color:#f44336;background:rgba(244,67,54,.12);border-color:rgba(244,67,54,.3)}
+.drv-pill.pass{color:var(--r-ex);background:rgba(0,230,118,.12);border-color:rgba(0,230,118,.3)}
+.drv-pill.warn{color:var(--r-fa);background:rgba(255,193,7,.12);border-color:rgba(255,193,7,.3)}
+.drv-pill.fail{color:var(--r-cr);background:rgba(244,67,54,.12);border-color:rgba(244,67,54,.3)}
 /* ── CX Latest result ── */
 .cx-latest{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r-card);padding:16px;margin-bottom:16px}
 .cx-latest-head{font-size:13px;font-weight:600;margin-bottom:2px}
@@ -266,12 +266,12 @@ td.r,th.r{text-align:right}
 .card{border-color:var(--bd)}
 .kcard{border-left:3px solid transparent;transition:border-color .15s,background .15s}
 .kcard:hover{background:var(--s2)}
-.kc-bl{border-left-color:#388bfd}
-.kc-gr{border-left-color:#3fb950}
-.kc-yw{border-left-color:#d29922}
-.kc-re{border-left-color:#f85149}
-.kc-pu{border-left-color:#a371f7}
-.kc-cy{border-left-color:#39d353}
+.kc-bl{border-left-color:var(--bl)}
+.kc-gr{border-left-color:var(--gr)}
+.kc-yw{border-left-color:var(--yw)}
+.kc-re{border-left-color:var(--re)}
+.kc-pu{border-left-color:var(--pu)}
+.kc-cy{border-left-color:var(--cy)}
 .kc-or{border-left-color:#db6d28}
 /* ── Coverage Map tab ── */
 #tp-cov.on{display:flex;margin:-20px -20px 0;height:calc(100vh - 95px)}
@@ -313,7 +313,7 @@ td.r,th.r{text-align:right}
 .ltog input:checked+.lslid{background:rgba(31,111,235,.5)}
 .ltog input:checked+.lslid:before{transform:translateX(16px);background:#58a6ff}
 .map-pills{position:absolute;bottom:28px;left:8px;display:flex;gap:5px;z-index:10;pointer-events:none}
-.mpill{background:rgba(13,17,23,.85);border:1px solid var(--bd);border-radius:12px;padding:2px 10px;font-size:11px;color:var(--mu);backdrop-filter:blur(4px)}
+.mpill{background:rgba(13,17,23,.85);border:1px solid var(--bd);border-radius:12px;padding:2px 10px;font-size:11px;color:#9da8b4;backdrop-filter:blur(4px)}
 .tok-in{width:100%;padding:5px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px}
 .tok-in:focus{border-color:var(--pr)}
 .sb-btn{display:block;width:100%;padding:6px 0;margin-top:5px;background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.25);border-radius:4px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
@@ -332,13 +332,13 @@ td.r,th.r{text-align:right}
 .vt-btn.on{background:var(--pr);color:#fff}
 /* ── RAG status badges ── */
 .rag{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;margin-left:4px;vertical-align:middle;letter-spacing:.4px}
-.rag-g{background:rgba(0,230,118,.15);color:#00e676}
-.rag-a{background:rgba(255,193,7,.15);color:#ffc107}
-.rag-r{background:rgba(244,67,54,.15);color:#f44336}
+.rag-g{background:rgba(0,230,118,.15);color:var(--r-ex)}
+.rag-a{background:rgba(255,193,7,.15);color:var(--r-fa)}
+.rag-r{background:rgba(244,67,54,.15);color:var(--r-cr)}
 /* ── Trend indicator ── */
 .kcard-trend{font-size:10px;margin-top:2px;min-height:14px}
-.trend-up{color:#00e676}
-.trend-dn{color:#f44336}
+.trend-up{color:var(--r-ex)}
+.trend-dn{color:var(--r-cr)}
 .trend-eq{color:var(--mu)}
 /* ── Network health banner ── */
 .health-banner{background:linear-gradient(135deg,rgba(31,111,235,.1) 0%,rgba(0,230,118,.07) 100%);border:1px solid var(--bd);border-radius:var(--r-card);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
@@ -353,8 +353,8 @@ td.r,th.r{text-align:right}
 /* ── Section dividers ── */
 .view-hdr{display:flex;align-items:center;gap:10px;margin:20px 0 14px}
 .view-hdr-badge{padding:3px 10px;border-radius:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
-.vhb-exec{background:rgba(31,111,235,.15);color:#58a6ff}
-.vhb-tech{background:rgba(148,163,184,.15);color:#94a3b8}
+.vhb-exec{background:rgba(31,111,235,.15);color:var(--bl)}
+.vhb-tech{background:rgba(148,163,184,.15);color:var(--mu)}
 .view-hdr-title{font-size:13px;font-weight:700}
 .view-hdr-line{flex:1;height:1px;background:var(--bd)}
 /* ── RSRP threshold reference table ── */
@@ -375,11 +375,11 @@ td.r,th.r{text-align:right}
 .psev3{background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.3)}
 .psev4{background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)}
 .psev5{background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.2)}
-.psev1 .psev-num,.psev1 .psev-label{color:#f44336}
-.psev2 .psev-num,.psev2 .psev-label{color:#ff9800}
-.psev3 .psev-num,.psev3 .psev-label{color:#ffc107}
-.psev4 .psev-num,.psev4 .psev-label{color:#00bcd4}
-.psev5 .psev-num,.psev5 .psev-label{color:#94a3b8}
+.psev1 .psev-num,.psev1 .psev-label{color:var(--r-cr)}
+.psev2 .psev-num,.psev2 .psev-label{color:var(--r-po)}
+.psev3 .psev-num,.psev3 .psev-label{color:var(--r-fa)}
+.psev4 .psev-num,.psev4 .psev-label{color:var(--r-go)}
+.psev5 .psev-num,.psev5 .psev-label{color:var(--mu)}
 /* ── Tech view hidden by default ── */
 .tech-only{display:none}
 /* ══ EXECUTIVE STATUS BANNER ══════════════════════ */
@@ -418,16 +418,16 @@ td.r,th.r{text-align:right}
 .act-row{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px}
 .act-row:last-child{border-bottom:none}
 .act-sev{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;flex-shrink:0;letter-spacing:-.3px}
-.act-sev1{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.35);color:#f44336}
-.act-sev2{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.35);color:#ff9800}
-.act-sev3{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.35);color:#ffc107}
-.act-sev4{background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.25);color:#94a3b8}
-.act-sev5{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);color:#3fb950}
+.act-sev1{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.35);color:var(--r-cr)}
+.act-sev2{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.35);color:var(--r-po)}
+.act-sev3{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.35);color:var(--r-fa)}
+.act-sev4{background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.25);color:var(--mu)}
+.act-sev5{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);color:var(--gr)}
 .act-row-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
 .act-row-body{flex:1}
 .act-row-title{font-size:12px;font-weight:700;margin-bottom:2px}
 .act-row-detail{font-size:11px;opacity:.8;line-height:1.5}
-.act-ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);color:#00e676}
+.act-ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);color:var(--r-ex)}
 .act-body{flex:1}
 .act-main{font-size:12px;font-weight:600;margin-bottom:1px}
 .act-detail{font-size:11px;color:var(--mu)}
@@ -440,8 +440,8 @@ td.r,th.r{text-align:right}
 .sev-live-desc{font-size:9px;opacity:.75;margin-top:2px;line-height:1.3}
 /* ══ TAB AUDIENCE BADGES ════════════════════════════ */
 .tab-aud{font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;margin-left:2px;vertical-align:middle}
-.tab-aud-exec{background:rgba(31,111,235,.2);color:#58a6ff}
-.tab-aud-eng{background:rgba(148,163,184,.15);color:#94a3b8}
+.tab-aud-exec{background:rgba(31,111,235,.2);color:var(--bl)}
+.tab-aud-eng{background:rgba(148,163,184,.15);color:var(--mu)}
 /* ══ CHART BENCHMARK LINE ═══════════════════════════ */
 .chart-bench-note{font-size:10px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:4px 16px 0}
 .bench-dash{width:18px;height:2px;background:#8b949e;display:inline-block;vertical-align:middle}
@@ -827,28 +827,28 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Live Issue Severity Counts</div>
       <div class="sev-live-grid">
         <div class="sev-live-card" style="background:rgba(244,67,54,.13);border:1px solid rgba(244,67,54,.3)">
-          <div class="sev-live-num" id="slc-1" style="color:#f44336">0</div>
-          <div class="sev-live-label" style="color:#f44336">SEV 1</div>
+          <div class="sev-live-num" id="slc-1" style="color:var(--r-cr)">0</div>
+          <div class="sev-live-label" style="color:var(--r-cr)">SEV 1</div>
           <div class="sev-live-desc">Critical · &lt;1h SLA</div>
         </div>
         <div class="sev-live-card" style="background:rgba(255,87,34,.12);border:1px solid rgba(255,87,34,.3)">
-          <div class="sev-live-num" id="slc-2" style="color:#ff5722">0</div>
-          <div class="sev-live-label" style="color:#ff5722">SEV 2</div>
+          <div class="sev-live-num" id="slc-2" style="color:var(--or)">0</div>
+          <div class="sev-live-label" style="color:var(--or)">SEV 2</div>
           <div class="sev-live-desc">High · &lt;4h SLA</div>
         </div>
         <div class="sev-live-card" style="background:rgba(255,152,0,.12);border:1px solid rgba(255,152,0,.3)">
-          <div class="sev-live-num" id="slc-3" style="color:#ff9800">0</div>
-          <div class="sev-live-label" style="color:#ff9800">SEV 3</div>
+          <div class="sev-live-num" id="slc-3" style="color:var(--r-po)">0</div>
+          <div class="sev-live-label" style="color:var(--r-po)">SEV 3</div>
           <div class="sev-live-desc">Medium · &lt;24h SLA</div>
         </div>
         <div class="sev-live-card" style="background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.3)">
-          <div class="sev-live-num" id="slc-4" style="color:#ffc107">0</div>
-          <div class="sev-live-label" style="color:#ffc107">SEV 4</div>
+          <div class="sev-live-num" id="slc-4" style="color:var(--r-fa)">0</div>
+          <div class="sev-live-label" style="color:var(--r-fa)">SEV 4</div>
           <div class="sev-live-desc">Low · &lt;72h SLA</div>
         </div>
         <div class="sev-live-card" style="background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.3)">
-          <div class="sev-live-num" id="slc-5" style="color:#64748b">0</div>
-          <div class="sev-live-label" style="color:#64748b">SEV 5</div>
+          <div class="sev-live-num" id="slc-5" style="color:var(--mu)">0</div>
+          <div class="sev-live-label" style="color:var(--mu)">SEV 5</div>
           <div class="sev-live-desc">Info · Monitor</div>
         </div>
       </div>
@@ -873,11 +873,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           <table class="thresh-tbl">
             <thead><tr><th scope="col">Grade</th><th scope="col">RSRP Range</th><th scope="col">SINR Range</th><th scope="col">User Impact</th></tr></thead>
             <tbody>
-              <tr><td><span class="thresh-dot" style="background:#00e676"></span><strong style="color:#00e676">Excellent</strong></td><td>≥ −80 dBm</td><td>≥ 20 dB</td><td>Full throughput, VoLTE, 4K video</td></tr>
-              <tr><td><span class="thresh-dot" style="background:#00bcd4"></span><strong style="color:#00bcd4">Good</strong></td><td>−90 to −80 dBm</td><td>13 – 20 dB</td><td>HD video, stable data, minor drops</td></tr>
-              <tr><td><span class="thresh-dot" style="background:#ffc107"></span><strong style="color:#ffc107">Fair</strong></td><td>−100 to −90 dBm</td><td>0 – 13 dB</td><td>SD video, occasional buffering</td></tr>
-              <tr><td><span class="thresh-dot" style="background:#ff9800"></span><strong style="color:#ff9800">Poor</strong></td><td>−110 to −100 dBm</td><td>−6 to 0 dB</td><td>Voice only, slow data, high retries</td></tr>
-              <tr><td><span class="thresh-dot" style="background:#f44336"></span><strong style="color:#f44336">Critical</strong></td><td>&lt; −110 dBm</td><td>&lt; −6 dB</td><td>No service / dropped calls</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#00e676"></span><strong style="color:var(--r-ex)">Excellent</strong></td><td>≥ −80 dBm</td><td>≥ 20 dB</td><td>Full throughput, VoLTE, 4K video</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#00bcd4"></span><strong style="color:var(--r-go)">Good</strong></td><td>−90 to −80 dBm</td><td>13 – 20 dB</td><td>HD video, stable data, minor drops</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#ffc107"></span><strong style="color:var(--r-fa)">Fair</strong></td><td>−100 to −90 dBm</td><td>0 – 13 dB</td><td>SD video, occasional buffering</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#ff9800"></span><strong style="color:var(--r-po)">Poor</strong></td><td>−110 to −100 dBm</td><td>−6 to 0 dB</td><td>Voice only, slow data, high retries</td></tr>
+              <tr><td><span class="thresh-dot" style="background:#f44336"></span><strong style="color:var(--r-cr)">Critical</strong></td><td>&lt; −110 dBm</td><td>&lt; −6 dB</td><td>No service / dropped calls</td></tr>
             </tbody>
           </table>
         </div>
@@ -1342,11 +1342,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <!-- Legend -->
       <div class="sb-sec" style="flex:1;border-bottom:none">
         <div class="sb-sec-hd">Signal Grade Legend</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#00e676"></div><b style="color:#00e676">A</b> · Excellent ≥ −80 dBm</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#00bcd4"></div><b style="color:#00bcd4">B</b> · Good −80…−90</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#ffc107"></div><b style="color:#ffc107">C</b> · Fair −90…−100</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#ff9800"></div><b style="color:#ff9800">D</b> · Poor −100…−110</div>
-        <div class="leg-row"><div class="leg-circ" style="background:#f44336"></div><b style="color:#f44336">F</b> · Critical &lt; −110</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#00e676"></div><b style="color:var(--r-ex)">A</b> · Excellent ≥ −80 dBm</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#00bcd4"></div><b style="color:var(--r-go)">B</b> · Good −80…−90</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#ffc107"></div><b style="color:var(--r-fa)">C</b> · Fair −90…−100</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#ff9800"></div><b style="color:var(--r-po)">D</b> · Poor −100…−110</div>
+        <div class="leg-row"><div class="leg-circ" style="background:#f44336"></div><b style="color:var(--r-cr)">F</b> · Critical &lt; −110</div>
 
         <div class="sb-sec-hd" style="margin-top:12px">Hexbin (avg RSRP)</div>
         <div style="display:flex;height:8px;border-radius:3px;overflow:hidden;margin-bottom:4px">
@@ -1648,11 +1648,11 @@ function normOp(op) {
 }
 function rsrpColor(v) {
   if (v==null) return 'var(--mu)'
-  if (v>=-80)  return '#00e676'
-  if (v>=-90)  return '#00bcd4'
-  if (v>=-100) return '#ffc107'
-  if (v>=-110) return '#ff9800'
-  return '#f44336'
+  if (v>=-80)  return 'var(--r-ex)'
+  if (v>=-90)  return 'var(--r-go)'
+  if (v>=-100) return 'var(--r-fa)'
+  if (v>=-110) return 'var(--r-po)'
+  return 'var(--r-cr)'
 }
 function rsrpGrade(v) {
   if (v==null) return '—'
@@ -1663,7 +1663,7 @@ function rsrpGrade(v) {
   return 'F'
 }
 function gradeColor(g) {
-  return {A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}[g]||'#8b949e'
+  return {A:'var(--r-ex)',B:'var(--r-go)',C:'var(--r-fa)',D:'var(--r-po)',F:'var(--r-cr)'}[g]||'var(--mu)'
 }
 // "% of samples with Good+ signal (RSRP >= -100)" — hand-computed independently in
 // several render functions; rsrpGoodPct rounds to an integer (most callers), rsrpGoodPctRaw
@@ -1680,7 +1680,7 @@ function isConsistentQuality(r){
 function rsrpPill(v) {
   if (v==null) return '<span style="color:var(--mu)">—</span>'
   const c=rsrpColor(v)
-  return `<span class="rpill" style="background:${c}22;color:${c}">${v} dBm</span>`
+  return `<span class="rpill" style="background:color-mix(in srgb,${c} 13%,transparent);color:${c}">${v} dBm</span>`
 }
 function ratBadge(rat) {
   if (!rat) return '<span style="color:var(--mu)">—</span>'
@@ -2057,8 +2057,8 @@ function renderPendingRequests(){
       <select id="pending-role-${r.id}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:12px">
         ${roles.map(role=>`<option value="${role}"${role==='viewer'?' selected':''}>${h(role)}</option>`).join('')}
       </select>
-      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(0,230,118,.15);border-color:rgba(0,230,118,.4);color:#00e676" onclick="approveRequest('${r.id}')">✓ Approve</button>
-      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.4);color:#f85149" onclick="rejectRequest('${r.id}')">✕ Reject</button>
+      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(0,230,118,.15);border-color:rgba(0,230,118,.4);color:var(--r-ex)" onclick="approveRequest('${r.id}')">✓ Approve</button>
+      <button class="sb-btn" style="width:auto;padding:6px 12px;background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.4);color:var(--re)" onclick="rejectRequest('${r.id}')">✕ Reject</button>
     </div>`).join('')
 }
 
@@ -2099,7 +2099,7 @@ function renderUsersTable(){
   document.getElementById('admin-users-count').textContent = adminAllProfiles.length
   const roles = getAssignableRoles()
   document.getElementById('admin-users-tbody').innerHTML = adminAllProfiles.map(p=>{
-    const statusColor = p.status==='approved'?'#00e676':p.status==='pending'?'#ff9800':'#f85149'
+    const statusColor = p.status==='approved'?'var(--r-ex)':p.status==='pending'?'var(--r-po)':'var(--re)'
     return `<tr>
       <td>${h(p.email)}</td>
       <td>
@@ -2416,24 +2416,24 @@ function initDriveMap() {
   const flagPopup = new maplibregl.Popup({closeButton:true,maxWidth:'280px',className:'flag-popup'})
   map.on('click','flag-pin',e=>{
     const p=e.features[0].properties
-    const sevColor=p.sev===1?'#f44336':p.sev===2?'#ff9800':'#ffc107'
+    const sevColor=p.sev===1?'var(--r-cr)':p.sev===2?'var(--r-po)':'var(--r-fa)'
     const sevLabel=p.sev===1?'SEV 1 — Critical':p.sev===2?'SEV 2 — Major':'SEV 3 — Minor'
     flagPopup.setLngLat(e.lngLat).setHTML(`
-      <div style="font-family:system-ui;font-size:12px;color:#e6edf3">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #30363d">
-          <span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:800;background:${sevColor}22;color:${sevColor};border:1px solid ${sevColor}44">${sevLabel}</span>
+      <div style="font-family:system-ui;font-size:12px;color:var(--tx)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">
+          <span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:800;background:color-mix(in srgb,${sevColor} 13%,transparent);color:${sevColor};border:1px solid color-mix(in srgb,${sevColor} 27%,transparent)">${sevLabel}</span>
           <span style="color:${sevColor};font-weight:700;font-size:11px">${h(p.issue)||''}</span>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <tr><td style="color:#8b949e;padding:2px 0;width:50%">RSRP</td><td style="font-weight:600;color:${p.rsrp<-110?'#f44336':p.rsrp<-100?'#ff9800':'#ffc107'}">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">RSSI</td><td>${p.rssi!=null?p.rssi+' dBm':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">SINR</td><td style="color:${p.sinr<0?'#f44336':p.sinr<5?'#ff9800':'#3fb950'}">${p.sinr!=null?p.sinr+' dB':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">PCI</td><td class="mono">${p.pci!=null?p.pci:'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">eNB / Cell</td><td class="mono">${p.enb!=null?p.enb:'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">DL Speed</td><td style="color:#58a6ff">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">RAT</td><td>${h(p.rat)||'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">Location</td><td class="mono" style="font-size:9px">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">Time</td><td style="color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0;width:50%">RSRP</td><td style="font-weight:600;color:${p.rsrp<-110?'var(--r-cr)':p.rsrp<-100?'var(--r-po)':'var(--r-fa)'}">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">RSSI</td><td>${p.rssi!=null?p.rssi+' dBm':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">SINR</td><td style="color:${p.sinr<0?'var(--r-cr)':p.sinr<5?'var(--r-po)':'var(--gr)'}">${p.sinr!=null?p.sinr+' dB':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">PCI</td><td class="mono">${p.pci!=null?p.pci:'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">eNB / Cell</td><td class="mono">${p.enb!=null?p.enb:'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">DL Speed</td><td style="color:var(--bl)">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">RAT</td><td>${h(p.rat)||'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">Location</td><td class="mono" style="font-size:9px">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">Time</td><td style="color:var(--mu);font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
         </table>
       </div>`).addTo(map)
   })
@@ -2447,15 +2447,15 @@ function initDriveMap() {
     drPopup.setLngLat(e.lngLat).setHTML(`
       <div style="font-family:system-ui;font-size:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <div style="width:30px;height:30px;border-radius:50%;background:${gc}22;border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
-          <div><div style="font-weight:600;color:#e6edf3">${h(p.operator)||'—'}</div><div style="color:#8b949e;font-size:10px">${h(p.rat)||'—'}</div></div>
+          <div style="width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,${gc} 13%,transparent);border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
+          <div><div style="font-weight:600;color:var(--tx)">${h(p.operator)||'—'}</div><div style="color:var(--mu);font-size:10px">${h(p.rat)||'—'}</div></div>
         </div>
         <table style="width:100%;border-collapse:collapse">
-          <tr><td style="color:#8b949e;padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">SINR</td><td style="text-align:right">${p.sinr??'—'} dB</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">DL Speed</td><td style="text-align:right;color:#3fb950">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">PCI</td><td style="text-align:right">${p.pci??'—'}</td></tr>
-          <tr><td style="color:#8b949e;padding:2px 0">Time</td><td style="text-align:right;color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">SINR</td><td style="text-align:right">${p.sinr??'—'} dB</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">DL Speed</td><td style="text-align:right;color:var(--gr)">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">PCI</td><td style="text-align:right">${p.pci??'—'}</td></tr>
+          <tr><td style="color:var(--mu);padding:2px 0">Time</td><td style="text-align:right;color:var(--mu);font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
         </table>
       </div>
     `).addTo(map)
@@ -2508,17 +2508,17 @@ function renderHealthScore() {
   num.textContent = health!=null?health:'—'
   let color, label, bg
   if (health==null)      { color='var(--mu)'; label='INSUFFICIENT DATA'; bg='rgba(139,148,158,.15)' }
-  else if (health >= 75)      { color='#00e676'; label='GOOD';     bg='rgba(0,230,118,.15)' }
-  else if (health >= 50) { color='#ffc107'; label='FAIR';     bg='rgba(255,193,7,.15)' }
-  else                   { color='#f44336'; label='NEEDS ATTENTION'; bg='rgba(244,67,54,.15)' }
+  else if (health >= 75)      { color='var(--r-ex)'; label='GOOD';     bg='rgba(0,230,118,.15)' }
+  else if (health >= 50) { color='var(--r-fa)'; label='FAIR';     bg='rgba(255,193,7,.15)' }
+  else                   { color='var(--r-cr)'; label='NEEDS ATTENTION'; bg='rgba(244,67,54,.15)' }
   ring.style.borderColor = color
   num.style.color = color
   badge.textContent = label
   badge.style.background = bg
   badge.style.color = color
-  const dlC   = dlScore   >= 70 ? '#00e676' : dlScore   >= 40 ? '#ffc107' : '#f44336'
-  const rsrpC = rsrpScore >= 70 ? '#00e676' : rsrpScore >= 40 ? '#ffc107' : '#f44336'
-  const cxC   = cxScore   >= 70 ? '#00e676' : cxScore   >= 50 ? '#ffc107' : '#f44336'
+  const dlC   = dlScore   >= 70 ? 'var(--r-ex)' : dlScore   >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
+  const rsrpC = rsrpScore >= 70 ? 'var(--r-ex)' : rsrpScore >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
+  const cxC   = cxScore   >= 70 ? 'var(--r-ex)' : cxScore   >= 50 ? 'var(--r-fa)' : 'var(--r-cr)'
   drv.innerHTML = [
     `<span style="color:${dlC}">↓ Download: ${n(avgDl)} Mbps</span>`,
     `<span style="color:${rsrpC}">📶 Signal: ${n(avgRsrp,0)} dBm</span>`,
@@ -2600,9 +2600,9 @@ function renderExecSummary() {
   const avgPing=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.ping_ms)||0),0)/nx.length:0
   document.getElementById('ex-stats').innerHTML=`
     <div class="exec-stat"><div class="exec-stat-v">${nx.length.toLocaleString()}</div><div class="exec-stat-l">Tests</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:#58a6ff">${n(avgDl)}</div><div class="exec-stat-l">Avg DL (Mbps)</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:#3fb950">${n(avgUl)}</div><div class="exec-stat-l">Avg UL (Mbps)</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:#ffc107">${n(avgPing,0)}</div><div class="exec-stat-l">Avg Ping (ms)</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--bl)">${n(avgDl)}</div><div class="exec-stat-l">Avg DL (Mbps)</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--gr)">${n(avgUl)}</div><div class="exec-stat-l">Avg UL (Mbps)</div></div>
+    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--yw)">${n(avgPing,0)}</div><div class="exec-stat-l">Avg Ping (ms)</div></div>
   `
 }
 
@@ -2635,11 +2635,11 @@ function renderExecBanner() {
   // 5-band naming aligned with OpenSignal Video Experience model (verified 2-1, Opensignal 2024)
   let cls='esb-neutral', ringColor='var(--bd)', vText='No data', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
   if(nx.length&&health!=null){
-    if(health>=85){cls='esb-green';ringColor='#00e676';vText='Excellent Network Performance';vSub='All KPIs consistently exceed operational benchmarks';bText='EXCELLENT';bBg='rgba(0,230,118,.2)';bColor='#00e676'}
-    else if(health>=70){cls='esb-green';ringColor='#3fb950';vText='Good Network Performance';vSub='KPIs meeting benchmarks with minor optimization opportunities';bText='GOOD';bBg='rgba(63,185,80,.2)';bColor='#3fb950'}
-    else if(health>=50){cls='esb-amber';ringColor='#ffc107';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='#ffc107'}
-    else if(health>=30){cls='esb-red';ringColor='#ff9800';vText='Network Performance Poor';vSub='Multiple KPIs failing — prioritize corrective action';bText='POOR';bBg='rgba(255,152,0,.2)';bColor='#ff9800'}
-    else{cls='esb-red';ringColor='#f44336';vText='Network Performance Critical';vSub='Severe KPI failures — immediate intervention required';bText='CRITICAL';bBg='rgba(244,67,54,.2)';bColor='#f44336'}
+    if(health>=85){cls='esb-green';ringColor='var(--r-ex)';vText='Excellent Network Performance';vSub='All KPIs consistently exceed operational benchmarks';bText='EXCELLENT';bBg='rgba(0,230,118,.2)';bColor='var(--r-ex)'}
+    else if(health>=70){cls='esb-green';ringColor='var(--gr)';vText='Good Network Performance';vSub='KPIs meeting benchmarks with minor optimization opportunities';bText='GOOD';bBg='rgba(63,185,80,.2)';bColor='var(--gr)'}
+    else if(health>=50){cls='esb-amber';ringColor='var(--r-fa)';vText='Network Needs Attention';vSub='Some KPIs below benchmark — see Actions Required below';bText='FAIR';bBg='rgba(255,193,7,.2)';bColor='var(--r-fa)'}
+    else if(health>=30){cls='esb-red';ringColor='var(--r-po)';vText='Network Performance Poor';vSub='Multiple KPIs failing — prioritize corrective action';bText='POOR';bBg='rgba(255,152,0,.2)';bColor='var(--r-po)'}
+    else{cls='esb-red';ringColor='var(--r-cr)';vText='Network Performance Critical';vSub='Severe KPI failures — immediate intervention required';bText='CRITICAL';bBg='rgba(244,67,54,.2)';bColor='var(--r-cr)'}
   }
   banner.className=`exec-status-banner ${cls} exec-view`
   ring.style.borderColor=ringColor
@@ -2678,7 +2678,7 @@ function renderHeroKPIs() {
     const up=newAvg>oldAvg
     const good=higher?up:!up
     const arrow=up?'▲':'▼'
-    return `<span style="color:${good?'#3fb950':'#f44336'};font-size:11px">${arrow} ${pct.toFixed(1)}% vs prior period</span>`
+    return `<span style="color:${good?'var(--gr)':'var(--re)'};font-size:11px">${arrow} ${pct.toFixed(1)}% vs prior period</span>`
   }
 
   const ragClass=(v,g,r,higher=true)=>{ if(v==null)return''; const ok=higher?(v>=g):(v<=g); const warn=higher?(v>=r):(v<=r); return ok?'rag-g':warn?'rag-a':'rag-r' }
@@ -2782,7 +2782,7 @@ function renderConsistentQuality() {
   grid.innerHTML=checks.map(c=>{
     const pass=c.val!=null&&c.thresh!=null?(c.dir==='gte'?c.val>=c.thresh:c.val<=c.thresh):false
     const nodata=c.val==null
-    const color=nodata?'var(--mu)':pass?'#3fb950':'#f44336'
+    const color=nodata?'var(--mu)':pass?'var(--gr)':'var(--re)'
     const icon=nodata?'—':pass?'✓':'✗'
     const displayVal=c.val!=null?(Number.isInteger(c.val)?c.val:c.val.toFixed(1)):''
     return `<div style="background:var(--s1);border:1px solid ${nodata?'var(--bd)':pass?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)'};border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
@@ -2894,11 +2894,11 @@ function renderOSMatrix() {
   const healthW=healthParts.reduce((s,[,w])=>s+w,0)
   const health=healthParts.length?Math.round(healthParts.reduce((s,[v,w])=>s+v*w,0)/healthW):null
   const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
-  if(hn&&nx.length){hn.textContent=health!=null?health:'—';hn.style.color=health==null?'var(--mu)':health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'}
+  if(hn&&nx.length){hn.textContent=health!=null?health:'—';hn.style.color=health==null?'var(--mu)':health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'}
   if(hb&&nx.length&&health!=null){
     const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
-    const clr=health>=70?'#3fb950':health>=50?'#ffc107':'#f44336'
-    hb.textContent=lbl;hb.style.background=clr+'22';hb.style.color=clr;hb.style.border='1px solid '+clr+'44'
+    const clr=health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'
+    hb.textContent=lbl;hb.style.background='color-mix(in srgb,'+clr+' 13%,transparent)';hb.style.color=clr;hb.style.border='1px solid color-mix(in srgb,'+clr+' 27%,transparent)'
   }
   // Update period label
   const per=document.getElementById('os-period')
@@ -3271,7 +3271,7 @@ function renderProvRanking(nx) {
       <td class="r" style="color:var(--gr)">${r.ul!=null?n(r.ul):'—'}</td>
       <td class="r">${r.ping!=null?n(r.ping,0):'—'}</td>
       <td class="r" style="color:${rsrpColor(r.rsrp)}">${r.rsrp!=null?n(r.rsrp,0):'—'}</td>
-      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:${gradeColor(grade)}22;color:${gradeColor(grade)};border:1px solid ${gradeColor(grade)}44">${grade}</span></td>
+      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:color-mix(in srgb,${gradeColor(grade)} 13%,transparent);color:${gradeColor(grade)};border:1px solid color-mix(in srgb,${gradeColor(grade)} 27%,transparent)">${grade}</span></td>
     </tr>`
   }).join('')
 }
@@ -3295,7 +3295,7 @@ function renderProvinceRankingExec(nx) {
       <td class="r" style="color:var(--gr)">${r.ul!=null?n(r.ul):'—'}</td>
       <td class="r">${r.ping!=null?n(r.ping,0):'—'}</td>
       <td class="r" style="color:${rsrpColor(r.rsrp)}">${r.rsrp!=null?n(r.rsrp,0):'—'}</td>
-      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:${gradeColor(grade)}22;color:${gradeColor(grade)};border:1px solid ${gradeColor(grade)}44">${grade}</span></td>
+      <td><span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:color-mix(in srgb,${gradeColor(grade)} 13%,transparent);color:${gradeColor(grade)};border:1px solid color-mix(in srgb,${gradeColor(grade)} 27%,transparent)">${grade}</span></td>
     </tr>`
   }).join('')
 }
@@ -3512,8 +3512,8 @@ function renderSessions() {
     const opColor=opName==='Cellcard'?'#FF7900':opName==='Metfone'?'#DB1A21':opName==='Smart'?'#009639':'var(--mu)'
 
     const syncBadge=hasSamples
-      ? `<span class="sess-badge" style="background:#00e67618;color:#00e676;border-color:#00e67640">✓ Synced</span>`
-      : `<span class="sess-badge" style="background:#ff980014;color:#ff9800;border-color:#ff980032">📱 Pending</span>`
+      ? `<span class="sess-badge" style="background:color-mix(in srgb,var(--r-ex) 9%,transparent);color:var(--r-ex);border-color:color-mix(in srgb,var(--r-ex) 25%,transparent)">✓ Synced</span>`
+      : `<span class="sess-badge" style="background:color-mix(in srgb,var(--r-po) 8%,transparent);color:var(--r-po);border-color:color-mix(in srgb,var(--r-po) 20%,transparent)">📱 Pending</span>`
 
     const syncIcon=hasSamples
       ? `<button class="sess-sync-btn synced" title="Already synced" aria-label="Already synced" onclick="event.stopPropagation()">✓</button>`
@@ -3738,7 +3738,7 @@ function renderSamples() {
       <td class="mono" style="text-align:right">${n(s.longitude,5)}</td>
       <td>${ratBadge(s.rat)}</td>
       <td style="font-weight:600">${normOp(s.operator)}</td>
-      <td><span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${gc}20;border:1.5px solid ${gc};line-height:22px;text-align:center;font-size:11px;font-weight:700;color:${gc}">${g}</span></td>
+      <td><span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:color-mix(in srgb,${gc} 12%,transparent);border:1.5px solid ${gc};line-height:22px;text-align:center;font-size:11px;font-weight:700;color:${gc}">${g}</span></td>
       <td>${rsrpPill(s.rsrp)}</td>
       <td class="mono" style="text-align:right">${s.sinr??'—'}</td>
       <td style="color:var(--gr);text-align:right">${s.download_mbps!=null?n(s.download_mbps):'—'}</td>
@@ -3783,9 +3783,9 @@ function renderMetadataAnalysis(sess) {
     <div style="font-size:10px;color:var(--mu);margin-top:10px">
       ${pts} pts recorded · ${km>0?n(km,1)+' km':'—'} driven<br>
       ${ho} handovers${hoRate?' ('+hoRate+'/km)':''}
-      <div style="margin-top:6px;padding:6px 8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.25);border-radius:6px;color:#ff9800;font-size:9px;line-height:1.5">
+      <div style="margin-top:6px;padding:6px 8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.25);border-radius:6px;color:var(--r-po);font-size:9px;line-height:1.5">
         GPS route not yet synced from device.<br>
-        <button onclick="recheckSession(${sess.id})" style="margin-top:4px;padding:2px 8px;background:rgba(255,152,0,.2);border:1px solid rgba(255,152,0,.4);border-radius:4px;color:#ff9800;font-size:9px;cursor:pointer;font-weight:700">↻ Check Again</button>
+        <button onclick="recheckSession(${sess.id})" style="margin-top:4px;padding:2px 8px;background:rgba(255,152,0,.2);border:1px solid rgba(255,152,0,.4);border-radius:4px;color:var(--r-po);font-size:9px;cursor:pointer;font-weight:700">↻ Check Again</button>
       </div>
     </div>`
 
@@ -3819,17 +3819,17 @@ function renderMetadataAnalysis(sess) {
 
   document.getElementById('drv-assessment').innerHTML = rules.map(r=>`
     <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;font-size:10px;line-height:1.4">
-      <span style="font-weight:900;color:${r.ok===true?'#3fb950':r.ok===false?'#f44336':'#ffc107'};flex-shrink:0">${r.ok===true?'✓':r.ok===false?'✗':'!'}</span>
+      <span style="font-weight:900;color:${r.ok===true?'var(--gr)':r.ok===false?'var(--re)':'var(--yw)'};flex-shrink:0">${r.ok===true?'✓':r.ok===false?'✗':'!'}</span>
       <span style="color:var(--tx)">${r.txt}</span>
     </div>`).join('')
 
   // Verdict from RSRP and DL
   const scores = [rsrp!=null?(rsrp>=-90?100:rsrp>=-100?60:30):null, dl!=null?(dl>=25?100:dl>=10?60:30):null].filter(v=>v!=null)
   const avg = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : null
-  const [icon,label,color,sub] = avg==null ? ['📱','NO GPS DATA','#ff9800','Upload to analyze']
-    : avg>=80 ? ['✅','GOOD',   '#3fb950','Route quality acceptable']
-    : avg>=55 ? ['⚠️','FAIR',   '#ffc107','Some issues detected']
-    :           ['❌','POOR',   '#f44336','Coverage problems on route']
+  const [icon,label,color,sub] = avg==null ? ['📱','NO GPS DATA','var(--r-po)','Upload to analyze']
+    : avg>=80 ? ['✅','GOOD',   'var(--gr)','Route quality acceptable']
+    : avg>=55 ? ['⚠️','FAIR',   'var(--yw)','Some issues detected']
+    :           ['❌','POOR',   'var(--re)','Coverage problems on route']
 
   document.getElementById('drv-verdict-icon').textContent=icon
   document.getElementById('drv-verdict-label').textContent=label
@@ -3924,7 +3924,7 @@ function renderDriveRules(samples, sess) {
 
   // Rule rows — TEMS/VIAVI style: left colored border + two-line text + right pill
   const PILL={pass:'PASS',warn:'WARN',fail:'FAIL'}
-  const RCOL={pass:'#00e676',warn:'#ffc107',fail:'#f44336'}
+  const RCOL={pass:'var(--r-ex)',warn:'var(--r-fa)',fail:'var(--r-cr)'}
   document.getElementById('drv-assessment').innerHTML=rules.map(r=>`
     <div class="drv-rule ${r.status}">
       <div class="drv-rule-body">
@@ -3937,7 +3937,7 @@ function renderDriveRules(samples, sess) {
   // Verdict banner — full-width strip above KPIs (TEMS standard)
   const banner=document.getElementById('drv-verdict-banner')
   banner.style.borderLeft=`4px solid ${_vc}`
-  banner.style.background=`${_vc}12`
+  banner.style.background=`color-mix(in srgb,${_vc} 7%,transparent)`
   document.getElementById('drv-verdict-icon').textContent=_vi
   document.getElementById('drv-verdict-label').textContent=_v
   document.getElementById('drv-verdict-label').style.color=_vc
@@ -4061,7 +4061,7 @@ function computeNetworkFindings(nxRows, driveSessionGroups){
 }
 
 function computeDriveRules(samples, sess) {
-  const GC={A:'#00e676',B:'#00bcd4',C:'#ffc107',D:'#ff9800',F:'#f44336'}
+  const GC={A:'var(--r-ex)',B:'var(--r-go)',C:'var(--r-fa)',D:'var(--r-po)',F:'var(--r-cr)'}
   const grades={A:0,B:0,C:0,D:0,F:0}
   samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
   const tot=samples.length||1
@@ -4143,10 +4143,10 @@ function computeDriveRules(samples, sess) {
   // FAIR previously only checked fails<=2, ignoring warns entirely — a session with 2 fails,
   // 9 warns and 1 pass (out of 12 rules) showed the same "FAIR" verdict as 2 fails, 0 warns,
   // 10 passes. Now also requires most rules to actually be passing (warns<=4, i.e. >=6/12 pass).
-  if(fails===0&&warns===0){verdict='EXCELLENT';vColor='#00e676';vIcon='🏆'}
-  else if(fails===0&&warns<=2){verdict='GOOD';vColor='#58a6ff';vIcon='✅'}
-  else if(fails<=2&&warns<=4){verdict='FAIR';vColor='#ffc107';vIcon='⚠️'}
-  else{verdict='POOR';vColor='#f44336';vIcon='❌'}
+  if(fails===0&&warns===0){verdict='EXCELLENT';vColor='var(--r-ex)';vIcon='🏆'}
+  else if(fails===0&&warns<=2){verdict='GOOD';vColor='var(--bl)';vIcon='✅'}
+  else if(fails<=2&&warns<=4){verdict='FAIR';vColor='var(--r-fa)';vIcon='⚠️'}
+  else{verdict='POOR';vColor='var(--r-cr)';vIcon='❌'}
   // A 1-2 point session can mathematically hit 100% pass / EXCELLENT — same visual confidence
   // (trophy icon) as a full multi-km drive. Flag it so callers can show a caveat rather than
   // silently trusting percentages computed from almost no data.
@@ -4712,23 +4712,23 @@ function renderFindings(){
   const kcard=(lbl,val,color)=>`<div class="kcard"><div class="kcard-lbl">${lbl}</div><div class="kcard-val" style="color:${color};font-size:22px">${val}</div></div>`
   document.getElementById('cf-summary').innerHTML =
     kcard('Total Findings', cfFindings.length, 'var(--tx)') +
-    kcard('Critical (Fail)', fails, '#f44336') +
-    kcard('Warnings', warns, '#ffc107') +
-    kcard('Congestion', counts.Congestion, '#a371f7') +
-    kcard('Handover', counts.Handover, '#ff9800') +
-    kcard('Low Throughput', counts['Low Throughput'], '#58a6ff') +
-    kcard('High Latency', counts['High Latency'], '#f85149')
+    kcard('Critical (Fail)', fails, 'var(--r-cr)') +
+    kcard('Warnings', warns, 'var(--r-fa)') +
+    kcard('Congestion', counts.Congestion, 'var(--pu)') +
+    kcard('Handover', counts.Handover, 'var(--r-po)') +
+    kcard('Low Throughput', counts['Low Throughput'], 'var(--bl)') +
+    kcard('High Latency', counts['High Latency'], 'var(--re)')
 
   document.getElementById('cf-count').textContent = cfFindings.length.toLocaleString()+' findings'
   paginate('cf-tbody', cfFindings, renderFindingRow)
 }
 
 function renderFindingRow(f){
-  const sevColor = f.severity==='fail' ? '#f44336' : '#ffc107'
-  const catColor = {Congestion:'#a371f7', Handover:'#ff9800', 'Low Throughput':'#58a6ff', 'High Latency':'#f85149'}[f.category]||'#8b949e'
+  const sevColor = f.severity==='fail' ? 'var(--r-cr)' : 'var(--r-fa)'
+  const catColor = {Congestion:'var(--pu)', Handover:'var(--r-po)', 'Low Throughput':'var(--bl)', 'High Latency':'var(--re)'}[f.category]||'var(--mu)'
   return `<tr>
     <td>${ts(f.timestamp)}</td>
-    <td><span class="badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}44">${h(f.category)}</span></td>
+    <td><span class="badge" style="background:color-mix(in srgb,${catColor} 13%,transparent);color:${catColor};border:1px solid color-mix(in srgb,${catColor} 27%,transparent)">${h(f.category)}</span></td>
     <td><span style="color:${sevColor};font-weight:700;text-transform:uppercase;font-size:10px">${h(f.severity)}</span></td>
     <td>${h(f.province||'—')}</td>
     <td>${ratBadge(f.rat)}</td>
@@ -5543,15 +5543,15 @@ function initCovMap(){
       covPopup.setLngLat(e.lngLat).setHTML(`
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <div style="width:30px;height:30px;border-radius:50%;background:${gc}22;border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
-            <div><div style="font-weight:600;color:#e6edf3">${h(p.operator)||'—'}</div><div style="color:#8b949e;font-size:10px">${h(p.rat)||'—'}</div></div>
+            <div style="width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,${gc} 13%,transparent);border:2px solid ${gc};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${gc}">${p.grade||'—'}</div>
+            <div><div style="font-weight:600;color:var(--tx)">${h(p.operator)||'—'}</div><div style="color:var(--mu);font-size:10px">${h(p.rat)||'—'}</div></div>
           </div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">SINR</td><td style="text-align:right">${p.sinr??'—'} dB</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">DL Speed</td><td style="text-align:right;color:#3fb950">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">PCI</td><td style="text-align:right">${p.pci??'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Time</td><td style="text-align:right;color:#8b949e;font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.rsrp!=null?p.rsrp+' dBm':'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">SINR</td><td style="text-align:right">${p.sinr??'—'} dB</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">DL Speed</td><td style="text-align:right;color:var(--gr)">${p.dl!=null?n(p.dl)+' Mbps':'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">PCI</td><td style="text-align:right">${p.pci??'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Time</td><td style="text-align:right;color:var(--mu);font-size:10px">${p.at?new Date(p.at).toLocaleTimeString():'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     })
@@ -5560,12 +5560,12 @@ function initCovMap(){
       const gc=rsrpColor(Math.round(p.avg_rsrp))
       covPopup.setLngLat(e.lngLat).setHTML(`
         <div style="font-family:system-ui;font-size:12px">
-          <div style="font-weight:600;color:#e6edf3;margin-bottom:6px">Experience Hexbin</div>
+          <div style="font-weight:600;color:var(--tx);margin-bottom:6px">Experience Hexbin</div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">Avg RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.avg_rsrp!=null?(+p.avg_rsrp).toFixed(0)+' dBm':'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Avg DL</td><td style="text-align:right;color:#3fb950">${p.avg_dl!=null?(+p.avg_dl).toFixed(1)+' Mbps':'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Tests</td><td style="text-align:right">${p.count}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Operators</td><td style="text-align:right;font-size:10px">${p.ops||'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Avg RSRP</td><td style="text-align:right;color:${gc};font-weight:600">${p.avg_rsrp!=null?(+p.avg_rsrp).toFixed(0)+' dBm':'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Avg DL</td><td style="text-align:right;color:var(--gr)">${p.avg_dl!=null?(+p.avg_dl).toFixed(1)+' Mbps':'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Tests</td><td style="text-align:right">${p.count}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Operators</td><td style="text-align:right;font-size:10px">${p.ops||'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     })
@@ -5575,11 +5575,11 @@ function initCovMap(){
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <div style="width:10px;height:10px;border-radius:50%;background:${col}"></div>
-            <b style="color:#e6edf3">${p.operator||'Unknown'}</b>
+            <b style="color:var(--tx)">${p.operator||'Unknown'}</b>
           </div>
-          <div style="color:#8b949e;margin-bottom:6px">${p.has5g?'4G/5G (NR)':'4G LTE only'}</div>
+          <div style="color:var(--mu);margin-bottom:6px">${p.has5g?'4G/5G (NR)':'4G LTE only'}</div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">Radio</td><td style="text-align:right">${p.radio||'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Radio</td><td style="text-align:right">${p.radio||'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     }
@@ -5605,11 +5605,11 @@ function initCovMap(){
         <div style="font-family:system-ui;font-size:12px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <div style="width:10px;height:10px;border-radius:50%;background:#FF7900"></div>
-            <b style="color:#e6edf3">${h(p.name)||'Reseller'}</b>
+            <b style="color:var(--tx)">${h(p.name)||'Reseller'}</b>
           </div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">Site ID</td><td style="text-align:right">${h(p.site_id)||'—'}</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Source</td><td style="text-align:right;font-size:10px">${h(p.source_file)||'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Site ID</td><td style="text-align:right">${h(p.site_id)||'—'}</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Source</td><td style="text-align:right;font-size:10px">${h(p.source_file)||'—'}</td></tr>
           </table>
         </div>`).addTo(mapCov)
     })
@@ -5771,7 +5771,7 @@ async function runSimulation() {
 
   const covered = features.filter(f => f.properties.rsrp >= -110).length
   const good    = features.filter(f => f.properties.rsrp >= -90).length
-  status.innerHTML = `✓ <b>${features.length.toLocaleString()}</b> hexes · <b style="color:#3fb950">${good.toLocaleString()}</b> good signal · <b style="color:#ff9800">${(features.length-covered).toLocaleString()}</b> edge`
+  status.innerHTML = `✓ <b>${features.length.toLocaleString()}</b> hexes · <b style="color:var(--gr)">${good.toLocaleString()}</b> good signal · <b style="color:var(--r-po)">${(features.length-covered).toLocaleString()}</b> edge`
   btn.disabled = false
   btn.textContent = '▶ Run Simulation'
 
@@ -5787,9 +5787,9 @@ async function runSimulation() {
         <div style="font-family:system-ui;font-size:12px">
           <div style="font-weight:700;color:${gc};margin-bottom:6px">Simulated: ${band}</div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="color:#8b949e;padding:2px 0">Est. RSRP</td><td style="text-align:right;color:${gc};font-weight:700">${p.rsrp} dBm</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Model</td><td style="text-align:right;font-size:10px">COST-231 Hata</td></tr>
-            <tr><td style="color:#8b949e;padding:2px 0">Note</td><td style="text-align:right;font-size:9px;color:#8b949e">Simulated · not measured</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Est. RSRP</td><td style="text-align:right;color:${gc};font-weight:700">${p.rsrp} dBm</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Model</td><td style="text-align:right;font-size:10px">COST-231 Hata</td></tr>
+            <tr><td style="color:var(--mu);padding:2px 0">Note</td><td style="text-align:right;font-size:9px;color:var(--mu)">Simulated · not measured</td></tr>
           </table>
         </div>`).addTo(mapCov)
     })
