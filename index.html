@@ -55,7 +55,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .pill-dot.err{background:var(--re);box-shadow:0 0 6px var(--re);animation:bk 1.2s infinite}
 @keyframes bk{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── Tabs ── */
-.tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;position:sticky;top:52px;z-index:200}
 .tabs::-webkit-scrollbar{display:none}
 .tab-btn{padding:10px 18px;background:none;border:none;border-bottom:3px solid transparent;color:var(--mu);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .tab-btn:hover{color:var(--tx);background:rgba(255,255,255,.04)}
