@@ -551,7 +551,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </button>
   <button class="tab-btn" data-tab="admin" role="tab" aria-selected="false" id="admin-tab-btn" style="display:none">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.2 2.4 2.6.4-1.9 1.9.4 2.6L8 7.1 5.7 8.3l.4-2.6L4.2 3.8l2.6-.4L8 1z"/><circle cx="8" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
-    Admin
+    Account Management
   </button>
 </div>
 
@@ -1395,38 +1395,53 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
 <!-- ══════════════ ADMIN ══════════════ -->
 <div class="tp" id="tp-admin">
-  <div class="card mb">
-    <div class="ch">
-      <span class="ch-t" role="heading" aria-level="2">Pending Access Requests</span>
-      <span class="ch-s" id="admin-pending-count">0</span>
-    </div>
-    <div class="cb" id="admin-pending-list"><div class="empty">No pending requests</div></div>
+
+  <!-- Sub-tabs -->
+  <div class="stabs">
+    <button class="stab on" data-st="admin-pending">Pending Requests <span class="badge" id="admin-pending-stab-badge" style="display:none;background:color-mix(in srgb,var(--r-po) 15%,transparent);color:var(--r-po);margin-left:4px">0</span></button>
+    <button class="stab" data-st="admin-users">Users</button>
+    <button class="stab" data-st="admin-roles">Roles &amp; Permissions</button>
   </div>
 
-  <div class="card mb">
-    <div class="ch">
-      <span class="ch-t" role="heading" aria-level="2">All Users</span>
-      <span class="ch-s" id="admin-users-count">0</span>
-    </div>
-    <div class="tw"><table><thead><tr>
-      <th scope="col">Email</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th>
-    </tr></thead><tbody id="admin-users-tbody"></tbody></table></div>
-  </div>
-
-  <div class="card mb">
-    <div class="ch">
-      <span class="ch-t" role="heading" aria-level="2">Role Permission Matrix</span>
-      <span class="ch-s">Editable — changes apply immediately</span>
-    </div>
-    <div class="cb">
-      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
-        <input type="text" id="admin-new-role-input" placeholder="New role name…" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:12px">
-        <button class="sb-btn" id="admin-add-role-btn" style="width:auto;padding:6px 14px">+ Add Role</button>
-        <span id="admin-matrix-status" style="font-size:11px;color:var(--mu)"></span>
+  <div class="stp on" id="st-admin-pending">
+    <div class="card mb">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">Pending Access Requests</span>
+        <span class="ch-s" id="admin-pending-count">0</span>
       </div>
-      <div class="tw"><table id="admin-role-matrix-table"><thead><tr id="admin-role-matrix-head"><th scope="col">Role</th></tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
+      <div class="cb" id="admin-pending-list"><div class="empty">No pending requests</div></div>
     </div>
   </div>
+
+  <div class="stp" id="st-admin-users">
+    <div class="card mb">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">All Users</span>
+        <span class="ch-s" id="admin-users-count">0</span>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th scope="col">Email</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th>
+      </tr></thead><tbody id="admin-users-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="stp" id="st-admin-roles">
+    <div class="card mb">
+      <div class="ch">
+        <span class="ch-t" role="heading" aria-level="2">Role Permission Matrix</span>
+        <span class="ch-s">Editable — changes apply immediately</span>
+      </div>
+      <div class="cb">
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+          <input type="text" id="admin-new-role-input" placeholder="New role name…" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:12px">
+          <button class="sb-btn" id="admin-add-role-btn" style="width:auto;padding:6px 14px">+ Add Role</button>
+          <span id="admin-matrix-status" style="font-size:11px;color:var(--mu)"></span>
+        </div>
+        <div class="tw"><table id="admin-role-matrix-table"><thead><tr id="admin-role-matrix-head"><th scope="col">Role</th></tr></thead><tbody id="admin-role-matrix-tbody"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- SET-PASSWORD MODAL (admin action) -->
@@ -2027,6 +2042,8 @@ function genPassword(){
 function getAssignableRoles(){ return Object.keys(permMatrix).filter(r=>r!=='anon').sort() }   // 'anon' isn't a real assignable user role
 function renderPendingRequests(){
   document.getElementById('admin-pending-count').textContent = adminPendingRequests.length
+  const stabBadge = document.getElementById('admin-pending-stab-badge')
+  if(stabBadge){ stabBadge.textContent = adminPendingRequests.length; stabBadge.style.display = adminPendingRequests.length ? '' : 'none' }
   const el = document.getElementById('admin-pending-list')
   if(!adminPendingRequests.length){ el.innerHTML = '<div class="empty">No pending requests</div>'; return }
   const roles = getAssignableRoles()
@@ -4941,10 +4958,14 @@ initAuth().then(()=>{
   if(initTab){const b=document.querySelector(`.tab-btn[data-tab="${initTab}"]`);if(b)b.click()}
 })
 
-// Sub-tabs
+// Sub-tabs — scoped to the nearest .tp so multiple sub-tab groups (Dashboard, Account
+// Management, …) don't clobber each other's active state when the user switches between
+// top-level tabs (this used to query the whole document, harmless while Dashboard was the
+// only .stabs group, but would silently blank a second one's active pill/panel on return).
 document.querySelectorAll('.stab').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'))
-  document.querySelectorAll('.stp').forEach(x=>x.classList.remove('on'))
+  const scope = b.closest('.tp') || document
+  scope.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'))
+  scope.querySelectorAll('.stp').forEach(x=>x.classList.remove('on'))
   b.classList.add('on')
   document.getElementById('st-'+b.dataset.st).classList.add('on')
 }))
