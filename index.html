@@ -2534,11 +2534,13 @@ function renderHealthScore() {
   badge.style.color = color
   const dlC   = dlScore   >= 70 ? 'var(--r-ex)' : dlScore   >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
   const rsrpC = rsrpScore >= 70 ? 'var(--r-ex)' : rsrpScore >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
-  const cxC   = cxScore   >= 70 ? 'var(--r-ex)' : cxScore   >= 50 ? 'var(--r-fa)' : 'var(--r-cr)'
+  // hasCxData false means cxScore is still its 50 placeholder default (see comment above) — must
+  // not be rendered as if it were a real (and misleadingly "FAIR") measured score.
+  const cxC   = !hasCxData ? 'var(--mu)' : cxScore >= 70 ? 'var(--r-ex)' : cxScore >= 50 ? 'var(--r-fa)' : 'var(--r-cr)'
   drv.innerHTML = [
     `<span style="color:${dlC}">↓ Download: ${n(avgDl)} Mbps</span>`,
     `<span style="color:${rsrpC}">📶 Signal: ${n(avgRsrp,0)} dBm</span>`,
-    `<span style="color:${cxC}">★ CX: ${n(cxScore,1)} / 10</span>`
+    `<span style="color:${cxC}">★ CX: ${hasCxData?n(cxScore,1)+' / 10':'—'}</span>`
   ].join('')
 }
 
