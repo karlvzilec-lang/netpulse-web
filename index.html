@@ -1325,7 +1325,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
     <!-- ── Map area ── -->
     <div class="cov-map-ct">
-      <div class="cov-map-hd">
+      <div class="cov-map-hd" id="cov-map-hd">
         <span class="live-tag">LIVE</span>
         <span id="cov-map-op"></span>
       </div>
@@ -5242,14 +5242,19 @@ function setCompareMode(n){
   document.getElementById('cmp-3-btn').classList.toggle('on', n===3)
   const singleEl=document.getElementById('cov-map')
   const cmpEl=document.getElementById('cov-compare')
+  const singleHd=document.getElementById('cov-map-hd')
   if(n===0){
     cmpEl.classList.remove('on')
     singleEl.style.display=''
+    if(singleHd) singleHd.style.display=''
     destroyCompareMaps()
     if(mapCov) setTimeout(()=>mapCov.resize(),50)
     return
   }
   singleEl.style.display='none'
+  // Compare panels (buildCompareMaps) each render their own LIVE + operator-name header —
+  // the single-view header above the mode-switcher would otherwise duplicate that info.
+  if(singleHd) singleHd.style.display='none'
   cmpEl.classList.add('on')
   cmpEl.classList.toggle('cols-2', n===2)
   cmpEl.classList.toggle('cols-3', n===3)
@@ -5338,6 +5343,7 @@ function buildCompareMaps(n){
       map.addLayer({id:`cmp-dots-${i}`,type:'circle',source:'cmp-samples',filter:['!',['has','point_count']],
         paint:{'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#1e293b','circle-opacity':.75,
           'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
+      applyCovLayerTogglesToPanel(entry)
       watchTilesActuallyRender(map, panelId)
       entry.ready=true
       renderComparePanel(i)
@@ -5371,8 +5377,12 @@ function renderComparePanel(i){
     type:'Feature',geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
     properties:{rsrp:s.rsrp}
   }))}
-  entry.map.getSource('cmp-hex').setData(hexGJ)
-  entry.map.getSource('cmp-samples').setData(driveGJ)
+  // Test Type filter (All/Drive Only/Experience Only) — same gating renderCovMap() applies to
+  // the single map's sources, previously missing here so compare panels always showed both
+  // regardless of the sidebar selection.
+  const show=CF.type
+  entry.map.getSource('cmp-hex').setData(show==='drive' ? {type:'FeatureCollection',features:[]} : hexGJ)
+  entry.map.getSource('cmp-samples').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : driveGJ)
   const statEl=document.getElementById(`cov-cmp-stat-${i}`)
   if(statEl) statEl.textContent=`${driveRows.length} drive pts · ${hexGJ.features.length} hexbins`
 }
@@ -5659,9 +5669,34 @@ function covLayer(ids,on){
   if(!mapCovReady) return
   ids.forEach(id=>{try{mapCov.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(e){}})
 }
-document.getElementById('lyr-drive').addEventListener('change',e=>covLayer(['cov-dots','cov-clusters','cov-cluster-ct','cov-grade'],e.target.checked))
+// Compare-mode panels are separate MapLibre instances with their own, differently-named
+// layer ids per panel — these sidebar toggles previously only ever drove the (hidden) single
+// map, so switching to 2-Way/3-Way silently stopped a toggle from having any visible effect.
+// Drive Samples and Experience Hexbin have real per-panel equivalents (fixed here); Routes,
+// Cell Sites, and Reseller Sites layers don't exist in compare-mode panels at all, so those
+// three toggles remain single-view-only — a feature gap, not broken wiring.
+function covCmpLayerIds(kind,i){
+  if(kind==='drive') return [`cmp-dots-${i}`,`cmp-clusters-${i}`,`cmp-cluster-ct-${i}`]
+  if(kind==='hex') return [`hex-fill-${i}`]
+  return []
+}
+function covCmpLayer(kind,on){
+  if(!compareMode) return
+  compareMaps.forEach(entry=>{
+    if(!entry.ready) return
+    covCmpLayerIds(kind,entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(e){}})
+  })
+}
+// Applied once right after a panel's own layers are added, so a panel built while a toggle is
+// already off doesn't briefly show the layer before the next covCmpLayer() call hides it.
+function applyCovLayerTogglesToPanel(entry){
+  const driveOn=document.getElementById('lyr-drive').checked, hexOn=document.getElementById('lyr-hex').checked
+  covCmpLayerIds('drive',entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',driveOn?'visible':'none')}catch(e){}})
+  covCmpLayerIds('hex',entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',hexOn?'visible':'none')}catch(e){}})
+}
+document.getElementById('lyr-drive').addEventListener('change',e=>{covLayer(['cov-dots','cov-clusters','cov-cluster-ct','cov-grade'],e.target.checked); covCmpLayer('drive',e.target.checked)})
 document.getElementById('lyr-routes').addEventListener('change',e=>covLayer(['cov-route-line'],e.target.checked))
-document.getElementById('lyr-hex').addEventListener('change',e=>covLayer(['hex-fill'],e.target.checked))
+document.getElementById('lyr-hex').addEventListener('change',e=>{covLayer(['hex-fill'],e.target.checked); covCmpLayer('hex',e.target.checked)})
 document.getElementById('lyr-towers').addEventListener('change',e=>covLayer(['tow-4g','tow-5g','tow-lbl'],e.target.checked))
 document.getElementById('lyr-resellers').addEventListener('change',e=>covLayer(['res-dots','res-lbl'],e.target.checked))
 
@@ -5904,19 +5939,23 @@ function populateCovProvinces(){
 }
 
 function zoomToProvince(prov){
-  if(!mapCov||prov==='all') return
+  if(prov==='all') return
+  // Compare-mode panels are separate map instances (mapCov is hidden, not one of them) — their
+  // own pan/zoom sync only propagates panel-to-panel on user interaction, never from mapCov, so
+  // without this a province filter change would filter the compare panels' data correctly but
+  // leave the map view wherever it already was, potentially showing an empty area.
+  const targets = compareMode ? compareMaps.filter(e=>e.ready).map(e=>e.map) : (mapCov ? [mapCov] : [])
+  if(!targets.length) return
   const bbox=KH_PROV_BBOX[prov]
   if(bbox){
-    mapCov.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],{padding:40,duration:800})
+    targets.forEach(m=>m.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],{padding:40,duration:800}))
   } else {
     // fallback: fit to actual data points for this province
     const pts=[...covDriveSamples,...nxAll].filter(r=>r.province===prov&&r.latitude&&r.longitude)
     if(!pts.length) return
     const lngs=pts.map(r=>+r.longitude), lats=pts.map(r=>+r.latitude)
-    mapCov.fitBounds([
-      [Math.min(...lngs),Math.min(...lats)],
-      [Math.max(...lngs),Math.max(...lats)]
-    ],{padding:60,duration:800})
+    const bounds=[[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]]
+    targets.forEach(m=>m.fitBounds(bounds,{padding:60,duration:800}))
   }
 }
 
