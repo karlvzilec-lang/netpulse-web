@@ -2761,8 +2761,15 @@ function renderActionsRequired() {
   const sevClass={1:'act-sev1',2:'act-sev2',3:'act-sev3',4:'act-sev4',5:'act-sev5'}
   const list=document.getElementById('act-list'), cnt=document.getElementById('act-cnt')
   if(!list)return
+  // sev:5 is exclusively the "All KPIs Within Target Range" placeholder pushed when actions is
+  // otherwise empty — it's not a real action item, so it's excluded from both counts below.
+  // Previously this counted only sev<=2 ("urgent"), so a SEV3-only state (e.g. just "Latency
+  // Above Target") showed "All clear" in the header while the list below still had a row in it.
   const urgent=actions.filter(a=>a.sev<=2).length
-  if(cnt) cnt.textContent=urgent?`${urgent} urgent item${urgent>1?'s':''}`:'All clear'
+  const total=actions.filter(a=>a.sev<5).length
+  if(cnt) cnt.textContent = urgent ? `${urgent} urgent item${urgent>1?'s':''}`
+    : total ? `${total} item${total>1?'s':''} need attention`
+    : 'All clear'
   list.innerHTML=actions.map(a=>`
     <div class="act-row ${sevClass[a.sev]||''}">
       <div class="act-row-icon">${a.icon}</div>
