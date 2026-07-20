@@ -275,6 +275,13 @@ td.r,th.r{text-align:right}
 .kc-or{border-left-color:#db6d28}
 /* ── Coverage Map tab ── */
 #tp-cov.on{display:flex;margin:-20px -20px 0;height:calc(100vh - 95px)}
+/* #cov-content is the auth-gate's content wrapper (shared markup pattern across every gated
+   tab) and was never styled — as a flex item of #tp-cov.on with no flex-grow, it shrank to
+   its content's natural width instead of filling the row, squeezing the map into a sliver
+   as narrow as ~125px regardless of the real ~1265px available. Verified directly: adding
+   flex:1 here took the map container from 125px to the correct 993px (viewport minus the
+   272px sidebar). This is the root cause of the map rendering in a narrow strip. */
+#cov-content{flex:1;min-width:0}
 .cov-wrap{display:flex;width:100%;overflow:hidden}
 .cov-sb{width:272px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
 .cov-map-ct{flex:1;position:relative;display:flex;flex-direction:column}
