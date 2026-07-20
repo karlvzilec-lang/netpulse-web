@@ -1498,6 +1498,25 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </div>
 </div>
 
+<!-- CREDENTIALS MODAL (shown once, right after an admin approves a new account) -->
+<div class="auth-modal-backdrop" id="cred-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cred-modal-title">
+  <div class="auth-modal">
+    <h2 id="cred-modal-title">Account created</h2>
+    <p class="sub" id="cred-modal-sub">—</p>
+    <div class="auth-field">
+      <label for="cred-modal-password">Temporary password</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="cred-modal-password" readonly onclick="this.select()" style="font-family:monospace;letter-spacing:.5px"/>
+        <button class="secondary" id="cred-modal-copy" onclick="copyCredPassword()" style="flex-shrink:0;width:auto;padding:0 14px">Copy</button>
+      </div>
+    </div>
+    <div class="auth-err" style="color:var(--yw)">This will not be shown again — share it with the user directly now.</div>
+    <div class="auth-actions">
+      <button onclick="closeCredModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 </div><!-- /page -->
 
 <!-- Vendor libraries — loaded at end of body so the page paints first.
@@ -2103,8 +2122,25 @@ async function rejectRequest(id){
   loadAdminData()
 }
 function showApprovedCredentials(email, password){
-  const msg = `Account created for ${email}\nTemporary password: ${password}\n\nShare this with them directly — it will not be shown again.`
-  window.alert(msg)
+  document.getElementById('cred-modal-sub').textContent = `Account created for ${email}.`
+  document.getElementById('cred-modal-password').value = password
+  document.getElementById('cred-modal-copy').textContent = 'Copy'
+  document.getElementById('cred-modal-backdrop').classList.add('on')
+}
+function closeCredModal(){
+  document.getElementById('cred-modal-backdrop').classList.remove('on')
+  document.getElementById('cred-modal-password').value = ''
+}
+async function copyCredPassword(){
+  const input = document.getElementById('cred-modal-password')
+  const btn = document.getElementById('cred-modal-copy')
+  try {
+    await navigator.clipboard.writeText(input.value)
+    btn.textContent = 'Copied ✓'
+  } catch {
+    input.select()
+    showToast('Could not access clipboard — password is selected, copy manually','error')
+  }
 }
 
 function renderUsersTable(){
