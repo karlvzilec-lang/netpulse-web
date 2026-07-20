@@ -259,7 +259,7 @@ td.r,th.r{text-align:right}
 .kc-cy{border-left-color:var(--cy)}
 .kc-or{border-left-color:var(--or)}
 /* ── Coverage Map tab ── */
-#tp-cov.on{display:flex;margin:-20px -20px 0;height:calc(100vh - 95px)}
+#tp-cov.on{display:flex;margin:-20px;height:calc(100vh - 95px)}
 /* #cov-content is the auth-gate's content wrapper (shared markup pattern across every gated
    tab) and was never styled — as a flex item of #tp-cov.on with no flex-grow, it shrank to
    its content's natural width instead of filling the row, squeezing the map into a sliver
@@ -421,6 +421,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 /* ══ RESPONSIVE — phones/tablets (P0 foundation) ═══════════════════ */
 @media(max-width:640px){
   .page{padding:12px}
+  #tp-cov.on{margin:-12px}
   .nav{padding:0 12px}
   .nav-logo{margin-right:12px}
   .nav-ts{display:none}
@@ -1387,7 +1388,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <button id="findings-lock-btn" onclick="openAuthModal('findings')">Sign In</button>
   </div>
   <div id="findings-content">
-    <div class="fbar" style="position:static;margin-bottom:16px">
+    <div class="fbar" style="margin-bottom:16px">
       <div class="fbar-group">
         <span class="fbar-label">Operator</span>
         <button class="fchip" data-cfop="all">All</button>
@@ -1703,7 +1704,7 @@ function rsrpGoodPctRaw(vals){ return vals.length?vals.filter(v=>v>=-100).length
 // independently in several places with locally-named vars; kept as one predicate here.
 function isConsistentQuality(r){
   const d=parseFloat(r.download_mbps)||0, u=parseFloat(r.upload_mbps)||0
-  const p=parseFloat(r.ping_ms)||999, rs=r.rsrp??-120
+  const pRaw=parseFloat(r.ping_ms), p=Number.isFinite(pRaw)?pRaw:999, rs=r.rsrp??-120
   return d>=25&&u>=5&&p<100&&rs>=-100
 }
 function rsrpPill(v) {
@@ -1942,7 +1943,8 @@ async function onAuthSubmit(){
   // input and signInWithPassword() below fails with the same generic error either way, so a client can
   // never distinguish "no such username" from "wrong password" as two different outcomes.
   if(!email.includes('@')){
-    const {data:resolved} = await db.rpc('netpulse_resolve_login_username', {p_username: email})
+    const {data:resolved, error:resolveErr} = await db.rpc('netpulse_resolve_login_username', {p_username: email})
+    if(resolveErr) console.error('netpulse_resolve_login_username:', resolveErr)
     if(resolved) email = resolved
   }
   const {data,error} = await db.auth.signInWithPassword({email, password: pass})
@@ -2054,6 +2056,7 @@ let adminAllProfiles = []
 const MATRIX_PERMISSIONS = [['executive_summary','Executive Summary'],['network_detail','Network Detail'],['customer_experience','Customer Experience'],['drive_test','Drive Test'],['coverage_map','Coverage Map'],['cell_sites','Cell & Reseller Sites'],['critical_findings','Critical Findings']]
 
 let adminPendingRequests = []
+const adminInFlight = new Set() // in-flight guard: prevents double-firing approve/reject/role-change while an async call is pending
 
 async function loadAdminData(){
   if(!isAdmin()) return
@@ -2102,32 +2105,49 @@ function renderPendingRequests(){
 }
 
 async function approveRequest(id){
-  const req = adminPendingRequests.find(r=>r.id===id)
-  if(!req) return
-  const roleSel = document.getElementById('pending-role-'+id)
-  const role = roleSel ? roleSel.value : 'viewer'
-  const password = genPassword()
+  if(adminInFlight.has(id)) return
+  adminInFlight.add(id)
+  try{
+    const req = adminPendingRequests.find(r=>r.id===id)
+    if(!req) return
+    const roleSel = document.getElementById('pending-role-'+id)
+    const role = roleSel ? roleSel.value : 'viewer'
+    const password = genPassword()
 
-  const {data,error} = await db.functions.invoke('netpulse-admin', {
-    body:{action:'create_user', email:req.email, password, role}
-  })
-  if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message),'error'); return }
+    const {data,error} = await db.functions.invoke('netpulse-admin', {
+      body:{action:'create_user', email:req.email, password, role}
+    })
+    if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message),'error'); return }
 
-  const {error: updateError} = await db.from('netpulse_access_requests').update({
-    status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
-  }).eq('id', id)
-  if(updateError){ showToast('Approve failed: '+updateError.message,'error'); return }
+    const {error: updateError} = await db.from('netpulse_access_requests').update({
+      status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
+    }).eq('id', id)
+    if(updateError){
+      loadAdminData()
+      showApprovedCredentials(req.email, password)
+      showToast('Account created but request status update failed: '+updateError.message,'error')
+      return
+    }
 
-  loadAdminData()
-  showApprovedCredentials(req.email, password)
+    loadAdminData()
+    showApprovedCredentials(req.email, password)
+  } finally {
+    adminInFlight.delete(id)
+  }
 }
 async function rejectRequest(id){
-  const {error} = await db.from('netpulse_access_requests').update({
-    status:'rejected', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
-  }).eq('id', id)
-  if(error){ showToast('Reject failed: '+error.message,'error'); return }
-  showToast('Request rejected','success')
-  loadAdminData()
+  if(adminInFlight.has(id)) return
+  adminInFlight.add(id)
+  try{
+    const {error} = await db.from('netpulse_access_requests').update({
+      status:'rejected', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
+    }).eq('id', id)
+    if(error){ showToast('Reject failed: '+error.message,'error'); return }
+    showToast('Request rejected','success')
+    loadAdminData()
+  } finally {
+    adminInFlight.delete(id)
+  }
 }
 function showApprovedCredentials(email, password){
   document.getElementById('cred-modal-sub').textContent = `Account created for ${email}.`
@@ -2170,6 +2190,10 @@ document.querySelectorAll('.auth-modal-backdrop').forEach(bd=>{
 function renderUsersTable(){
   document.getElementById('admin-users-count').textContent = adminAllProfiles.length
   const roles = getAssignableRoles()
+  if(!adminAllProfiles.length){
+    document.getElementById('admin-users-tbody').innerHTML = '<tr><td colspan="5"><div class="empty">No users</div></td></tr>'
+    return
+  }
   document.getElementById('admin-users-tbody').innerHTML = adminAllProfiles.map(p=>{
     const statusColor = p.status==='approved'?'var(--r-ex)':p.status==='pending'?'var(--r-po)':'var(--re)'
     return `<tr>
@@ -2187,10 +2211,16 @@ function renderUsersTable(){
 }
 
 async function changeUserRole(id, role){
-  const {error} = await db.from('netpulse_profiles').update({role}).eq('id', id)
-  if(error){ showToast('Role change failed: '+error.message,'error'); return }
-  showToast('Role updated','success')
-  loadAdminData()
+  if(adminInFlight.has(id)) return
+  adminInFlight.add(id)
+  try{
+    const {error} = await db.from('netpulse_profiles').update({role}).eq('id', id)
+    if(error){ showToast('Role change failed: '+error.message,'error'); renderUsersTable(); return }
+    showToast('Role updated','success')
+    loadAdminData()
+  } finally {
+    adminInFlight.delete(id)
+  }
 }
 
 // ── Password modal (admin-initiated reset via the netpulse-admin Edge
@@ -2265,20 +2295,27 @@ async function toggleMatrixCell(role, perm, allowed){
   setTimeout(()=>{ if(statusEl.textContent==='✓ Saved') statusEl.textContent='' }, 2000)
   updateAuthUI()   // if the current user's own role permissions changed, reflect it immediately
 }
-document.getElementById('admin-add-role-btn').addEventListener('click', async ()=>{
+document.getElementById('admin-add-role-btn').addEventListener('click', async (e)=>{
+  const btn = e.currentTarget
+  if(btn.disabled) return
   const input = document.getElementById('admin-new-role-input')
   const role = input.value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')
   if(!role){ return }
   if(role==='anon'){ showToast('"anon" is reserved for not-signed-in visitors','error'); return }
   if(permMatrix[role]){ showToast('That role already exists','error'); return }
-  const rows = MATRIX_PERMISSIONS.map(([perm])=>({role, permission:perm, allowed:false}))
-  const {error} = await db.from('netpulse_role_permissions').upsert(rows)
-  if(error){ showToast('Add role failed: '+error.message,'error'); return }
-  input.value=''
-  await loadPermMatrix()
-  renderRoleMatrix()
-  renderUsersTable()
-  renderPendingRequests()
+  btn.disabled = true
+  try{
+    const rows = MATRIX_PERMISSIONS.map(([perm])=>({role, permission:perm, allowed:false}))
+    const {error} = await db.from('netpulse_role_permissions').upsert(rows)
+    if(error){ showToast('Add role failed: '+error.message,'error'); return }
+    input.value=''
+    await loadPermMatrix()
+    renderRoleMatrix()
+    renderUsersTable()
+    renderPendingRequests()
+  } finally {
+    btn.disabled = false
+  }
 })
 
 // ── Chart.js defaults ─────────────────────────────
@@ -3201,7 +3238,9 @@ function renderCompare() {
 
 // ── Render: Recent table (dashboard) ─────────────
 function renderRecent() {
-  const nx=_dashNx
+  // _dashNx (from nxAll's per-province RPC) is not globally chronological — sort so
+  // "Recent Tests · LIVE" actually shows the newest rows network-wide, not per-province blocks.
+  const nx=[..._dashNx].sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at))
   paginate('tb-recent', nx, r=>`
     <tr>
       <td>${hms(r.tested_at)}</td>
@@ -3219,7 +3258,7 @@ function renderRecent() {
 // ── Render: Network tab ───────────────────────────
 function renderNetwork() {
   const nx=filterNx(nxAll,{date:F.dDate,op:F.dOp,tech:F.dTech,prov:F.dProv})
-  const slice=[...nx].reverse().slice(-100)
+  const slice=[...nx].sort((a,b)=>new Date(a.tested_at)-new Date(b.tested_at)).slice(-100)
   chNetTs.data.labels=slice.map(r=>hms(r.tested_at))
   chNetTs.data.datasets[0].data=slice.map(r=>r.download_mbps)
   chNetTs.data.datasets[1].data=slice.map(r=>r.upload_mbps)
@@ -3388,8 +3427,9 @@ function renderCX() {
 
   document.getElementById('cx-count').textContent=os.length+cx.length
 
-  // Latest result
-  const latest=os[0]
+  // Latest result — osAll is grouped by province (per-province window function, no global
+  // ORDER BY), so os[0] is not reliably the most recent test across all provinces; sort first.
+  const latest=os.length ? [...os].sort((a,b)=>new Date(b.tested_at)-new Date(a.tested_at))[0] : null
   if(latest){
     const op=normOp(latest.operator), tech=latest.technology||'', mode=latest.test_mode||''
     document.getElementById('cx-latest-head').textContent='Latest Result'
@@ -5386,6 +5426,7 @@ function buildCompareMaps(n){
       // Hover tooltip for this panel's hexbin layer — registered once here since renderComparePanel()
       // only ever calls setData() on the existing sources and never re-adds these layers.
       const cmpHexPopup=new maplibregl.Popup({closeButton:false,maxWidth:'200px'})
+      entry.hexPopup=cmpHexPopup   // exposed on the entry so layer/filter toggles elsewhere can force-close it
       map.on('mouseenter',`hex-fill-${i}`,()=>map.getCanvas().style.cursor='pointer')
       map.on('mousemove',`hex-fill-${i}`,e=>{
         const p=e.features[0].properties
@@ -5440,6 +5481,7 @@ function renderComparePanel(i){
   // the single map's sources, previously missing here so compare panels always showed both
   // regardless of the sidebar selection.
   const show=CF.type
+  if(show==='drive' && entry.hexPopup) entry.hexPopup.remove()
   entry.map.getSource('cmp-hex').setData(show==='drive' ? {type:'FeatureCollection',features:[]} : hexGJ)
   entry.map.getSource('cmp-samples').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : driveGJ)
   const statEl=document.getElementById(`cov-cmp-stat-${i}`)
@@ -5753,6 +5795,7 @@ function covCmpLayer(kind,on){
   compareMaps.forEach(entry=>{
     if(!entry.ready) return
     covCmpLayerIds(kind,entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(e){}})
+    if(kind==='hex' && !on && entry.hexPopup) entry.hexPopup.remove()
   })
 }
 // Applied once right after a panel's own layers are added, so a panel built while a toggle is
@@ -6039,7 +6082,8 @@ document.getElementById('cov-prov-reset').addEventListener('click',()=>{
   document.getElementById('cov-prov').value='all'
   document.getElementById('cov-prov-reset').style.display='none'
   renderCovMap()
-  if(mapCov&&mapCov.fitBounds){try{mapCov.fitBounds([[102.3,9.9],[107.8,14.7]],{padding:20,duration:800})}catch(e){}}
+  const targets = compareMode ? compareMaps.filter(e=>e.ready).map(e=>e.map) : (mapCov ? [mapCov] : [])
+  targets.forEach(m=>{try{m.fitBounds([[102.3,9.9],[107.8,14.7]],{padding:20,duration:800})}catch(e){}})
 })
 
 // Operator chips
