@@ -1911,7 +1911,7 @@ async function onRequestAccessSubmit(){
   }
   closeAuthModal()
   document.getElementById('req-email').value=''
-  showToast('Request submitted — an admin will create your account once approved.')
+  showToast('Request submitted — an admin will create your account once approved.','success')
 }
 async function onAuthSubmit(){
   const email = document.getElementById('auth-email').value.trim()
@@ -2084,12 +2084,12 @@ async function approveRequest(id){
   const {data,error} = await db.functions.invoke('netpulse-admin', {
     body:{action:'create_user', email:req.email, password, role}
   })
-  if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message)); return }
+  if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message),'error'); return }
 
   const {error: updateError} = await db.from('netpulse_access_requests').update({
     status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
   }).eq('id', id)
-  if(updateError){ showToast('Approve failed: '+updateError.message); return }
+  if(updateError){ showToast('Approve failed: '+updateError.message,'error'); return }
 
   loadAdminData()
   showApprovedCredentials(req.email, password)
@@ -2098,8 +2098,8 @@ async function rejectRequest(id){
   const {error} = await db.from('netpulse_access_requests').update({
     status:'rejected', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
   }).eq('id', id)
-  if(error){ showToast('Reject failed: '+error.message); return }
-  showToast('Request rejected')
+  if(error){ showToast('Reject failed: '+error.message,'error'); return }
+  showToast('Request rejected','success')
   loadAdminData()
 }
 function showApprovedCredentials(email, password){
@@ -2128,8 +2128,8 @@ function renderUsersTable(){
 
 async function changeUserRole(id, role){
   const {error} = await db.from('netpulse_profiles').update({role}).eq('id', id)
-  if(error){ showToast('Role change failed: '+error.message); return }
-  showToast('Role updated')
+  if(error){ showToast('Role change failed: '+error.message,'error'); return }
+  showToast('Role updated','success')
   loadAdminData()
 }
 
@@ -2162,7 +2162,7 @@ async function onPwModalSubmit(){
   btn.disabled=false; btn.textContent='Set Password'
   if(error || data?.error){ errEl.textContent = (data&&data.error) || error.message; return }
   closePwModal()
-  showToast('Password updated')
+  showToast('Password updated','success')
 }
 
 // ── Role permission matrix (editable) ─────────────
@@ -2198,11 +2198,11 @@ document.getElementById('admin-add-role-btn').addEventListener('click', async ()
   const input = document.getElementById('admin-new-role-input')
   const role = input.value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')
   if(!role){ return }
-  if(role==='anon'){ showToast('"anon" is reserved for not-signed-in visitors'); return }
-  if(permMatrix[role]){ showToast('That role already exists'); return }
+  if(role==='anon'){ showToast('"anon" is reserved for not-signed-in visitors','error'); return }
+  if(permMatrix[role]){ showToast('That role already exists','error'); return }
   const rows = MATRIX_PERMISSIONS.map(([perm])=>({role, permission:perm, allowed:false}))
   const {error} = await db.from('netpulse_role_permissions').upsert(rows)
-  if(error){ showToast('Add role failed: '+error.message); return }
+  if(error){ showToast('Add role failed: '+error.message,'error'); return }
   input.value=''
   await loadPermMatrix()
   renderRoleMatrix()
@@ -4185,8 +4185,12 @@ function showToast(msg,type='info'){
   const t=document.createElement('div')
   t.setAttribute('role','alert')
   t.setAttribute('aria-live','assertive')
-  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f6feb;color:#e6edf3;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none'
-  t.textContent=msg
+  // Fixed (non-theme-varying) backgrounds — like the old always-blue toast, this is a small
+  // colored chip that needs its own guaranteed-readable text, not the page's var(--tx)/var(--mu).
+  const bg={success:'#1a7f37',error:'#cf222e',info:'#1f6feb'}[type]||'#1f6feb'
+  const icon={success:'✓ ',error:'✕ ',info:''}[type]||''
+  t.style.cssText=`position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${bg};color:#e6edf3;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none`
+  t.textContent=icon+msg
   document.body.appendChild(t)
   setTimeout(()=>t.remove(),4000)
 }
@@ -4236,7 +4240,7 @@ window.exportPDF = async function(sessId) {
     if(error) console.error('drive_sessions lookup:',error)
     sess=data||null
   }
-  if(!sess){showToast('Select a session first');return}
+  if(!sess){showToast('Select a session first','error');return}
   // Fetch the COMPLETE sample set — see fetchPaginated() for why a single query would
   // silently truncate long drives (a 3186-sample run once only reported the first 1000).
   const {data:pagedSamples,error:sampleErr}=await fetchPaginated((from,to)=>
@@ -4800,21 +4804,21 @@ function cfVal(f,k){
   return f[k]??'—'
 }
 function exportFindingsCSV(){
-  if(!cfFindings.length){ showToast('No findings to export'); return }
+  if(!cfFindings.length){ showToast('No findings to export','error'); return }
   const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`
   const rows=[CF_COLUMNS.map(([,l])=>esc(l)).join(',')]
     .concat(cfFindings.map(f=>CF_COLUMNS.map(([k])=>esc(cfVal(f,k))).join(',')))
   downloadBlob(cfFilename('csv'), rows.join('\r\n'), 'text/csv;charset=utf-8')
 }
 function exportFindingsJSON(){
-  if(!cfFindings.length){ showToast('No findings to export'); return }
+  if(!cfFindings.length){ showToast('No findings to export','error'); return }
   downloadBlob(cfFilename('json'), JSON.stringify(cfFindings,null,2), 'application/json')
 }
 function exportFindingsXLS(){
   // Lightweight XLS export via an HTML table with the Excel MIME type/extension — Excel
   // opens this as a real spreadsheet (actual cells, not just text) without needing a
   // client-side XLSX library, avoiding a new CDN dependency for a fairly narrow feature.
-  if(!cfFindings.length){ showToast('No findings to export'); return }
+  if(!cfFindings.length){ showToast('No findings to export','error'); return }
   const head='<tr>'+CF_COLUMNS.map(([,l])=>`<th>${h(l)}</th>`).join('')+'</tr>'
   const body=cfFindings.map(f=>'<tr>'+CF_COLUMNS.map(([k])=>`<td>${h(cfVal(f,k))}</td>`).join('')+'</tr>').join('')
   const html=`<html><head><meta charset="UTF-8"></head><body><table border="1">${head}${body}</table></body></html>`
@@ -4827,8 +4831,8 @@ function exportFindingsXLS(){
 // single muted dot; every other value stays plain ink. Designed via an expert design
 // panel — synthesized spec kept in the commit message for this change.
 function exportFindingsPDF(){
-  if(!cfFindings.length){ showToast('No findings to export'); return }
-  if(!window.jspdf){ showToast('PDF library not loaded'); return }
+  if(!cfFindings.length){ showToast('No findings to export','error'); return }
+  if(!window.jspdf){ showToast('PDF library not loaded','error'); return }
   const {jsPDF}=window.jspdf
   const doc=new jsPDF('l','mm','a4')
   const M=10, W=297
