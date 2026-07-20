@@ -5382,6 +5382,25 @@ function buildCompareMaps(n){
       map.addLayer({id:`cmp-dots-${i}`,type:'circle',source:'cmp-samples',filter:['!',['has','point_count']],
         paint:{'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#1e293b','circle-opacity':.75,
           'circle-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
+      // Hover tooltip for this panel's hexbin layer — registered once here since renderComparePanel()
+      // only ever calls setData() on the existing sources and never re-adds these layers.
+      const cmpHexPopup=new maplibregl.Popup({closeButton:false,maxWidth:'200px'})
+      map.on('mouseenter',`hex-fill-${i}`,()=>map.getCanvas().style.cursor='pointer')
+      map.on('mousemove',`hex-fill-${i}`,e=>{
+        const p=e.features[0].properties
+        const cnt=+p.count||0
+        const rsrpText=(cnt>0 && p.avg_rsrp!=null && !isNaN(+p.avg_rsrp)) ? (+p.avg_rsrp).toFixed(0)+' dBm' : '—'
+        cmpHexPopup.setLngLat(e.lngLat).setHTML(`
+          <div style="font-family:system-ui;font-size:12px;color:var(--tx)">
+            <div style="font-weight:600;margin-bottom:4px">Experience Hexbin</div>
+            <div style="color:var(--mu)">Tests: <span style="color:var(--tx)">${cnt}</span></div>
+            <div style="color:var(--mu)">Avg RSRP: <span style="color:var(--tx)">${rsrpText}</span></div>
+          </div>`).addTo(map)
+      })
+      map.on('mouseleave',`hex-fill-${i}`,()=>{
+        map.getCanvas().style.cursor=''
+        cmpHexPopup.remove()
+      })
       applyCovLayerTogglesToPanel(entry)
       watchTilesActuallyRender(map, panelId)
       entry.ready=true
