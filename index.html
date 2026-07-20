@@ -2722,7 +2722,9 @@ function renderExecBanner() {
   if(!ring||!banner)return
   scoreEl.textContent=(nx.length&&health!=null)?health:'—'
   // 5-band naming aligned with OpenSignal Video Experience model (verified 2-1, Opensignal 2024)
-  let cls='esb-neutral', ringColor='var(--bd)', vText='No data', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
+  // vText/bText intentionally differ in every branch below (a descriptive headline next to a
+  // short status chip) — this one used to just repeat "No data"/"NO DATA" next to each other.
+  let cls='esb-neutral', ringColor='var(--bd)', vText='No Network Data Available', vSub='Load data to calculate network health', bText='NO DATA', bBg='var(--s2)', bColor='var(--mu)'
   if(nx.length&&health!=null){
     if(health>=85){cls='esb-green';ringColor='var(--r-ex)';vText='Excellent Network Performance';vSub='All KPIs consistently exceed operational benchmarks';bText='EXCELLENT';bBg='rgba(0,230,118,.2)';bColor='var(--r-ex)'}
     else if(health>=70){cls='esb-green';ringColor='var(--gr)';vText='Good Network Performance';vSub='KPIs meeting benchmarks with minor optimization opportunities';bText='GOOD';bBg='rgba(63,185,80,.2)';bColor='var(--gr)'}
