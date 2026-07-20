@@ -47,8 +47,6 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-sy
 .nav-logo svg{width:28px;height:28px;flex-shrink:0}
 .nav-logo-txt{font-size:15px;font-weight:800;color:var(--tx);letter-spacing:-.3px;white-space:nowrap}
 .nav-logo-sub{font-size:10px;color:var(--mu);margin-left:3px;font-weight:400}
-.nav-tabs{display:flex;flex:1;overflow-x:auto;scrollbar-width:none}
-.nav-tabs::-webkit-scrollbar{display:none}
 .nav-sp{flex:1}
 .nav-ts{font-size:11px;color:var(--mu)}
 .pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--bd);font-size:12px;color:var(--mu)}
@@ -162,15 +160,6 @@ tr:hover td{background:var(--s2)}
 .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
 .gauge-lbl{font-size:11px;color:var(--mu);text-align:center;max-width:90px}
 .gauge-sub{font-size:10px;color:var(--mu);text-align:center}
-/* ── Executive summary card ── */
-.exec-card{background:linear-gradient(135deg,var(--s2) 0%,rgba(31,111,235,.08) 100%);border:1px solid var(--bd);border-radius:var(--r-card);padding:20px;margin-bottom:16px}
-.exec-score{font-size:13px;color:var(--mu);margin-bottom:4px}
-.exec-big{font-size:36px;font-weight:800;color:var(--bl)}
-.exec-rating{font-size:14px;color:var(--tx);font-weight:600;margin-bottom:16px}
-.exec-stats{display:flex;gap:12px;flex-wrap:wrap}
-.exec-stat{background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.2);border-radius:8px;padding:10px 16px;text-align:center}
-.exec-stat-v{font-size:20px;font-weight:700;color:var(--bl)}
-.exec-stat-l{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
 /* ── Awards ── */
 .awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px}
 .award-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);padding:12px 14px;display:flex;align-items:center;gap:10px}
@@ -195,9 +184,6 @@ tr:hover td{background:var(--s2)}
 .dchip[data-drv-op="Cellcard"].on{background:rgba(255,121,0,.15);border-color:rgba(255,121,0,.5);color:#FF7900}
 .dchip[data-drv-op="Metfone"].on{background:rgba(219,26,33,.15);border-color:rgba(219,26,33,.5);color:#DB1A21}
 .dchip[data-drv-op="Smart"].on{background:rgba(0,150,57,.15);border-color:rgba(0,150,57,.5);color:#009639}
-.op-logo{height:14px;max-width:52px;object-fit:contain;vertical-align:middle;margin-right:3px;display:inline-block;opacity:.9}
-.op-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;font-size:8px;font-weight:800;color:#fff;letter-spacing:0;flex-shrink:0;vertical-align:middle;margin-right:3px}
-.op-logo-wrap{display:inline-flex;align-items:center;gap:3px}
 .drv-date-wrap{display:flex;align-items:center;gap:4px;margin-left:4px}
 .drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer}
 .drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;min-width:130px}
@@ -269,10 +255,9 @@ td.r,th.r{text-align:right}
 .kc-bl{border-left-color:var(--bl)}
 .kc-gr{border-left-color:var(--gr)}
 .kc-yw{border-left-color:var(--yw)}
-.kc-re{border-left-color:var(--re)}
 .kc-pu{border-left-color:var(--pu)}
 .kc-cy{border-left-color:var(--cy)}
-.kc-or{border-left-color:#db6d28}
+.kc-or{border-left-color:var(--or)}
 /* ── Coverage Map tab ── */
 #tp-cov.on{display:flex;margin:-20px -20px 0;height:calc(100vh - 95px)}
 /* #cov-content is the auth-gate's content wrapper (shared markup pattern across every gated
@@ -314,12 +299,9 @@ td.r,th.r{text-align:right}
 .ltog input:checked+.lslid:before{transform:translateX(16px);background:#58a6ff}
 .map-pills{position:absolute;bottom:28px;left:8px;display:flex;gap:5px;z-index:10;pointer-events:none}
 .mpill{background:rgba(13,17,23,.85);border:1px solid var(--bd);border-radius:12px;padding:2px 10px;font-size:11px;color:#9da8b4;backdrop-filter:blur(4px)}
-.tok-in{width:100%;padding:5px 8px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px}
-.tok-in:focus{border-color:var(--pr)}
 .sb-btn{display:block;width:100%;padding:6px 0;margin-top:5px;background:rgba(31,111,235,.12);border:1px solid rgba(31,111,235,.25);border-radius:4px;color:var(--bl);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
 .sb-btn:hover{background:rgba(31,111,235,.22)}
 .sb-btn.g{background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.25);color:var(--gr)}
-.tow-st{font-size:10px;color:var(--mu);margin-top:4px;min-height:14px}
 .leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px;color:var(--mu)}
 .leg-circ{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.2)}
 /* cov filter chips — reuse .fchip + add cov-fbar */
@@ -353,7 +335,6 @@ td.r,th.r{text-align:right}
 /* ── Section dividers ── */
 .view-hdr{display:flex;align-items:center;gap:10px;margin:20px 0 14px}
 .view-hdr-badge{padding:3px 10px;border-radius:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
-.vhb-exec{background:rgba(31,111,235,.15);color:var(--bl)}
 .vhb-tech{background:rgba(148,163,184,.15);color:var(--mu)}
 .view-hdr-title{font-size:13px;font-weight:700}
 .view-hdr-line{flex:1;height:1px;background:var(--bd)}
@@ -391,28 +372,11 @@ body:not(.view-tech) .tech-only{display:none}
 .esb-amber{background:linear-gradient(135deg,rgba(255,193,7,.13) 0%,rgba(255,152,0,.06) 100%);border:1.5px solid rgba(255,193,7,.35)}
 .esb-red{background:linear-gradient(135deg,rgba(244,67,54,.14) 0%,rgba(255,87,34,.06) 100%);border:1.5px solid rgba(244,67,54,.35)}
 .esb-neutral{background:var(--s2);border:1px solid var(--bd)}
-.esb-score-ring{width:80px;height:80px;border-radius:50%;border:4px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .4s}
-.esb-score-num{font-size:26px;font-weight:900;line-height:1;letter-spacing:-1px}
-.esb-score-lbl{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
-.esb-body{flex:1;min-width:180px}
-.esb-verdict{font-size:18px;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
-.esb-sub{font-size:11px;line-height:1.55;color:var(--mu)}
-.esb-badge{display:inline-block;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-top:6px}
-.esb-facts{display:flex;gap:16px;flex-wrap:wrap;border-left:1px solid var(--bd);padding-left:20px}
-.esb-fact{text-align:center}
-.esb-fact-v{font-size:20px;font-weight:800;line-height:1.1}
-.esb-fact-l{font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 /* ══ HERO KPI CARDS (Executive) ════════════════════ */
 .hero-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:18px}
 .hero-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;transition:border-color .15s,transform .15s}
 .hero-card:hover{transform:translateY(-1px);border-color:#4d5562}
-.hero-card-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
-.hero-card-label{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px;font-weight:600}
-.hero-card-val{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1.5px;margin:4px 0}
-.hero-card-unit{font-size:11px;color:var(--mu)}
-.hero-card-trend{font-size:11px;font-weight:600;margin-top:2px}
 .hero-card-rag{position:absolute;top:14px;right:14px}
-.hero-card-bench{font-size:10px;color:var(--mu);margin-top:4px;padding-top:6px;border-top:1px solid var(--bd)}
 /* ══ ACTIONS REQUIRED PANEL ════════════════════════ */
 .act-panel{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r-card);margin-bottom:18px;overflow:hidden}
 .act-header{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--s2)}
@@ -420,7 +384,6 @@ body:not(.view-tech) .tech-only{display:none}
 .act-cnt{font-size:11px;color:var(--mu)}
 .act-row{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px}
 .act-row:last-child{border-bottom:none}
-.act-sev{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;flex-shrink:0;letter-spacing:-.3px}
 .act-sev1{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.35);color:var(--r-cr)}
 .act-sev2{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.35);color:var(--r-po)}
 .act-sev3{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.35);color:var(--r-fa)}
@@ -430,28 +393,13 @@ body:not(.view-tech) .tech-only{display:none}
 .act-row-body{flex:1}
 .act-row-title{font-size:12px;font-weight:700;margin-bottom:2px}
 .act-row-detail{font-size:11px;opacity:.8;line-height:1.5}
-.act-ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.25);color:var(--r-ex)}
-.act-body{flex:1}
-.act-main{font-size:12px;font-weight:600;margin-bottom:1px}
-.act-detail{font-size:11px;color:var(--mu)}
-.act-sla{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;flex-shrink:0}
 /* ══ TECHNICAL SEV LIVE COUNTS ══════════════════════ */
 .sev-live-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
 .sev-live-card{border-radius:8px;padding:10px 8px;text-align:center}
 .sev-live-num{font-size:26px;font-weight:900;line-height:1;margin-bottom:2px}
 .sev-live-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 .sev-live-desc{font-size:9px;opacity:.75;margin-top:2px;line-height:1.3}
-/* ══ TAB AUDIENCE BADGES ════════════════════════════ */
-.tab-aud{font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;margin-left:2px;vertical-align:middle}
-.tab-aud-exec{background:rgba(31,111,235,.2);color:var(--bl)}
-.tab-aud-eng{background:rgba(148,163,184,.15);color:var(--mu)}
-/* ══ CHART BENCHMARK LINE ═══════════════════════════ */
-.chart-bench-note{font-size:10px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:4px 16px 0}
-.bench-dash{width:18px;height:2px;background:#8b949e;display:inline-block;vertical-align:middle}
-/* ══ COVERAGE QUALITY SCORE ═════════════════════════ */
-.covq-bar{height:6px;border-radius:3px;background:var(--s2);margin:4px 0;overflow:hidden}
-.covq-fill{height:100%;border-radius:3px;transition:width .6s}
-@media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}.esb-facts{border-left:none;padding-left:0}}
+@media(max-width:700px){.hero-grid{grid-template-columns:1fr 1fr}.sev-live-grid{grid-template-columns:1fr 1fr}}
 /* Visually-hidden but available to screen readers */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Empty states — any data table with an empty tbody shows a message (after first load) */
@@ -646,9 +594,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
   <!-- Executive / Technical view toggle — setDashView() has always driven the exec-view vs
        tech-only split below (KPI grid, SEV live counts, RSRP threshold reference); this control
-       was the only missing piece wiring it to a button. -->
-  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-    <div style="display:inline-flex;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:3px;gap:2px">
+       was the only missing piece wiring it to a button. .view-toggle was already defined in CSS
+       (unused until now) with exactly this pairing in mind, so reused as-is rather than
+       duplicating its styles inline. -->
+  <div style="display:flex;justify-content:flex-end">
+    <div class="view-toggle">
       <button class="vt-btn on" data-view="exec" onclick="setDashView('exec')" aria-pressed="true">Executive</button>
       <button class="vt-btn" data-view="tech" onclick="setDashView('tech')" aria-pressed="false">Technical</button>
     </div>
@@ -831,13 +781,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <span id="hk-ping-rag" class="rag" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-top:4px;display:inline-block"></span>
   </div>
 </div>
-<!-- keep cq-grid hidden compat -->
-<div style="display:none"><div id="cq-grid"></div></div>
-
-    <!-- hidden exec-card kept for JS compat -->
-    <div style="display:none">
-      <span id="ex-score"></span><span id="ex-rating"></span><div id="ex-stats"></div>
-    </div>
 
     <!-- ══ SEV LIVE COUNTS (Tech-only) ══ -->
     <div class="tech-only" id="sev-live-section">
@@ -2335,7 +2278,6 @@ const chRat = mk('ch-rat','bar',{labels:[],datasets:[{label:'Tests',data:[],back
 const chHourly = mk('ch-hourly','bar',{labels:Array.from({length:24},(_,i)=>i),datasets:[{label:'Avg DL (Mbps)',data:new Array(24).fill(null),backgroundColor:'rgba(88,166,255,0.7)'}]},{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},title:{display:true,text:'Hour of Day'}},y:{beginAtZero:true,grid:GC}}})
 
 // CX charts
-const chCxTrend = mk('ch-cx-trend','line',{labels:[],datasets:[{label:'Video XP',data:[],borderColor:'#3fb950',tension:.3,pointRadius:2},{label:'Games XP',data:[],borderColor:'#58a6ff',tension:.3,pointRadius:2},{label:'Voice XP',data:[],borderColor:'#a371f7',tension:.3,pointRadius:2}]},{plugins:{legend:{display:true}},scales:{x:{display:false},y:{min:0,max:100,grid:GC}}})
 const chCxOp = mk('ch-cx-op','bar',{labels:[],datasets:xpDatasets()},{scales:{x:{grid:{display:false}},y:{min:0,max:100,grid:GC}}})
 
 // ── Map diagnostics — surface WebGL / tile failures instead of a blank box ──
@@ -2670,31 +2612,6 @@ function renderKPIs() {
   renderHealthScore()
 }
 
-// ── Render: Executive summary ─────────────────────
-function renderExecSummary() {
-  const os = _dashOs
-  const avg = col => os.length ? os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length : null
-  const vid=avg('video_experience'), gam=avg('games_experience'), vox=avg('voice_app_experience')
-  const overall = (vid!=null&&gam!=null&&vox!=null) ? (vid+gam+vox)/3 : null
-  const score10 = overall ? (overall/10).toFixed(1) : '—'
-  const {label,color} = overall ? scoreBand(overall) : {label:'',color:'var(--mu)'}
-  document.getElementById('ex-score').textContent = score10+'/10'
-  document.getElementById('ex-score').style.color = color
-  document.getElementById('ex-rating').textContent = label
-  document.getElementById('ex-rating').style.color = color
-
-  const nx=_dashNx
-  const avgDl=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.download_mbps)||0),0)/nx.length:0
-  const avgUl=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.upload_mbps)||0),0)/nx.length:0
-  const avgPing=nx.length?nx.reduce((s,r)=>s+(parseFloat(r.ping_ms)||0),0)/nx.length:0
-  document.getElementById('ex-stats').innerHTML=`
-    <div class="exec-stat"><div class="exec-stat-v">${nx.length.toLocaleString()}</div><div class="exec-stat-l">Tests</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--bl)">${n(avgDl)}</div><div class="exec-stat-l">Avg DL (Mbps)</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--gr)">${n(avgUl)}</div><div class="exec-stat-l">Avg UL (Mbps)</div></div>
-    <div class="exec-stat"><div class="exec-stat-v" style="color:var(--yw)">${n(avgPing,0)}</div><div class="exec-stat-l">Avg Ping (ms)</div></div>
-  `
-}
-
 // ── Render: Executive Status Banner ───────────────
 function renderExecBanner() {
   const nx=_dashNx
@@ -2853,45 +2770,6 @@ function renderActionsRequired() {
         <div class="act-row-detail">${a.detail}</div>
       </div>
     </div>`).join('')
-}
-
-// ── Render: Consistent Quality Thresholds ─────────
-// OpenSignal 6-threshold composite model (confirmed 3-0 by deep research)
-function renderConsistentQuality() {
-  const nx=_dashNx
-  const avg=(col)=>nx.length?nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length:null
-  const avgDl=avg('download_mbps'), avgUl=avg('upload_mbps'), avgPing=avg('ping_ms')
-
-  // Thresholds per OpenSignal Consistent Quality / Reliability Experience methodology
-  const checks=[
-    {label:'Download',    val:avgDl,   thresh:25,  unit:'Mbps', dir:'gte', note:'≥25 Mbps'},
-    {label:'Upload',      val:avgUl,   thresh:5,   unit:'Mbps', dir:'gte', note:'≥5 Mbps'},
-    {label:'Latency',     val:avgPing, thresh:100, unit:'ms',   dir:'lte', note:'<100 ms'},
-    {label:'Signal Good+',val:null,    thresh:null,unit:'%',    dir:'gte', note:'≥80%', id:'cq-cov'},
-    {label:'Tests Loaded',val:nx.length,thresh:1,  unit:'',    dir:'gte', note:'Data present'},
-  ]
-
-  const _cqRsrp=nx.map(r=>r.rsrp).filter(v=>v!=null)
-  const covPct=rsrpGoodPct(_cqRsrp)
-  checks[3].val=covPct
-
-  const grid=document.getElementById('cq-grid')
-  if(!grid)return
-  grid.innerHTML=checks.map(c=>{
-    const pass=c.val!=null&&c.thresh!=null?(c.dir==='gte'?c.val>=c.thresh:c.val<=c.thresh):false
-    const nodata=c.val==null
-    const color=nodata?'var(--mu)':pass?'var(--gr)':'var(--re)'
-    const icon=nodata?'—':pass?'✓':'✗'
-    const displayVal=c.val!=null?(Number.isInteger(c.val)?c.val:c.val.toFixed(1)):''
-    return `<div style="background:var(--s1);border:1px solid ${nodata?'var(--bd)':pass?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)'};border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:16px;font-weight:900;color:${color};width:18px;text-align:center;flex-shrink:0">${icon}</span>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--tx)">${c.label}</div>
-        <div style="font-size:10px;color:${color}">${displayVal?displayVal+' '+c.unit:c.note}</div>
-        <div style="font-size:9px;color:var(--mu)">${c.note}</div>
-      </div>
-    </div>`
-  }).join('')
 }
 
 // ── Render: OpenSignal-style competitive matrix ────
@@ -3096,10 +2974,6 @@ function renderDrillDown(group, metricId) {
     }).join('')}
     <div class="os-bar-axis">${ticks.map(t=>`<span>${t}</span>`).join('')}</div>
   `
-}
-
-function renderOSDrill() {
-  renderDrillDown(osDrillGroup, osDrillMetric)
 }
 
 // ── Render: SEV Live Counts (Technical) ───────────
