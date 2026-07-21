@@ -674,20 +674,6 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     </div>
   </div>
 
-  <!-- Network Health Banner (Executive view only) -->
-  <div class="health-banner exec-view" id="health-banner">
-    <div class="health-ring" id="health-ring">
-      <div class="health-ring-num" id="health-score-num">—</div>
-      <div class="health-ring-lbl">/ 100</div>
-    </div>
-    <div class="health-details">
-      <div class="health-title">Network Health Score</div>
-      <div class="health-sub">Composite: Download Speed (40%) · Signal Quality (35%) · Customer Experience (25%)</div>
-      <div class="health-status" id="health-status-badge">Calculating…</div>
-    </div>
-    <div class="health-drivers" id="health-drivers" style="margin-left:auto;text-align:right"></div>
-  </div>
-
   <!-- Sub-tabs -->
   <div class="stabs">
     <button class="stab on" data-st="overview">Overview</button>
@@ -1672,7 +1658,7 @@ window.goPage = function(tbodyId, newPage, wrapId) {
 // Active filters
 const F = {
   // Dashboard — also drives Network Detail and Customer Experience via the global filter bar
-  dDate:'ytd', dOp:'Cellcard', dTech:'all', dCov:'all', dProv:'all',
+  dDate:'ytd', dOp:'Cellcard', dTech:'all', dProv:'all',
   // CX — local "Type" filter only (operator/tech/province come from the global bar above)
   cCov:'all',
   // Drive Test
@@ -2230,7 +2216,7 @@ function renderUsersTable(){
     return `<tr>
       <td>${h(p.email)}</td>
       <td>
-        <select onchange="changeUserRole('${p.id}',this.value)" style="padding:3px 6px;border-radius:5px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px">
+        <select id="role-sel-${p.id}" onchange="changeUserRole('${p.id}',this.value,this)" style="padding:3px 6px;border-radius:5px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px">
           ${roles.map(r=>`<option value="${r}"${r===p.role?' selected':''}>${h(r)}</option>`).join('')}
         </select>
       </td>
@@ -2241,9 +2227,14 @@ function renderUsersTable(){
   }).join('')
 }
 
-async function changeUserRole(id, role){
-  if(adminInFlight.has(id)) return
+async function changeUserRole(id, role, selEl){
+  // The <select> is disabled for the duration of its own update (mirrors admin-add-role-btn's
+  // btn.disabled pattern), so a second selection can't be made — and silently dropped — while
+  // the first is still in flight. If this guard is ever hit anyway, say so instead of letting a
+  // later "Role updated" toast imply the newer selection was saved.
+  if(adminInFlight.has(id)){ showToast('Still saving the previous change, please wait','info'); return }
   adminInFlight.add(id)
+  if(selEl) selEl.disabled = true
   try{
     const {error} = await db.from('netpulse_profiles').update({role}).eq('id', id)
     if(error){ showToast('Role change failed: '+error.message,'error'); renderUsersTable(); return }
@@ -2251,6 +2242,7 @@ async function changeUserRole(id, role){
     loadAdminData()
   } finally {
     adminInFlight.delete(id)
+    if(selEl) selEl.disabled = false
   }
 }
 
@@ -2635,76 +2627,6 @@ function setDashView(v) {
   document.querySelectorAll('.tech-lbl').forEach(el => el.style.display = isTech ? '' : 'none')
 }
 
-// ── Network health score (executive) ──────────────
-function renderHealthScore() {
-  const nx = _dashNx
-  if (!nx.length) {
-    // Zero rows for the current filter combo (e.g. a Technology/Province/Operator combo with no
-    // data) must show the same INSUFFICIENT DATA state used below for other empty-data cases,
-    // not silently keep showing whatever score the previous filter combination computed.
-    const ring  = document.getElementById('health-ring')
-    const num   = document.getElementById('health-score-num')
-    const badge = document.getElementById('health-status-badge')
-    const drv   = document.getElementById('health-drivers')
-    if (!ring) return
-    num.textContent = '—'
-    ring.style.borderColor = 'var(--mu)'
-    num.style.color = 'var(--mu)'
-    badge.textContent = 'INSUFFICIENT DATA'
-    badge.style.background = 'rgba(139,148,158,.15)'
-    badge.style.color = 'var(--mu)'
-    if (drv) drv.innerHTML = ''
-    return
-  }
-  const avg = col => nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length
-  const avgDl   = avg('download_mbps')
-  const avgRsrp = avg('rsrp')
-  const dlScore   = dlToScore(avgDl)
-  const rsrpScore = rsrpToScore(avgRsrp)
-  // CX from OpenSignal (0-100 scale) — cxScore itself stays defaulted-to-50 for the driver-color
-  // badges below (unchanged, pre-existing display behavior); hasCxData tracks whether real CX
-  // data actually exists, so computeNetworkHealthScore gets a true null instead of a pre-defaulted
-  // 50 that would silently defeat its own reweighting logic.
-  const os = _dashOs
-  let cxScore = 50, hasCxData = false
-  if (os && os.length) {
-    const osAvg = col => os.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/os.length
-    cxScore = (osAvg('video_experience')+osAvg('games_experience')+osAvg('voice_app_experience'))/3
-    hasCxData = true
-  }
-  const health = computeNetworkHealthScore(avgDl, avgRsrp, hasCxData?cxScore/10:null)
-  const ring  = document.getElementById('health-ring')
-  const num   = document.getElementById('health-score-num')
-  const badge = document.getElementById('health-status-badge')
-  const drv   = document.getElementById('health-drivers')
-  if (!ring) return
-  num.textContent = health!=null?health:'—'
-  // Tier scale aligned with renderExecBanner()/renderOSMatrix() (85/70/50/30 EXCELLENT-GOOD-FAIR-POOR-CRITICAL)
-  // so the same numeric score never gets a different qualitative label on different widgets on this page.
-  let color, label, bg
-  if (health==null)      { color='var(--mu)'; label='INSUFFICIENT DATA'; bg='rgba(139,148,158,.15)' }
-  else if (health >= 85) { color='var(--r-ex)'; label='EXCELLENT'; bg='rgba(0,230,118,.15)' }
-  else if (health >= 70) { color='var(--gr)';   label='GOOD';      bg='rgba(63,185,80,.15)' }
-  else if (health >= 50) { color='var(--r-fa)'; label='FAIR';      bg='rgba(255,193,7,.15)' }
-  else if (health >= 30) { color='var(--r-po)'; label='POOR';      bg='rgba(255,152,0,.15)' }
-  else                   { color='var(--r-cr)'; label='CRITICAL';  bg='rgba(244,67,54,.15)' }
-  ring.style.borderColor = color
-  num.style.color = color
-  badge.textContent = label
-  badge.style.background = bg
-  badge.style.color = color
-  const dlC   = dlScore   >= 70 ? 'var(--r-ex)' : dlScore   >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
-  const rsrpC = rsrpScore >= 70 ? 'var(--r-ex)' : rsrpScore >= 40 ? 'var(--r-fa)' : 'var(--r-cr)'
-  // hasCxData false means cxScore is still its 50 placeholder default (see comment above) — must
-  // not be rendered as if it were a real (and misleadingly "FAIR") measured score.
-  const cxC   = !hasCxData ? 'var(--mu)' : cxScore >= 70 ? 'var(--r-ex)' : cxScore >= 50 ? 'var(--r-fa)' : 'var(--r-cr)'
-  drv.innerHTML = [
-    `<span style="color:${dlC}">↓ Download: ${n(avgDl)} Mbps</span>`,
-    `<span style="color:${rsrpC}">📶 Signal: ${n(avgRsrp,0)} dBm</span>`,
-    `<span style="color:${cxC}">★ CX: ${hasCxData?n(cxScore,1)+' / 10':'—'}</span>`
-  ].join('')
-}
-
 // ── RAG badge helper ──────────────────────────────
 function setRag(id, val, good, warn, higherIsBetter=true) {
   const el = document.getElementById(id)
@@ -2756,9 +2678,15 @@ function renderKPIs() {
     document.getElementById('tr-ping').innerHTML = arrow(avgC(recent,'ping_ms'),       avgC(prior,'ping_ms'), false)
     document.getElementById('tr-rsrp').innerHTML = arrow(avgC(recent,'rsrp'),          avgC(prior,'rsrp'))
     document.getElementById('tr-tot').innerHTML  = arrow(recent.length,                prior.length)
+  } else {
+    // Fewer than 10 rows in the current filter (including 0) — clear the trend arrows instead of
+    // leaving them showing a stale percentage computed from a previous, unrelated filter combo,
+    // which otherwise visibly contradicts k-tot/health-status-badge right next to them.
+    ['tr-dl','tr-ul','tr-ping','tr-rsrp','tr-tot'].forEach(id=>{
+      const el=document.getElementById(id)
+      if(el) el.innerHTML=''
+    })
   }
-  // Health score
-  renderHealthScore()
 }
 
 // ── Render: Executive Status Banner ───────────────
@@ -3010,11 +2938,19 @@ function renderOSMatrix() {
   const healthW=healthParts.reduce((s,[,w])=>s+w,0)
   const health=healthParts.length?Math.round(healthParts.reduce((s,[v,w])=>s+v*w,0)/healthW):null
   const hn=document.getElementById('os-health-num'), hb=document.getElementById('os-health-badge')
-  if(hn&&nx.length){hn.textContent=health!=null?health:'—';hn.style.color=health==null?'var(--mu)':health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'}
-  if(hb&&nx.length&&health!=null){
-    const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
-    const clr=health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'
-    hb.textContent=lbl;hb.style.background='color-mix(in srgb,'+clr+' 13%,transparent)';hb.style.color=clr;hb.style.border='1px solid color-mix(in srgb,'+clr+' 27%,transparent)'
+  if(!nx.length){
+    // Zero rows for the current filter combo — mirror renderExecBanner()'s/the metric cards'
+    // INSUFFICIENT DATA reset instead of leaving the Performance Index frozen on the previous
+    // filter's number, which otherwise visibly contradicts the widgets below it.
+    if(hn){hn.textContent='—';hn.style.color='var(--mu)'}
+    if(hb){hb.textContent='INSUFFICIENT DATA';hb.style.background='rgba(139,148,158,.15)';hb.style.color='var(--mu)';hb.style.border='none'}
+  } else {
+    if(hn){hn.textContent=health!=null?health:'—';hn.style.color=health==null?'var(--mu)':health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'}
+    if(hb&&health!=null){
+      const lbl=health>=85?'EXCELLENT':health>=70?'GOOD':health>=50?'FAIR':health>=30?'POOR':'CRITICAL'
+      const clr=health>=70?'var(--gr)':health>=50?'var(--yw)':'var(--re)'
+      hb.textContent=lbl;hb.style.background='color-mix(in srgb,'+clr+' 13%,transparent)';hb.style.color=clr;hb.style.border='1px solid color-mix(in srgb,'+clr+' 27%,transparent)'
+    }
   }
   // Update period label
   const per=document.getElementById('os-period')
@@ -4347,6 +4283,17 @@ function applyTheme(mode){
       c.update('none')
     })
   }
+  // Re-apply theme-aware operator text color (opTextColor) to already-rendered Coverage Map
+  // elements — otherwise the Single-view header and Compare-mode operator selects keep the
+  // stale light/dark color from whenever they were last built, failing WCAG-AA contrast
+  // against the new background until some unrelated re-render happens to touch them.
+  if(typeof updateCovMapHeader==='function' && document.getElementById('cov-map-op')) updateCovMapHeader()
+  if(typeof compareMaps!=='undefined'){
+    compareMaps.forEach(e=>{
+      const sel=document.getElementById('cov-cmp-op-'+e.idx)
+      if(sel) sel.style.color=opTextColor(sel.value)
+    })
+  }
 }
 function toggleTheme(){
   const cur=localStorage.getItem('np-theme')||'dark'
@@ -4629,15 +4576,14 @@ function refreshDash() {
   pages['tb-recent']=0
   // Pre-compute filtered datasets once — all render functions read these instead of calling filterNx repeatedly
   _dashNx = filterNx(nxAll, {date:F.dDate, op:F.dOp, tech:F.dTech, prov:F.dProv})
-  _dashOs = filterOs(osAll, {date:F.dDate, op:F.dOp, tech:F.dTech, cov:F.dCov, prov:F.dProv})
+  _dashOs = filterOs(osAll, {date:F.dDate, op:F.dOp, tech:F.dTech, prov:F.dProv})
   _dashOpNx = {Cellcard:_dashNx.filter(r=>r._op==='Cellcard'), Metfone:_dashNx.filter(r=>r._op==='Metfone'), Smart:_dashNx.filter(r=>r._op==='Smart')}
   _dashOpOs = {Cellcard:_dashOs.filter(r=>r._op==='Cellcard'), Metfone:_dashOs.filter(r=>r._op==='Metfone'), Smart:_dashOs.filter(r=>r._op==='Smart')}
   const _allNx = F.dOp==='all' ? _dashNx : filterNx(nxAll, {date:F.dDate, op:'all', tech:F.dTech, prov:F.dProv})
   _dashAllOpNx = {Cellcard:_allNx.filter(r=>r._op==='Cellcard'), Metfone:_allNx.filter(r=>r._op==='Metfone'), Smart:_allNx.filter(r=>r._op==='Smart')}
-  const _allOs = filterOs(osAll, {date:F.dDate, tech:F.dTech, prov:F.dProv, cov:F.dCov})
+  const _allOs = filterOs(osAll, {date:F.dDate, tech:F.dTech, prov:F.dProv})
   _dashAllOpOs = {Cellcard:_allOs.filter(r=>r._op==='Cellcard'), Metfone:_allOs.filter(r=>r._op==='Metfone'), Smart:_allOs.filter(r=>r._op==='Smart')}
   // Frame 1: above-fold exec content (visible immediately)
-  // Health banner is handled by renderHealthScore() called inside renderKPIs()
   requestAnimationFrame(()=>{
     renderKPIs();renderOSMatrix();renderExecBanner();renderHeroKPIs()
     // Frame 2: secondary exec panels
