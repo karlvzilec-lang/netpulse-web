@@ -25,6 +25,7 @@ html,body{overflow-x:hidden}
   --pr:#1f6feb;--tx:#e6edf3;--mu:#9da8b4;
   --gr:#3fb950;--yw:#d29922;--or:#db6d28;--re:#f85149;--pu:#a371f7;--bl:#58a6ff;--cy:#39d353;
   --r-ex:#00e676;--r-go:#00bcd4;--r-fa:#ffc107;--r-po:#ff9800;--r-cr:#f44336;
+  --r-teal:#2dd4bf;--r-purple:#a78bfa;
   /* Design tokens — radius / spacing / type scale */
   --r-card:12px;--r-ctrl:8px;--r-pill:20px;
   --sp-1:6px;--sp-2:10px;--sp-3:14px;--sp-4:18px;--sp-5:24px;
@@ -35,6 +36,7 @@ html,body{overflow-x:hidden}
   --tx:#1f2328;--mu:#656d76;--bl:#0969da;--pr:#0969da;
   --gr:#1a7f37;--yw:#9a6700;--or:#bc4c00;--re:#cf222e;--pu:#8250df;--cy:#0550ae;
   --r-ex:#1a7f37;--r-go:#0550ae;--r-fa:#9a6700;--r-po:#bc4c00;--r-cr:#cf222e;
+  --r-teal:#0f766e;--r-purple:#6d28d9;
 }
 [data-theme="light"] .nav{background:#ffffff;border-bottom:1px solid #d0d7de}
 [data-theme="light"] .card{box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -184,6 +186,8 @@ tr:hover td{background:var(--s2)}
 .dchip[data-drv-op="Cellcard"].on{background:rgba(255,121,0,.15);border-color:rgba(255,121,0,.5);color:#FF7900}
 .dchip[data-drv-op="Metfone"].on{background:rgba(219,26,33,.15);border-color:rgba(219,26,33,.5);color:#DB1A21}
 .dchip[data-drv-op="Smart"].on{background:rgba(0,150,57,.15);border-color:rgba(0,150,57,.5);color:#009639}
+.dchip:disabled{opacity:.45;cursor:not-allowed}
+.dchip:disabled:hover{border-color:var(--bd);color:var(--mu)}
 .drv-date-wrap{display:flex;align-items:center;gap:4px;margin-left:4px}
 .drv-date-in{padding:3px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:11px;cursor:pointer}
 .drv-device-sel{padding:3px 8px;border-radius:14px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);font-size:11px;cursor:pointer;min-width:130px}
@@ -422,7 +426,14 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 @media(max-width:640px){
   .page{padding:12px}
   #tp-cov.on{margin:-12px}
-  .nav{padding:0 12px}
+  /* Coverage Map: sidebar+map split never collapsed on narrow screens, squeezing the map to a
+     ~125px sliver with its overlay controls (compare toggle, stat pills) overflowing the
+     viewport. Stack the sidebar above the map instead of reserving a fixed 272px column. */
+  .cov-wrap{flex-direction:column;overflow-y:auto}
+  .cov-sb{width:100%;max-height:38vh;flex-shrink:0}
+  .cov-map-ct{min-height:42vh}
+  .nav{padding:0 12px;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
   .nav-logo{margin-right:12px}
   .nav-ts{display:none}
   .fbar{padding:8px 12px;position:static;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
@@ -585,9 +596,8 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
   </div>
   <div class="fbar-div"></div>
   <div class="fbar-group">
-    <select class="fdrop" id="dd-tech" aria-label="Filter by network technology"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option><option value="3g">3G</option><option value="2g">2G</option></select>
+    <select class="fdrop" id="dd-tech" aria-label="Filter by network technology"><option value="all">All Tech</option><option value="5g">5G</option><option value="4g">4G LTE</option></select>
     <select class="fdrop" id="dd-prov" aria-label="Filter by province"><option value="all">All Provinces</option></select>
-    <select class="fdrop" id="dd-cov" style="display:none" aria-label="Filter by coverage type"><option value="all">Coverage: All</option><option value="mobile">Mobile</option><option value="broadband">Broadband/WiFi</option></select>
   </div>
 </div>
 
@@ -688,18 +698,18 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
 
   <!-- Overview -->
   <div class="stp on" id="st-overview">
-    <!-- ══ MOBILE NETWORK EXPERIENCE MATRIX (OpenSignal-style) ══ -->
+    <!-- ══ SPEED-TEST PERFORMANCE MATRIX (proxy metrics derived from raw speed tests, not opensignal_scores) ══ -->
     <div class="exec-view" id="os-matrix-section">
       <!-- Report header -->
       <div class="os-score-hd">
         <div>
-          <div class="os-score-period" id="os-period">Mobile Network Experience Report</div>
+          <div class="os-score-period" id="os-period">Speed Test Performance Summary</div>
           <div class="os-score-title">Cambodia · Operator Comparison</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <div style="text-align:center">
             <div style="font-size:26px;font-weight:900;color:var(--bl)" id="os-health-num">—</div>
-            <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px">Health Score</div>
+            <div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px">Performance Index</div>
           </div>
           <div id="os-health-badge" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;background:var(--s2);color:var(--mu)">LOADING</div>
         </div>
@@ -712,7 +722,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="mxc-grp">
         <div class="mxc-grp-hd">
           <div class="mxc-grp-rule"></div>
-          <span class="mxc-grp-pill" style="background:rgba(15,76,92,.25);color:#2dd4bf;border:1px solid rgba(45,212,191,.2)">Overall Experience</span>
+          <span class="mxc-grp-pill" style="background:color-mix(in srgb,var(--r-teal) 15%,transparent);color:var(--r-teal);border:1px solid color-mix(in srgb,var(--r-teal) 30%,transparent)">Overall Experience</span>
           <div class="mxc-grp-rule"></div>
         </div>
         <div class="mxc-grid" id="mxc-grid-overall"></div>
@@ -721,7 +731,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="mxc-grp" style="margin-top:16px">
         <div class="mxc-grp-hd">
           <div class="mxc-grp-rule"></div>
-          <span class="mxc-grp-pill" style="background:rgba(88,28,135,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.2)">Consistency</span>
+          <span class="mxc-grp-pill" style="background:color-mix(in srgb,var(--r-purple) 15%,transparent);color:var(--r-purple);border:1px solid color-mix(in srgb,var(--r-purple) 30%,transparent)">Consistency</span>
           <div class="mxc-grp-rule"></div>
         </div>
         <div class="mxc-grid" id="mxc-grid-consistency"></div>
@@ -751,14 +761,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <span id="esb-badge" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--s2);color:var(--mu);letter-spacing:.5px"></span>
     </div>
     <div id="esb-sub" style="font-size:11px;color:var(--mu);margin-bottom:6px"></div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--mu)">DL: <b id="esb-dl" style="color:var(--tx)">—</b> Mbps</span>
-      <span style="font-size:11px;color:var(--mu)">Coverage: <b id="esb-covpct" style="color:var(--tx)">—</b></span>
-      <span style="font-size:11px;color:var(--mu)">CX: <b id="esb-cx" style="color:var(--tx)">—</b></span>
-      <span style="font-size:11px;color:var(--mu)">Latency: <b id="esb-ping" style="color:var(--tx)">—</b></span>
-    </div>
   </div>
-  <ul id="esb-facts" style="list-style:none;font-size:10px;color:var(--mu);display:flex;flex-direction:column;gap:2px;min-width:120px;text-align:right"></ul>
 </div>
 <!-- Hero KPI Grid -->
 <div class="hero-grid exec-view" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--bd)">
@@ -998,7 +1001,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">RAT</th><th scope="col">Bands</th><th class="r">↓ DL</th><th class="r">↑ UL</th><th class="r">Ping</th><th class="r">Jitter</th><th scope="col">RSRP</th><th class="r">SINR</th><th class="r">PCI</th><th scope="col">Province</th><th scope="col">Indoor/Out</th></tr></thead><tbody id="tb-net"></tbody></table></div>
   </div>
   <div class="card mb">
-    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games</span></div>
+    <div class="ch"><span class="ch-t" role="heading" aria-level="2">Gaming Latency Tests</span><span class="ch-s">MLBB &amp; other games &middot; filtered by Period &amp; Operator only — gaming_latency_tests has no technology/province data</span></div>
     <div class="tw"><table><thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Operator</th><th scope="col">Game</th><th class="r">Avg Ping</th><th class="r">Min Ping</th><th class="r">Max Ping</th><th class="r">Jitter</th><th class="r">Packet Loss</th><th class="r">OpenSignal Score</th><th scope="col">Band</th></tr></thead><tbody id="tb-gaming"></tbody></table></div>
   </div>
   <div class="g g2">
@@ -1103,11 +1106,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           </div>
         </div>
         <div class="drv-frow">
-          <span class="drv-flbl">Operator</span>
-          <button class="dchip" data-drv-op="all">All</button>
-          <button class="dchip on" data-drv-op="Cellcard" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
-          <button class="dchip" data-drv-op="Metfone" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
-          <button class="dchip" data-drv-op="Smart" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
+          <span class="drv-flbl" title="drive_sessions has no operator column, so this filter cannot be applied">Operator</span>
+          <button class="dchip" data-drv-op="all" disabled title="Operator data not available for drive sessions">All</button>
+          <button class="dchip" data-drv-op="Cellcard" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
+          <button class="dchip" data-drv-op="Metfone" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
+          <button class="dchip" data-drv-op="Smart" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
           <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
           <span class="drv-flbl" style="min-width:auto">Device</span>
           <select id="drv-device-sel" class="drv-device-sel" aria-label="Filter drive sessions by device"><option value="all">All Devices</option></select>
@@ -1313,7 +1316,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <button id="sim-run-btn" style="width:100%;padding:7px;background:rgba(31,111,235,.25);border:1px solid rgba(31,111,235,.5);border-radius:6px;color:var(--bl);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:4px">▶ Run Simulation</button>
         <button id="sim-clear-btn" style="width:100%;padding:5px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;display:none">✕ Clear</button>
         <button id="sim-compare-btn" style="width:100%;padding:6px;background:rgba(148,163,184,.15);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;cursor:pointer;margin-bottom:4px">📊 Show Measured Overlay</button>
-        <button id="gap-analysis-btn" style="width:100%;padding:6px;background:rgba(255,121,0,.15);border:1px solid rgba(255,121,0,.4);border-radius:6px;color:#FF7900;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:4px">🔍 Analyze Coverage Gaps</button>
+        <button id="gap-analysis-btn" style="width:100%;padding:6px;background:color-mix(in srgb,var(--or) 15%,transparent);border:1px solid color-mix(in srgb,var(--or) 40%,transparent);border-radius:6px;color:var(--or);font-size:11px;font-weight:600;cursor:pointer;margin-bottom:4px">🔍 Analyze Coverage Gaps</button>
         <div id="gap-status" role="status" aria-live="polite" style="font-size:10px;color:var(--mu);margin-top:4px"></div>
         <div id="sim-status" role="status" aria-live="polite" style="font-size:10px;color:var(--mu);margin-top:6px;min-height:14px"></div>
         <div class="sb-sec-hd" style="margin-top:10px">Simulation Legend</div>
@@ -1588,6 +1591,14 @@ function computeNetworkHealthScore(dlMbps,avgRsrp,cxScore10){
   return Math.round(parts.reduce((s,[v,w])=>s+v*w,0)/totalW)
 }
 const OP_COLORS={Cellcard:'#FF7900',Metfone:'#DB1A21',Smart:'#009639'}
+// Cellcard's brand orange (#FF7900) is bright enough to fail WCAG AA as foreground text on the
+// light theme's white/near-white backgrounds (~2.6:1). Text/label usages of OP_COLORS should go
+// through this instead of indexing OP_COLORS directly; fill/dot/marker usages are unaffected.
+const OP_TEXT_COLORS_LIGHT={Cellcard:'#bc4c00'}
+function opTextColor(op){
+  const light = document.documentElement.getAttribute('data-theme')==='light'
+  return (light && OP_TEXT_COLORS_LIGHT[op]) || OP_COLORS[op]
+}
 const SB_URL = 'https://bauiffaqfboqlqnmxffc.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhdWlmZmFxZmJvcWxxbm14ZmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMjc5ODAsImV4cCI6MjA5NjgwMzk4MH0.jG2VkYTt5xkej4xYiQwEroYGVhQ6P48JrzTvekuHe1M'
 
@@ -1601,6 +1612,7 @@ let _dashAllOpNx = {Cellcard:[],Metfone:[],Smart:[]}
 let _dashAllOpOs = {Cellcard:[],Metfone:[],Smart:[]}
 let driveSamples = [], activeSess = null
 let map = null, mapReady = false
+let drPopup = null, flagPopup = null
 let sampledSessionIds = new Set()   // session IDs that have actual drive_samples rows
 
 // ── Paginator ─────────────────────────────────────
@@ -1664,7 +1676,7 @@ const F = {
   // CX — local "Type" filter only (operator/tech/province come from the global bar above)
   cCov:'all',
   // Drive Test
-  drvDate:'all', drvFrom:null, drvTo:null, drvOp:'Cellcard', drvDevice:'all',
+  drvDate:'all', drvFrom:null, drvTo:null, drvDevice:'all',
 }
 
 // ── Helpers ───────────────────────────────────────
@@ -1894,7 +1906,17 @@ let myProfile = null     // netpulse_profiles row for currentUser, or null
 let permMatrix = {}      // {role: {permission: boolean}}
 let pendingAuthTab = null   // tab the user was trying to reach when the login modal opened
 
+// Tracks the element that had focus before a modal opened, so closing the modal can restore
+// keyboard focus there (sign-in, request-access, set-password and credentials modals all share this).
+let lastFocusedTrigger = null
+function restoreFocusToTrigger(){
+  if(lastFocusedTrigger && document.contains(lastFocusedTrigger) && typeof lastFocusedTrigger.focus==='function'){
+    lastFocusedTrigger.focus()
+  }
+  lastFocusedTrigger = null
+}
 function openAuthModal(tab){
+  lastFocusedTrigger = document.activeElement
   pendingAuthTab = tab || null
   showSignInForm()
   document.getElementById('auth-modal-backdrop').classList.add('on')
@@ -1903,6 +1925,12 @@ function openAuthModal(tab){
 function closeAuthModal(){
   document.getElementById('auth-modal-backdrop').classList.remove('on')
   pendingAuthTab = null
+  // Clear credentials from the DOM on every dismissal path (Cancel/Escape/backdrop/failed or
+  // successful submit), not just on success — this is a shared/kiosk-style dashboard.
+  document.getElementById('auth-email').value=''
+  document.getElementById('auth-pass').value=''
+  document.getElementById('auth-err').textContent=''
+  restoreFocusToTrigger()
 }
 function showSignInForm(){
   document.getElementById('auth-modal-signin').style.display=''
@@ -1954,7 +1982,6 @@ async function onAuthSubmit(){
   const wantedTab = pendingAuthTab   // read before closeAuthModal() clears it
   closeAuthModal()
   await refreshAccessState()
-  document.getElementById('auth-pass').value = ''
   if(wantedTab){
     const b = document.querySelector(`.tab-btn[data-tab="${wantedTab}"]`)
     if(b) b.click()
@@ -1996,6 +2023,7 @@ async function loadPermMatrix(){
 function updateAuthUI(){
   const btn = document.getElementById('auth-btn')
   btn.textContent = currentUser ? `Sign Out (${currentUser.email})` : 'Sign In'
+  btn.title = btn.textContent
   document.querySelectorAll('.auth-lock-badge').forEach(el=>{ el.style.display = currentUser ? 'none' : '' })
 
   for(const [tab,perm] of Object.entries(AUTH_GATED_TABS)){
@@ -2150,14 +2178,17 @@ async function rejectRequest(id){
   }
 }
 function showApprovedCredentials(email, password){
+  lastFocusedTrigger = document.activeElement
   document.getElementById('cred-modal-sub').textContent = `Account created for ${email}.`
   document.getElementById('cred-modal-password').value = password
   document.getElementById('cred-modal-copy').textContent = 'Copy'
   document.getElementById('cred-modal-backdrop').classList.add('on')
+  document.getElementById('cred-modal-password').focus()
 }
 function closeCredModal(){
   document.getElementById('cred-modal-backdrop').classList.remove('on')
   document.getElementById('cred-modal-password').value = ''
+  restoreFocusToTrigger()
 }
 async function copyCredPassword(){
   const input = document.getElementById('cred-modal-password')
@@ -2229,6 +2260,7 @@ let pwModalTargetId = null
 function openPwModal(userId){
   const p = adminAllProfiles.find(x=>x.id===userId)
   if(!p) return
+  lastFocusedTrigger = document.activeElement
   pwModalTargetId = userId
   document.getElementById('pw-modal-sub').textContent = `Set a new password for ${p.email}`
   document.getElementById('pw-modal-input').value=''
@@ -2242,6 +2274,7 @@ function closePwModal(){
   const input = document.getElementById('pw-modal-input')
   input.type = 'password'
   document.getElementById('pw-modal-toggle').textContent = 'Show'
+  restoreFocusToTrigger()
 }
 function togglePwModalVisibility(){
   const input = document.getElementById('pw-modal-input')
@@ -2532,7 +2565,7 @@ function initDriveMap() {
     'text-font':['Noto Sans Bold']
   },paint:{'text-color':'#fff','text-halo-color':'rgba(0,0,0,.4)','text-halo-width':1}})
 
-  const flagPopup = new maplibregl.Popup({closeButton:true,maxWidth:'280px',className:'flag-popup'})
+  flagPopup = new maplibregl.Popup({closeButton:true,maxWidth:'280px',className:'flag-popup'})
   map.on('click','flag-pin',e=>{
     const p=e.features[0].properties
     const sevColor=p.sev===1?'var(--r-cr)':p.sev===2?'var(--r-po)':'var(--r-fa)'
@@ -2559,7 +2592,7 @@ function initDriveMap() {
   map.on('mouseenter','flag-pin',()=>map.getCanvas().style.cursor='crosshair')
   map.on('mouseleave','flag-pin',()=>map.getCanvas().style.cursor='')
 
-  const drPopup = new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
+  drPopup = new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
   map.on('click','dots-layer',e=>{
     const p=e.features[0].properties
     const gc=gradeColor(p.grade)
@@ -2605,7 +2638,24 @@ function setDashView(v) {
 // ── Network health score (executive) ──────────────
 function renderHealthScore() {
   const nx = _dashNx
-  if (!nx.length) return
+  if (!nx.length) {
+    // Zero rows for the current filter combo (e.g. a Technology/Province/Operator combo with no
+    // data) must show the same INSUFFICIENT DATA state used below for other empty-data cases,
+    // not silently keep showing whatever score the previous filter combination computed.
+    const ring  = document.getElementById('health-ring')
+    const num   = document.getElementById('health-score-num')
+    const badge = document.getElementById('health-status-badge')
+    const drv   = document.getElementById('health-drivers')
+    if (!ring) return
+    num.textContent = '—'
+    ring.style.borderColor = 'var(--mu)'
+    num.style.color = 'var(--mu)'
+    badge.textContent = 'INSUFFICIENT DATA'
+    badge.style.background = 'rgba(139,148,158,.15)'
+    badge.style.color = 'var(--mu)'
+    if (drv) drv.innerHTML = ''
+    return
+  }
   const avg = col => nx.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/nx.length
   const avgDl   = avg('download_mbps')
   const avgRsrp = avg('rsrp')
@@ -2629,11 +2679,15 @@ function renderHealthScore() {
   const drv   = document.getElementById('health-drivers')
   if (!ring) return
   num.textContent = health!=null?health:'—'
+  // Tier scale aligned with renderExecBanner()/renderOSMatrix() (85/70/50/30 EXCELLENT-GOOD-FAIR-POOR-CRITICAL)
+  // so the same numeric score never gets a different qualitative label on different widgets on this page.
   let color, label, bg
   if (health==null)      { color='var(--mu)'; label='INSUFFICIENT DATA'; bg='rgba(139,148,158,.15)' }
-  else if (health >= 75)      { color='var(--r-ex)'; label='GOOD';     bg='rgba(0,230,118,.15)' }
-  else if (health >= 50) { color='var(--r-fa)'; label='FAIR';     bg='rgba(255,193,7,.15)' }
-  else                   { color='var(--r-cr)'; label='NEEDS ATTENTION'; bg='rgba(244,67,54,.15)' }
+  else if (health >= 85) { color='var(--r-ex)'; label='EXCELLENT'; bg='rgba(0,230,118,.15)' }
+  else if (health >= 70) { color='var(--gr)';   label='GOOD';      bg='rgba(63,185,80,.15)' }
+  else if (health >= 50) { color='var(--r-fa)'; label='FAIR';      bg='rgba(255,193,7,.15)' }
+  else if (health >= 30) { color='var(--r-po)'; label='POOR';      bg='rgba(255,152,0,.15)' }
+  else                   { color='var(--r-cr)'; label='CRITICAL';  bg='rgba(244,67,54,.15)' }
   ring.style.borderColor = color
   num.style.color = color
   badge.textContent = label
@@ -2701,6 +2755,7 @@ function renderKPIs() {
     document.getElementById('tr-ul').innerHTML   = arrow(avgC(recent,'upload_mbps'),   avgC(prior,'upload_mbps'))
     document.getElementById('tr-ping').innerHTML = arrow(avgC(recent,'ping_ms'),       avgC(prior,'ping_ms'), false)
     document.getElementById('tr-rsrp').innerHTML = arrow(avgC(recent,'rsrp'),          avgC(prior,'rsrp'))
+    document.getElementById('tr-tot').innerHTML  = arrow(recent.length,                prior.length)
   }
   // Health score
   renderHealthScore()
@@ -2711,15 +2766,12 @@ function renderExecBanner() {
   const nx=_dashNx
   const os=_dashOs
   const avgOf=(arr,col)=>arr.length?arr.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/arr.length:null
-  const avgDl=avgOf(nx,'download_mbps'), avgPing=avgOf(nx,'ping_ms')
+  const avgDl=avgOf(nx,'download_mbps')
   const rsrpVals=nx.map(r=>r.rsrp).filter(v=>v!=null)
   const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
   const vid=avgOf(os,'video_experience'),gam=avgOf(os,'games_experience'),vox=avgOf(os,'voice_app_experience')
   const cxRaw=(vid!=null&&gam!=null&&vox!=null)?(vid+gam+vox)/3:null
   const cxScore10=cxRaw!=null?cxRaw/10:null
-
-  // coverage quality: % of tests with rsrp >= -100 (Good or better)
-  const goodPct=rsrpGoodPct(rsrpVals)
 
   // health score: DL 40%, signal 35%, CX 25% (reweighted over whichever are present — see
   // computeNetworkHealthScore). avgDl is effectively always present here (nx.length>0 is already
@@ -2748,12 +2800,6 @@ function renderExecBanner() {
   scoreEl.style.color=ringColor
   verdict.textContent=vText; sub.textContent=vSub
   badge.textContent=bText; badge.style.background=bBg; badge.style.color=bColor
-
-  const set=(id,val,unit='')=>{ const el=document.getElementById(id); if(el) el.textContent=val!=null?val+unit:'—' }
-  set('esb-dl', avgDl!=null?n(avgDl):'—')
-  set('esb-covpct', goodPct!=null?goodPct+'%':'—')
-  set('esb-cx', cxScore10!=null?cxScore10.toFixed(1)+'/10':'—')
-  set('esb-ping', avgPing!=null?n(avgPing,0)+' ms':'—')
 }
 
 // ── Render: Hero KPI Cards ─────────────────────────
@@ -2896,8 +2942,8 @@ function renderOSMatrix() {
   const METRICS_OVERALL = [
     {id:'dl',    title:'Download Speed',    unit:'Mbps',        get:d=>d.dl,    higher:true,  fmt:v=>n(v,1)},
     {id:'ul',    title:'Upload Speed',      unit:'Mbps',        get:d=>d.ul,    higher:true,  fmt:v=>n(v,1)},
-    {id:'games', title:'Games Experience',  unit:'ms latency',  get:d=>d.ping,  higher:false, fmt:v=>n(v,0)+'ms'},
-    {id:'video', title:'Video Experience',  unit:'% ≥10 Mbps',  get:d=>d.video, higher:true,  fmt:v=>n(v,0)+'%'},
+    {id:'games', title:'Latency',           unit:'ms ping',     get:d=>d.ping,  higher:false, fmt:v=>n(v,0)+'ms'},
+    {id:'video', title:'High-Speed Ratio',  unit:'% ≥10 Mbps',  get:d=>d.video, higher:true,  fmt:v=>n(v,0)+'%'},
   ]
   const METRICS_CONSISTENCY = [
     {id:'cq',  title:'Consistent Quality', unit:'% all thresholds', get:d=>d.cq,  higher:true, fmt:v=>n(v,0)+'%'},
@@ -2974,7 +3020,7 @@ function renderOSMatrix() {
   const per=document.getElementById('os-period')
   if(per){
     const lbl={all:'All Time',week:'Last 7 Days',month:'Last 30 Days',quarter:'Last 90 Days',ytd:'Year to Date'}
-    per.textContent='Mobile Network Experience · '+(lbl[F.dDate]||'All Time')
+    per.textContent='Speed Test Performance · '+(lbl[F.dDate]||'All Time')
   }
 }
 
@@ -3697,6 +3743,8 @@ async function paintAllSessionsOverview(){
 }
 function paintMap() {
   if(!mapReady) return
+  if(drPopup) drPopup.remove()
+  if(flagPopup) flagPopup.remove()
   const valid=driveSamples.filter(s=>s.latitude!=null&&s.longitude!=null)
 
   // Show/hide no-data overlay
@@ -5099,7 +5147,6 @@ document.querySelectorAll('[data-dop]').forEach(b=>b.addEventListener('click',()
   b.classList.add('on'); F.dOp=b.dataset.dop; applyGlobal()
 }))
 document.getElementById('dd-tech').addEventListener('change',e=>{F.dTech=e.target.value;applyGlobal()})
-document.getElementById('dd-cov').addEventListener('change',e=>{F.dCov=e.target.value;applyGlobal()})
 document.getElementById('dd-prov').addEventListener('change',e=>{F.dProv=e.target.value;applyGlobal()})
 
 // Drive Test filters
@@ -5115,10 +5162,8 @@ document.querySelectorAll('[data-ddate]').forEach(b=>b.addEventListener('click',
   }
   renderSessions()
 }))
-document.querySelectorAll('[data-drv-op]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-drv-op]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.drvOp=b.dataset.drvOp; renderSessions()
-}))
+// Operator chips (data-drv-op) are intentionally disabled in markup — drive_sessions has no
+// operator column, see the comment in renderSessions(). No click wiring needed while disabled.
 document.getElementById('drv-device-sel').addEventListener('change',e=>{F.drvDevice=e.target.value;renderSessions()})
 document.getElementById('drv-date-from').addEventListener('change',e=>{
   F.drvFrom=e.target.value||null; F.drvDate='custom'
@@ -5141,6 +5186,7 @@ document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',(
 //  COVERAGE MAP — H3 hexbin + CellMapper drive dots
 // ══════════════════════════════════════════════════
 let mapCov=null, mapCovReady=false
+let covPopup=null, simPopup=null
 let covDriveSamples=[], covTowersGJ={type:'FeatureCollection',features:[]}, covResellersGJ={type:'FeatureCollection',features:[]}
 let covDriveSamplesLoaded=false   // fetch is shared between Coverage Map and Drive Test's all-sessions overview — whichever tab is opened first loads it once
 async function ensureCovDriveSamplesLoaded(){
@@ -5265,10 +5311,11 @@ function updateCovMapHeader(){
   const el=document.getElementById('cov-map-op')
   if(!el) return
   el.textContent = CF.op==='all' ? 'All Operators' : CF.op
-  el.style.color = CF.op==='all' ? 'var(--tx)' : OP_COLORS[CF.op]
+  el.style.color = CF.op==='all' ? 'var(--tx)' : opTextColor(CF.op)
 }
 function renderCovMap(){
   if(!mapCovReady) return
+  if(covPopup) covPopup.remove()
   updateCovMapHeader()
 
   const driveRows=filterCovDrive()
@@ -5408,7 +5455,7 @@ function buildCompareMaps(n){
     panel.innerHTML=`
       <div class="cov-cmp-hd">
         <span class="live-tag">LIVE</span>
-        <select id="cov-cmp-op-${i}" aria-label="Panel ${i+1} operator" style="color:${OP_COLORS[defaultOps[i]]}">
+        <select id="cov-cmp-op-${i}" aria-label="Panel ${i+1} operator" style="color:${opTextColor(defaultOps[i])}">
           ${['Cellcard','Metfone','Smart'].map(op=>`<option value="${op}"${op===defaultOps[i]?' selected':''}>${op}</option>`).join('')}
         </select>
       </div>
@@ -5489,7 +5536,7 @@ function buildCompareMaps(n){
 
     document.getElementById(`cov-cmp-op-${i}`).addEventListener('change',e=>{
       entry.op=e.target.value
-      e.target.style.color=OP_COLORS[e.target.value]
+      e.target.style.color=opTextColor(e.target.value)
       renderComparePanel(i)
     })
   }
@@ -5678,7 +5725,7 @@ function initCovMap(){
       paint:{'text-color':'#e6edf3','text-halo-color':'#0d1117','text-halo-width':1}})
 
     // ── Popups ──
-    const covPopup=new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
+    covPopup=new maplibregl.Popup({closeButton:true,maxWidth:'240px'})
 
     mapCov.on('click','cov-dots',e=>{
       const p=e.features[0].properties, gc=gradeColor(p.grade)
@@ -5868,6 +5915,7 @@ let simH3Res = 9   // current resolution choice
 let lastSimRes = simH3Res   // resolution the most recently RUN simulation actually used — gap analysis must compare against this, not the live toggle, or changing the toggle after running silently corrupts every gap-analysis result
 
 async function runSimulation() {
+  if(simPopup) simPopup.remove()
   const towers = covTowersGJ.features
   if(!towers.length) {
     document.getElementById('sim-status').textContent = '⚠ Load cell sites first (Supabase)'
@@ -5955,7 +6003,7 @@ async function runSimulation() {
   // Add click popup on simulated hexes
   if(!mapCov._simPopupBound) {
     mapCov._simPopupBound = true
-    const simPopup = new maplibregl.Popup({closeButton:true,maxWidth:'200px'})
+    simPopup = new maplibregl.Popup({closeButton:true,maxWidth:'200px'})
     mapCov.on('click','sim-fill', e => {
       const p = e.features[0].properties
       const gc = rsrpColor(p.rsrp)
@@ -5976,6 +6024,7 @@ async function runSimulation() {
 }
 
 function clearSimulation() {
+  if(simPopup) simPopup.remove()
   mapCov.getSource('sim-coverage').setData({type:'FeatureCollection',features:[]})
   mapCov.setLayoutProperty('sim-fill',    'visibility', 'none')
   mapCov.setLayoutProperty('sim-outline', 'visibility', 'none')
