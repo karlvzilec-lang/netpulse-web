@@ -1087,7 +1087,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
-      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Sessions</span><span class="ch-s" id="sess-cnt">0</span></div>
+      <div class="ch"><span class="ch-t" role="heading" aria-level="2">Sessions</span><span class="ch-s" id="sess-cnt">0</span><button id="sync-all-btn" onclick="syncAllSessions()" title="Check all pending sessions for GPS data in one request" style="margin-left:auto;font-size:10px;padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;white-space:nowrap">↻ Sync All</button></div>
       <!-- Drive test filters -->
       <div class="drv-fbar">
         <div class="drv-frow">
@@ -3930,6 +3930,34 @@ window.recheckSession = async function(id) {
   } else {
     btn.textContent = 'No GPS yet'
     setTimeout(()=>{ btn.textContent=origText; btn.disabled=false }, 2000)
+  }
+}
+
+// One-click bulk version of recheckSession() — reuses the same efficient RPC-backed
+// fetchSampledSessionIds() that populates the set on initial page load, instead of
+// looping a separate drive_samples query per pending session.
+window.syncAllSessions = async function() {
+  const btn = document.getElementById('sync-all-btn')
+  const pendingIds = sessAll.filter(s=>!sampledSessionIds.has(s.id)).map(s=>s.id)
+  if(!pendingIds.length){
+    btn.textContent = 'All synced'
+    setTimeout(()=>{ btn.textContent = '↻ Sync All' }, 1500)
+    return
+  }
+  const origText = btn.textContent
+  btn.disabled = true
+  btn.textContent = `↻ Checking ${pendingIds.length}…`
+  try {
+    sampledSessionIds = await fetchSampledSessionIds()
+    const newlySynced = pendingIds.filter(id=>sampledSessionIds.has(id)).length
+    renderSessions()
+    btn.textContent = newlySynced>0 ? `✓ ${newlySynced} synced` : 'No new data'
+  } catch(e) {
+    console.error('syncAllSessions:', e)
+    btn.textContent = 'Check failed'
+  } finally {
+    btn.disabled = false
+    setTimeout(()=>{ btn.textContent = origText }, 2000)
   }
 }
 
