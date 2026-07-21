@@ -1092,11 +1092,11 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
           </div>
         </div>
         <div class="drv-frow">
-          <span class="drv-flbl" title="drive_sessions has no operator column, so this filter cannot be applied">Operator</span>
-          <button class="dchip" data-drv-op="all" disabled title="Operator data not available for drive sessions">All</button>
-          <button class="dchip" data-drv-op="Cellcard" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
-          <button class="dchip" data-drv-op="Metfone" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
-          <button class="dchip" data-drv-op="Smart" disabled title="Operator data not available for drive sessions" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
+          <span class="drv-flbl">Operator</span>
+          <button class="dchip" data-drv-op="all">All</button>
+          <button class="dchip on" data-drv-op="Cellcard" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idYxHSBrJ_/w/120/h/36/theme/dark/logo.png" alt="Cellcard" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Cellcard</button>
+          <button class="dchip" data-drv-op="Metfone" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/iduS9RMEDF/w/120/h/26/theme/dark/logo.png" alt="Metfone" style="height:11px;max-width:40px;object-fit:contain;opacity:.8" onerror="this.style.display='none'">Metfone</button>
+          <button class="dchip" data-drv-op="Smart" style="display:inline-flex;align-items:center;gap:5px"><img src="https://cdn.brandfetch.io/idzjMVN1Ux/w/120/h/44/theme/light/logo.png" alt="Smart" style="height:11px;max-width:40px;object-fit:contain;opacity:.75;filter:brightness(0) invert(1)" onerror="this.style.display='none'">Smart</button>
           <span style="width:1px;height:14px;background:var(--bd);margin:0 4px;display:inline-block;align-self:center"></span>
           <span class="drv-flbl" style="min-width:auto">Device</span>
           <select id="drv-device-sel" class="drv-device-sel" aria-label="Filter drive sessions by device"><option value="all">All Devices</option></select>
@@ -1662,7 +1662,7 @@ const F = {
   // CX — local "Type" filter only (operator/tech/province come from the global bar above)
   cCov:'all',
   // Drive Test
-  drvDate:'all', drvFrom:null, drvTo:null, drvDevice:'all',
+  drvDate:'all', drvFrom:null, drvTo:null, drvOp:'Cellcard', drvDevice:'all',
 }
 
 // ── Helpers ───────────────────────────────────────
@@ -3539,13 +3539,12 @@ function renderSessions() {
     if(F.drvFrom) filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)>=new Date(F.drvFrom))
     if(F.drvTo)   filtered=filtered.filter(s=>s.start_time&&new Date(s.start_time)<=new Date(F.drvTo+'T23:59:59'))
   }
-  // The Operator chip is intentionally NOT applied here — drive_sessions has no operator
-  // column at all (confirmed via information_schema against the live DB: device_id,
-  // local_session_id, name, start_time, end_time, distance_km, sample_count,
-  // avg_download_mbps, avg_rsrp, handover_count, created_at, nothing else). Filtering on
-  // normOp(s.operator) would always evaluate to 'Unknown' and, under the app's own default
-  // operator ("Cellcard", not "All"), silently filter out every single session. If a real
-  // operator field is ever added to this table, wire the filter back in here.
+  // Sessions carry no operator column of their own — merged in from drive_samples via
+  // fetchSessionOperators() (majority-vote per session_id). A session with no samples yet
+  // (still Pending) or no non-empty operator recorded has s.operator===null and is always
+  // shown regardless of the active filter, rather than disappearing before it's synced enough
+  // to classify — the filter only ever hides a session once it's confirmed NOT to match.
+  if(F.drvOp!=='all') filtered=filtered.filter(s=>s.operator==null || normOp(s.operator)===F.drvOp)
   if(F.drvDevice!=='all') filtered=filtered.filter(s=>s.device_id===F.drvDevice)
 
   // Synced sessions float to top, then newest first
@@ -4634,6 +4633,20 @@ async function fetchSampledSessionIds(){
   return new Set((data||[]).map(r=>r.session_id).filter(Boolean))
 }
 
+// Per-session dominant operator (majority vote over that session's drive_samples.operator
+// values, resolved server-side by session_operators()) — drive_sessions itself carries no
+// operator column. No fallback full-scan here: unlike sampled_session_ids (core sync state),
+// this is a nice-to-have filter/display value, so an RPC failure just leaves every session
+// unclassified (shown regardless of the active operator filter) rather than blocking load.
+async function fetchSessionOperators(){
+  try {
+    const {data,error}=await db.rpc('session_operators')
+    if(!error && Array.isArray(data)) return new Map(data.map(r=>[r.session_id, r.operator]))
+    if(error) console.error('session_operators RPC failed, sessions will show no operator:',error)
+  } catch(e){ /* fall through */ }
+  return new Map()
+}
+
 // "Most recent N rows overall" silently excludes every province except whichever one
 // is currently being tested most — confirmed live (2026-07-17): a Phnom Penh testing
 // burst made networkxp_data's "most recent 500" 100% Phnom Penh, with 7+ other
@@ -4659,6 +4672,7 @@ async function fetchAll() {
       db.from('gaming_latency_tests').select('*').order('tested_at',{ascending:false}).limit(200),
     ])
     const sampledIds = await fetchSampledSessionIds()
+    const sessionOps = await fetchSessionOperators()
 
     // Surface per-table failures to the user instead of only logging them
     const tbl=[['networkxp_data',nxR,'network'],['opensignal_scores',osR,'OpenSignal'],
@@ -4670,6 +4684,10 @@ async function fetchAll() {
     // Pre-normalize operator names once on load — eliminates normOp() calls inside every filter pass
     nxAll.forEach(r=>r._op=normOp(r.operator))
     osAll.forEach(r=>r._op=normOp(r.operator))
+    // drive_sessions carries no operator column of its own — merge in the per-session dominant
+    // operator resolved server-side by session_operators(). null means "not yet classified"
+    // (no synced samples yet, or none with a real operator value), not "doesn't match any filter".
+    sessAll.forEach(s=>{ s.operator = sessionOps.get(s.id) || null })
     sampledSessionIds=sampledIds
     populateProvinces()
     populateDrvDevices()
@@ -5108,8 +5126,10 @@ document.querySelectorAll('[data-ddate]').forEach(b=>b.addEventListener('click',
   }
   renderSessions()
 }))
-// Operator chips (data-drv-op) are intentionally disabled in markup — drive_sessions has no
-// operator column, see the comment in renderSessions(). No click wiring needed while disabled.
+document.querySelectorAll('[data-drv-op]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-drv-op]').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); F.drvOp=b.dataset.drvOp; renderSessions()
+}))
 document.getElementById('drv-device-sel').addEventListener('change',e=>{F.drvDevice=e.target.value;renderSessions()})
 document.getElementById('drv-date-from').addEventListener('change',e=>{
   F.drvFrom=e.target.value||null; F.drvDate='custom'
