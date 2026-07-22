@@ -1062,6 +1062,10 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span class="ch-t" role="heading" aria-level="2">Drive Route Map</span>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="ch-s" id="dmap-lbl">← Select a session</span>
+          <div style="display:flex;gap:4px">
+            <button class="dchip on" id="drv-view-points" onclick="setDriveMapView('points')">Points</button>
+            <button class="dchip" id="drv-view-hex" onclick="setDriveMapView('hex')">Hex Bins</button>
+          </div>
           <span class="live-tag">LIVE</span>
         </div>
       </div>
@@ -2504,6 +2508,11 @@ function initDriveMap() {
       ]
     }})
 
+  // Drive Test hex bins — aggregated alternative to the dots/route view below, toggled via
+  // setDriveMapView(); hidden by default since Points is the default view.
+  map.addSource('drv-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+  map.addLayer({id:'drv-hex-fill',type:'fill',source:'drv-hex',paint:DRV_HEX_FILL_PAINT,layout:{visibility:'none'}})
+
   // Drive dots — clustered, CellMapper style
   map.addSource('dots',{
     type:'geojson',
@@ -2607,9 +2616,39 @@ function initDriveMap() {
   map.on('mouseenter','dots-layer',()=>map.getCanvas().style.cursor='pointer')
   map.on('mouseleave','dots-layer',()=>map.getCanvas().style.cursor='')
 
+  // Hover tooltip for the hex bin layer — same idiom as the Coverage Map compare-mode hexbins
+  const drvHexPopup=new maplibregl.Popup({closeButton:false,maxWidth:'200px'})
+  map.on('mouseenter','drv-hex-fill',()=>map.getCanvas().style.cursor='pointer')
+  map.on('mousemove','drv-hex-fill',e=>{
+    const p=e.features[0].properties
+    const cnt=+p.count||0
+    const rsrpText=(cnt>0 && p.avg_rsrp!=null && !isNaN(+p.avg_rsrp)) ? (+p.avg_rsrp).toFixed(0)+' dBm' : '—'
+    drvHexPopup.setLngLat(e.lngLat).setHTML(`
+      <div style="font-family:system-ui;font-size:12px;color:var(--tx)">
+        <div style="font-weight:600;margin-bottom:4px">Drive Test Hexbin</div>
+        <div style="color:var(--mu)">Tests: <span style="color:var(--tx)">${cnt}</span></div>
+        <div style="color:var(--mu)">Avg RSRP: <span style="color:var(--tx)">${rsrpText}</span></div>
+      </div>`).addTo(map)
+  })
+  map.on('mouseleave','drv-hex-fill',()=>{
+    map.getCanvas().style.cursor=''
+    drvHexPopup.remove()
+  })
+
   if(activeSess) paintMap(); else paintAllSessionsOverview()
   })  // end map.on('load')
 }  // end initDriveMap
+
+// Points/Hex Bins toggle for the Drive Route Map — pure visibility flip, both sources are kept
+// populated on every repaint so switching never needs a re-fetch.
+const DRV_POINT_LAYERS=['dots-layer','drv-clusters','drv-cluster-ct','route-line','flag-glow','flag-pin','flag-lbl']
+function setDriveMapView(mode) {
+  if(!map) return
+  document.getElementById('drv-view-points').classList.toggle('on', mode==='points')
+  document.getElementById('drv-view-hex').classList.toggle('on', mode==='hex')
+  DRV_POINT_LAYERS.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', mode==='points'?'visible':'none') })
+  if(map.getLayer('drv-hex-fill')) map.setLayoutProperty('drv-hex-fill','visibility', mode==='hex'?'visible':'none')
+}
 
 // ── View mode ──────────────────────────────────────
 let dashView = 'exec'
@@ -3670,6 +3709,7 @@ async function paintAllSessionsOverview(){
   }))
   map.getSource('dots').setData({type:'FeatureCollection',features:feats})
   map.getSource('route').setData({type:'FeatureCollection',features:[]})
+  map.getSource('drv-hex').setData(buildHexbins(valid, 10))
 
   if(feats.length){
     const lngs=feats.map(f=>f.geometry.coordinates[0]), lats=feats.map(f=>f.geometry.coordinates[1])
@@ -3701,6 +3741,7 @@ function paintMap() {
       <div style="font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:6px 12px">Select a <span style="color:#00e676">✓ SYNCED</span> session to view route</div>`
     map.getSource('dots').setData({type:'FeatureCollection',features:[]})
     map.getSource('route').setData({type:'FeatureCollection',features:[]})
+    map.getSource('drv-hex').setData({type:'FeatureCollection',features:[]})
     return
   }
   overlay.style.display='none'
@@ -3711,6 +3752,7 @@ function paintMap() {
     properties:{rsrp:s.rsrp,sinr:s.sinr,rat:s.rat,operator:normOp(s.operator),dl:s.download_mbps,at:s.sampled_at,grade:rsrpGrade(s.rsrp),active:s.event_type==='user_initiated'?1:0,pci:s.pci}
   }))
   map.getSource('dots').setData({type:'FeatureCollection',features:feats})
+  map.getSource('drv-hex').setData(buildHexbins(valid, 10))
 
   // CellMapper-style: one 2-pt LineString per consecutive pair, colored by RSRP
   const segs=[]
@@ -5206,12 +5248,12 @@ const KH_PROV_BBOX={
 }
 
 // ── H3 hexbin builder ─────────────────────────────
-function buildHexbins(rows) {
+function buildHexbins(rows, res=9) {
   const bins=new Map()
   for(const r of rows){
     const lat=+r.latitude, lng=+r.longitude
     if(isNaN(lat)||isNaN(lng)) continue
-    const cell=h3.latLngToCell(lat,lng,9)
+    const cell=h3.latLngToCell(lat,lng,res)
     if(!bins.has(cell)) bins.set(cell,{rsrp:[],dl:[],ops:new Set(),n:0})
     const b=bins.get(cell)
     if(r.rsrp!=null) b.rsrp.push(+r.rsrp)
@@ -5396,6 +5438,16 @@ function destroyCompareMaps(){
 const RSRP_HEX_FILL_PAINT={
   'fill-color':['interpolate',['linear'],['get','avg_rsrp'],
     -120,'#d73027',-110,'#fc8d59',-100,'#fee08b',-90,'#d9ef8b',-80,'#1a9850'],
+  'fill-opacity':0.55,
+  'fill-outline-color':'rgba(0,0,0,0.2)'
+}
+// Drive Test's hexbin layer — deliberately a separate paint object from RSRP_HEX_FILL_PAINT
+// above. That one uses a smooth interpolated gradient that doesn't match the rest of the app;
+// this uses the same discrete 5-band step scheme as dots-layer/route-line/the RSRP Threshold
+// Table, per an explicit request to keep drive-test hexbins consistent with that convention.
+const DRV_HEX_FILL_PAINT={
+  'fill-color':['step',['get','avg_rsrp'],
+    '#f44336', -110,'#ff9800', -100,'#ffc107', -90,'#00bcd4', -80,'#00e676'],
   'fill-opacity':0.55,
   'fill-outline-color':'rgba(0,0,0,0.2)'
 }
