@@ -3709,7 +3709,7 @@ async function paintAllSessionsOverview(){
   }))
   map.getSource('dots').setData({type:'FeatureCollection',features:feats})
   map.getSource('route').setData({type:'FeatureCollection',features:[]})
-  map.getSource('drv-hex').setData(buildHexbins(valid, 10))
+  map.getSource('drv-hex').setData(buildHexbins(valid, 12))
 
   if(feats.length){
     const lngs=feats.map(f=>f.geometry.coordinates[0]), lats=feats.map(f=>f.geometry.coordinates[1])
@@ -3752,7 +3752,7 @@ function paintMap() {
     properties:{rsrp:s.rsrp,sinr:s.sinr,rat:s.rat,operator:normOp(s.operator),dl:s.download_mbps,at:s.sampled_at,grade:rsrpGrade(s.rsrp),active:s.event_type==='user_initiated'?1:0,pci:s.pci}
   }))
   map.getSource('dots').setData({type:'FeatureCollection',features:feats})
-  map.getSource('drv-hex').setData(buildHexbins(valid, 10))
+  map.getSource('drv-hex').setData(buildHexbins(valid, 12))
 
   // CellMapper-style: one 2-pt LineString per consecutive pair, colored by RSRP
   const segs=[]
