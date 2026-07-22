@@ -1443,6 +1443,10 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
       <div class="ch">
         <span class="ch-t" role="heading" aria-level="2">All Users</span>
         <span class="ch-s" id="admin-users-count">0</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="downloadUserTemplate()">⬇ Download Template</button>
+          <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="openBatchAddModal()">⬆ Batch Add Users</button>
+        </div>
       </div>
       <div class="tw"><table><thead><tr>
         <th scope="col">Email</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th>
@@ -1504,6 +1508,36 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="auth-err" style="color:var(--yw)">This will not be shown again — share it with the user directly now.</div>
     <div class="auth-actions">
       <button onclick="closeCredModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH ADD USERS MODAL (admin action — CSV upload) -->
+<div class="auth-modal-backdrop" id="batch-modal-backdrop">
+  <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="batch-modal-title" style="max-width:560px">
+    <h2 id="batch-modal-title">Batch Add Users</h2>
+    <p class="sub">Upload a CSV with <code>email,role</code> columns — <a href="#" onclick="downloadUserTemplate();return false">download the template</a> to get the right format.</p>
+    <div class="auth-field">
+      <input type="file" id="batch-file-input" accept=".csv,text/csv" onchange="onBatchFileSelected(event)"/>
+    </div>
+    <div class="auth-err" id="batch-modal-err"></div>
+    <div id="batch-preview-wrap" style="display:none;max-height:280px;overflow:auto;margin:10px 0;border:1px solid var(--bd);border-radius:8px">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;position:sticky;top:0;background:var(--s1)">Email</th>
+          <th style="text-align:left;padding:6px 8px;position:sticky;top:0;background:var(--s1)">Role</th>
+          <th style="text-align:left;padding:6px 8px;position:sticky;top:0;background:var(--s1)">Status</th>
+        </tr></thead>
+        <tbody id="batch-preview-tbody"></tbody>
+      </table>
+    </div>
+    <div id="batch-summary" style="display:none;font-size:12px;color:var(--mu);margin-bottom:8px"></div>
+    <div class="auth-actions">
+      <button class="secondary" id="batch-modal-cancel" onclick="closeBatchModal()">Cancel</button>
+      <button id="batch-modal-submit" onclick="onBatchSubmit()" disabled>Create Users</button>
+    </div>
+    <div id="batch-download-creds-wrap" style="display:none;margin-top:8px">
+      <button class="secondary" style="width:100%" onclick="downloadBatchCredentials()">⬇ Download Credentials (contains passwords — share securely, then delete)</button>
     </div>
   </div>
 </div>
@@ -2122,6 +2156,17 @@ function renderPendingRequests(){
     </div>`).join('')
 }
 
+// The netpulse-admin Edge Function's create_user action only ever writes role 'admin' or
+// 'viewer' server-side (any custom role — this app supports admin-defined ones via the Roles &
+// Permissions matrix — silently collapses to 'viewer'). Apply the intended custom role as a
+// follow-up client-side update here, permitted by the "netpulse profiles: admin can update" RLS
+// policy (the same call changeUserRole() already makes).
+async function applyCustomRoleIfNeeded(userId, role){
+  if(role==='admin' || role==='viewer') return {ok:true}
+  const {error} = await db.from('netpulse_profiles').update({role}).eq('id', userId)
+  return error ? {ok:false, error:error.message} : {ok:true}
+}
+
 async function approveRequest(id){
   if(adminInFlight.has(id)) return
   adminInFlight.add(id)
@@ -2136,6 +2181,7 @@ async function approveRequest(id){
       body:{action:'create_user', email:req.email, password, role}
     })
     if(error || data?.error){ showToast('Approve failed: '+((data&&data.error)||error.message),'error'); return }
+    if(data?.userId) await applyCustomRoleIfNeeded(data.userId, role)
 
     const {error: updateError} = await db.from('netpulse_access_requests').update({
       status:'approved', resolved_at:new Date().toISOString(), resolved_by:currentUser.id
@@ -2192,6 +2238,157 @@ async function copyCredPassword(){
   }
 }
 
+// ── Batch Add Users (CSV upload) ──────────────────
+// Quoting matches the existing Critical Findings export convention (downloadBlob(),
+// exportFindingsCSV()) so this isn't a second, drifting CSV format in the same app — plus a
+// leading-character guard the CF export doesn't need, since these fields (unlike CF's own data)
+// come straight from an admin-uploaded file: a cell like "=cmd|'/C calc'!A0" would otherwise be
+// read as a live formula by Excel/Sheets on open. Prefixing with a quote forces literal text.
+function csvEsc(v){
+  let s = String(v==null?'':v)
+  if(/^[=+\-@\t\r]/.test(s)) s = "'"+s
+  return `"${s.replace(/"/g,'""')}"`
+}
+function downloadUserTemplate(){
+  downloadBlob('netpulse-user-upload-template.csv',
+    [['email','role'].map(csvEsc).join(','), ['jane@example.com','viewer'].map(csvEsc).join(',')].join('\r\n'),
+    'text/csv;charset=utf-8')
+}
+
+let batchParsedRows = []
+let batchResults = []
+function openBatchAddModal(){
+  lastFocusedTrigger = document.activeElement
+  batchParsedRows = []; batchResults = []
+  document.getElementById('batch-file-input').value = ''
+  document.getElementById('batch-file-input').disabled = false
+  document.getElementById('batch-modal-err').textContent = ''
+  document.getElementById('batch-preview-wrap').style.display = 'none'
+  document.getElementById('batch-summary').style.display = 'none'
+  document.getElementById('batch-download-creds-wrap').style.display = 'none'
+  const submitBtn = document.getElementById('batch-modal-submit')
+  submitBtn.disabled = true; submitBtn.textContent = 'Create Users'; submitBtn.style.display = ''
+  const cancelBtn = document.getElementById('batch-modal-cancel')
+  cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel'
+  document.getElementById('batch-modal-backdrop').classList.add('on')
+}
+function closeBatchModal(){
+  document.getElementById('batch-modal-backdrop').classList.remove('on')
+  restoreFocusToTrigger()
+}
+
+// Deliberately simple parsing (split on comma/newline, no quoted-field support) since the
+// format is fully admin-controlled via downloadUserTemplate()'s own output — a 2-column
+// email,role file never needs embedded commas.
+function parseUserCsv(text){
+  const noBom = text.charCodeAt(0)===0xFEFF ? text.slice(1) : text
+  const lines = noBom.split(/\r\n|\r|\n/).map(l=>l.trim()).filter(l=>l.length)
+  if(!lines.length) return []
+  const roles = getAssignableRoles()
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  let start = 0
+  if((lines[0].split(',')[0]||'').trim().toLowerCase()==='email') start = 1   // skip header row if present
+  const seen = new Set()
+  const rows = []
+  for(let i=start;i<lines.length;i++){
+    const cells = lines[i].split(',').map(c=>c.trim())
+    const email = (cells[0]||'').toLowerCase()
+    const role = (cells[1]||'viewer').toLowerCase()
+    let reason = ''
+    if(!email || !emailRe.test(email)) reason = 'Invalid email'
+    else if(seen.has(email)) reason = 'Duplicate in file'
+    else if(adminAllProfiles.some(p=>p.email.toLowerCase()===email)) reason = 'Already an existing user'
+    else if(!roles.includes(role)) reason = `Unknown role "${role}"`
+    if(!reason) seen.add(email)
+    rows.push({email, role, valid:!reason, reason})
+  }
+  return rows
+}
+
+function renderBatchPreview(rows){
+  const wrap = document.getElementById('batch-preview-wrap')
+  const tbody = document.getElementById('batch-preview-tbody')
+  if(!rows.length){ wrap.style.display='none' }
+  else {
+    wrap.style.display='block'
+    tbody.innerHTML = rows.map((r,i)=>`
+      <tr>
+        <td style="padding:4px 8px">${h(r.email)||'—'}</td>
+        <td style="padding:4px 8px">${h(r.role)}</td>
+        <td style="padding:4px 8px" id="batch-status-${i}">${r.valid?'<span style="color:var(--mu)">Ready</span>':`<span style="color:var(--re)">${h(r.reason)}</span>`}</td>
+      </tr>`).join('')
+  }
+  const validCount = rows.filter(r=>r.valid).length
+  const submitBtn = document.getElementById('batch-modal-submit')
+  submitBtn.disabled = validCount===0
+  submitBtn.textContent = validCount ? `Create ${validCount} User${validCount!==1?'s':''}` : 'Create Users'
+}
+
+function onBatchFileSelected(event){
+  const file = event.target.files[0]
+  const errEl = document.getElementById('batch-modal-err')
+  errEl.textContent = ''
+  document.getElementById('batch-summary').style.display = 'none'
+  document.getElementById('batch-download-creds-wrap').style.display = 'none'
+  batchResults = []
+  if(!file){ batchParsedRows = []; renderBatchPreview([]); return }
+  const reader = new FileReader()
+  reader.onload = () => {
+    batchParsedRows = parseUserCsv(String(reader.result||''))
+    if(!batchParsedRows.length) errEl.textContent = 'No rows found in file.'
+    renderBatchPreview(batchParsedRows)
+  }
+  reader.onerror = () => { errEl.textContent = 'Could not read the file.' }
+  reader.readAsText(file)
+}
+
+async function onBatchSubmit(){
+  const submitBtn = document.getElementById('batch-modal-submit')
+  const cancelBtn = document.getElementById('batch-modal-cancel')
+  submitBtn.disabled = true
+  cancelBtn.disabled = true
+  document.getElementById('batch-file-input').disabled = true
+  batchResults = []
+  for(let i=0;i<batchParsedRows.length;i++){
+    const row = batchParsedRows[i]
+    if(!row.valid) continue
+    const statusEl = document.getElementById('batch-status-'+i)
+    if(statusEl) statusEl.innerHTML = '<span style="color:var(--mu)">Creating…</span>'
+    const password = genPassword()
+    const {data,error} = await db.functions.invoke('netpulse-admin', {
+      body:{action:'create_user', email:row.email, password, role:row.role}
+    })
+    if(error || data?.error){
+      const msg = (data&&data.error)||error.message
+      if(statusEl) statusEl.innerHTML = `<span style="color:var(--re)">${h(msg)}</span>`
+      batchResults.push({email:row.email, role:row.role, status:'failed', error:msg})
+      continue
+    }
+    if(data?.userId) await applyCustomRoleIfNeeded(data.userId, row.role)
+    if(statusEl) statusEl.innerHTML = '<span style="color:var(--r-ex)">✓ Created</span>'
+    batchResults.push({email:row.email, role:row.role, status:'created', password})
+  }
+  const created = batchResults.filter(r=>r.status==='created').length
+  const failed = batchResults.filter(r=>r.status==='failed').length
+  const summaryEl = document.getElementById('batch-summary')
+  summaryEl.style.display = 'block'
+  summaryEl.innerHTML = `<b>${created}</b> user${created!==1?'s':''} created`+(failed?`, <span style="color:var(--re)"><b>${failed}</b> failed</span>`:'')+'.'
+  showToast(created ? `${created} user${created!==1?'s':''} created` : 'No users were created', created?'success':'error')
+  if(created) document.getElementById('batch-download-creds-wrap').style.display = ''
+  submitBtn.style.display = 'none'
+  cancelBtn.disabled = false
+  cancelBtn.textContent = 'Close'
+  loadAdminData()
+}
+
+function downloadBatchCredentials(){
+  const created = batchResults.filter(r=>r.status==='created')
+  if(!created.length) return
+  const rows = [['email','role','password'].map(csvEsc).join(',')]
+    .concat(created.map(r=>[r.email,r.role,r.password].map(csvEsc).join(',')))
+  downloadBlob(`netpulse-new-user-credentials-${new Date().toISOString().slice(0,10)}.csv`, rows.join('\r\n'), 'text/csv;charset=utf-8')
+}
+
 // ── Shared dismissal convention for all .auth-modal-backdrop dialogs (sign-in/request-access,
 // set-password, new-account credentials) — Escape or a click directly on the dim backdrop
 // closes whichever one is currently open. Not wired up per-modal since all three already close
@@ -2202,6 +2399,7 @@ function closeAnyOpenAuthModal(){
   if(open.id==='auth-modal-backdrop') closeAuthModal()
   else if(open.id==='pw-modal-backdrop') closePwModal()
   else if(open.id==='cred-modal-backdrop') closeCredModal()
+  else if(open.id==='batch-modal-backdrop') closeBatchModal()
 }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnyOpenAuthModal() })
 document.querySelectorAll('.auth-modal-backdrop').forEach(bd=>{
