@@ -1444,8 +1444,9 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <span class="ch-t" role="heading" aria-level="2">All Users</span>
         <span class="ch-s" id="admin-users-count">0</span>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="downloadUserTemplate()">⬇ Download Template</button>
+          <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px;background:rgba(31,111,235,.15);border-color:rgba(31,111,235,.5);color:var(--bl)" onclick="openAddUserModal()">+ Add User</button>
           <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="openBatchAddModal()">⬆ Batch Add Users</button>
+          <button class="sb-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="downloadUserTemplate()">⬇ Download Template</button>
         </div>
       </div>
       <div class="tw"><table><thead><tr>
@@ -1508,6 +1509,27 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
     <div class="auth-err" style="color:var(--yw)">This will not be shown again — share it with the user directly now.</div>
     <div class="auth-actions">
       <button onclick="closeCredModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD USER MODAL (admin action — create one approved account directly, no request/approval step) -->
+<div class="auth-modal-backdrop" id="add-user-modal-backdrop">
+  <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="add-user-modal-title">
+    <h2 id="add-user-modal-title">Add User</h2>
+    <p class="sub">Creates an approved account immediately — a one-time password is generated and shown once.</p>
+    <div class="auth-field">
+      <label for="add-user-email">Email</label>
+      <input type="email" id="add-user-email" autocomplete="off"/>
+    </div>
+    <div class="auth-field">
+      <label for="add-user-role">Role</label>
+      <select id="add-user-role" style="width:100%;padding:8px 10px;border-radius:var(--r-ctrl);border:1px solid var(--bd);background:var(--s2);color:var(--tx);font-size:13px"></select>
+    </div>
+    <div class="auth-err" id="add-user-err"></div>
+    <div class="auth-actions">
+      <button class="secondary" onclick="closeAddUserModal()">Cancel</button>
+      <button id="add-user-submit" onclick="onAddUserSubmit()">Create User</button>
     </div>
   </div>
 </div>
@@ -2238,6 +2260,46 @@ async function copyCredPassword(){
   }
 }
 
+// ── Add User (single, direct create — no request/approval step) ──
+function openAddUserModal(){
+  lastFocusedTrigger = document.activeElement
+  document.getElementById('add-user-email').value = ''
+  document.getElementById('add-user-err').textContent = ''
+  const roleSel = document.getElementById('add-user-role')
+  const roles = getAssignableRoles()
+  roleSel.innerHTML = roles.map(r=>`<option value="${r}"${r==='viewer'?' selected':''}>${h(r)}</option>`).join('')
+  const submitBtn = document.getElementById('add-user-submit')
+  submitBtn.disabled = false; submitBtn.textContent = 'Create User'
+  document.getElementById('add-user-modal-backdrop').classList.add('on')
+  document.getElementById('add-user-email').focus()
+}
+function closeAddUserModal(){
+  document.getElementById('add-user-modal-backdrop').classList.remove('on')
+  restoreFocusToTrigger()
+}
+async function onAddUserSubmit(){
+  const emailInput = document.getElementById('add-user-email')
+  const email = emailInput.value.trim().toLowerCase()
+  const role = document.getElementById('add-user-role').value
+  const errEl = document.getElementById('add-user-err')
+  const submitBtn = document.getElementById('add-user-submit')
+  errEl.textContent = ''
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if(!emailRe.test(email)){ errEl.textContent = 'Enter a valid email address.'; return }
+  if(adminAllProfiles.some(p=>p.email.toLowerCase()===email)){ errEl.textContent = 'This email already has an account.'; return }
+  submitBtn.disabled = true; submitBtn.textContent = 'Creating…'
+  const password = genPassword()
+  const {data,error} = await db.functions.invoke('netpulse-admin', {
+    body:{action:'create_user', email, password, role}
+  })
+  submitBtn.disabled = false; submitBtn.textContent = 'Create User'
+  if(error || data?.error){ errEl.textContent = (data&&data.error) || error.message; return }
+  if(data?.userId) await applyCustomRoleIfNeeded(data.userId, role)
+  closeAddUserModal()
+  loadAdminData()
+  showApprovedCredentials(email, password)
+}
+
 // ── Batch Add Users (CSV upload) ──────────────────
 // Quoting matches the existing Critical Findings export convention (downloadBlob(),
 // exportFindingsCSV()) so this isn't a second, drifting CSV format in the same app — plus a
@@ -2399,6 +2461,7 @@ function closeAnyOpenAuthModal(){
   if(open.id==='auth-modal-backdrop') closeAuthModal()
   else if(open.id==='pw-modal-backdrop') closePwModal()
   else if(open.id==='cred-modal-backdrop') closeCredModal()
+  else if(open.id==='add-user-modal-backdrop') closeAddUserModal()
   else if(open.id==='batch-modal-backdrop') closeBatchModal()
 }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnyOpenAuthModal() })
