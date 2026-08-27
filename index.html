@@ -1216,7 +1216,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         </select>
         </div>
       </div>
-      <div class="cov-fbar">
+      <div class="cov-fbar" id="cov-op-section">
         <div class="cov-fbar-lbl sb-collapse-hd" onclick="toggleSbSection(this)">
           <span class="sb-collapse-hd-txt">Operator <span class="sb-collapse-chev">▾</span></span>
           <button id="cov-op-default-btn" onclick="event.stopPropagation()" title="Set as default operator" style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer">☆ Set Default</button>
@@ -2115,6 +2115,21 @@ function updateCellSiteRowsVisibility(){
   if(cellRow) cellRow.style.display = show ? '' : 'none'
   if(resellerRow) resellerRow.style.display = show ? '' : 'none'
 }
+// Same idea, two more single-view-only controls found in the same audit: the sidebar's global
+// Operator chips only ever drive CF.op, which renderComparePanel() never reads once compare
+// mode is on (each panel has its OWN independent operator select instead) — so clicking a chip
+// visibly toggled "on" while changing nothing on any visible panel. RF Coverage Simulation is
+// entirely mapCov-specific (sim-coverage source only exists there), and mapCov itself is
+// display:none the whole time compare mode is active, so "Run Simulation" would complete with
+// a real success message and zero visible effect until switching back to Single view. Both are
+// simply hidden in compare mode, same treatment as Cell Sites/Reseller Sites above.
+function updateCompareOnlySectionsVisibility(){
+  const opSection = document.getElementById('cov-op-section')
+  const simSection = document.getElementById('sim-sec')
+  const show = compareMode===0
+  if(opSection) opSection.style.display = show ? '' : 'none'
+  if(simSection) simSection.style.display = show ? '' : 'none'
+}
 
 async function refreshAccessState(){
   await loadMyProfile()
@@ -2327,7 +2342,17 @@ function downloadUserTemplate(){
 
 let batchParsedRows = []
 let batchResults = []
+// True for the duration of onBatchSubmit()'s create-user loop. Without this, Escape/backdrop-
+// click (which bypass the disabled Cancel button entirely) could close the modal mid-submit;
+// reopening it then reset batchParsedRows/batchResults out from under the still-running loop
+// (which reads those same mutable globals every iteration), silently dropping the interrupted
+// batch's remaining rows, misattributing later rows to the wrong batch via the stale loop
+// index, and permanently losing the one-time password of any account already created before
+// the interruption. Blocking every close path during submission is simpler and safer than
+// trying to make an abandoned run's results recoverable after the fact.
+let _batchSubmitting = false
 function openBatchAddModal(){
+  if(_batchSubmitting) return   // shouldn't be reachable (the modal can't close mid-submit), defensive only
   lastFocusedTrigger = document.activeElement
   batchParsedRows = []; batchResults = []
   document.getElementById('batch-file-input').value = ''
@@ -2343,6 +2368,7 @@ function openBatchAddModal(){
   document.getElementById('batch-modal-backdrop').classList.add('on')
 }
 function closeBatchModal(){
+  if(_batchSubmitting){ showToast('Please wait for the current batch to finish creating users.','info'); return }
   document.getElementById('batch-modal-backdrop').classList.remove('on')
   restoreFocusToTrigger()
 }
@@ -2413,42 +2439,47 @@ function onBatchFileSelected(event){
 }
 
 async function onBatchSubmit(){
-  const submitBtn = document.getElementById('batch-modal-submit')
-  const cancelBtn = document.getElementById('batch-modal-cancel')
-  submitBtn.disabled = true
-  cancelBtn.disabled = true
-  document.getElementById('batch-file-input').disabled = true
-  batchResults = []
-  for(let i=0;i<batchParsedRows.length;i++){
-    const row = batchParsedRows[i]
-    if(!row.valid) continue
-    const statusEl = document.getElementById('batch-status-'+i)
-    if(statusEl) statusEl.innerHTML = '<span style="color:var(--mu)">Creating…</span>'
-    const password = genPassword()
-    const {data,error} = await db.functions.invoke('netpulse-admin', {
-      body:{action:'create_user', email:row.email, password, role:row.role}
-    })
-    if(error || data?.error){
-      const msg = (data&&data.error)||error.message
-      if(statusEl) statusEl.innerHTML = `<span style="color:var(--re)">${h(msg)}</span>`
-      batchResults.push({email:row.email, role:row.role, status:'failed', error:msg})
-      continue
+  _batchSubmitting = true
+  try{
+    const submitBtn = document.getElementById('batch-modal-submit')
+    const cancelBtn = document.getElementById('batch-modal-cancel')
+    submitBtn.disabled = true
+    cancelBtn.disabled = true
+    document.getElementById('batch-file-input').disabled = true
+    batchResults = []
+    for(let i=0;i<batchParsedRows.length;i++){
+      const row = batchParsedRows[i]
+      if(!row.valid) continue
+      const statusEl = document.getElementById('batch-status-'+i)
+      if(statusEl) statusEl.innerHTML = '<span style="color:var(--mu)">Creating…</span>'
+      const password = genPassword()
+      const {data,error} = await db.functions.invoke('netpulse-admin', {
+        body:{action:'create_user', email:row.email, password, role:row.role}
+      })
+      if(error || data?.error){
+        const msg = (data&&data.error)||error.message
+        if(statusEl) statusEl.innerHTML = `<span style="color:var(--re)">${h(msg)}</span>`
+        batchResults.push({email:row.email, role:row.role, status:'failed', error:msg})
+        continue
+      }
+      if(data?.userId) await applyCustomRoleIfNeeded(data.userId, row.role)
+      if(statusEl) statusEl.innerHTML = '<span style="color:var(--r-ex)">✓ Created</span>'
+      batchResults.push({email:row.email, role:row.role, status:'created', password})
     }
-    if(data?.userId) await applyCustomRoleIfNeeded(data.userId, row.role)
-    if(statusEl) statusEl.innerHTML = '<span style="color:var(--r-ex)">✓ Created</span>'
-    batchResults.push({email:row.email, role:row.role, status:'created', password})
+    const created = batchResults.filter(r=>r.status==='created').length
+    const failed = batchResults.filter(r=>r.status==='failed').length
+    const summaryEl = document.getElementById('batch-summary')
+    summaryEl.style.display = 'block'
+    summaryEl.innerHTML = `<b>${created}</b> user${created!==1?'s':''} created`+(failed?`, <span style="color:var(--re)"><b>${failed}</b> failed</span>`:'')+'.'
+    showToast(created ? `${created} user${created!==1?'s':''} created` : 'No users were created', created?'success':'error')
+    if(created) document.getElementById('batch-download-creds-wrap').style.display = ''
+    submitBtn.style.display = 'none'
+    cancelBtn.disabled = false
+    cancelBtn.textContent = 'Close'
+    loadAdminData()
+  } finally {
+    _batchSubmitting = false
   }
-  const created = batchResults.filter(r=>r.status==='created').length
-  const failed = batchResults.filter(r=>r.status==='failed').length
-  const summaryEl = document.getElementById('batch-summary')
-  summaryEl.style.display = 'block'
-  summaryEl.innerHTML = `<b>${created}</b> user${created!==1?'s':''} created`+(failed?`, <span style="color:var(--re)"><b>${failed}</b> failed</span>`:'')+'.'
-  showToast(created ? `${created} user${created!==1?'s':''} created` : 'No users were created', created?'success':'error')
-  if(created) document.getElementById('batch-download-creds-wrap').style.display = ''
-  submitBtn.style.display = 'none'
-  cancelBtn.disabled = false
-  cancelBtn.textContent = 'Close'
-  loadAdminData()
 }
 
 function downloadBatchCredentials(){
@@ -3396,17 +3427,29 @@ function renderAwards() {
   ops.forEach(op=>{
     const d=(_dashAllOpNx[op]||[])
     if(!d.length){opStats[op]=null;return}
-    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    // Exclude missing readings instead of defaulting them to 0 -- for rsrp (always negative,
+    // ~-60 to -140) a defaulted 0 reads as an impossible best-case signal and was silently
+    // inverting the Best Signal award/ranking (confirmed live: an operator with a single real
+    // -115dBm reading beat operators with real, consistently-measured -95/-98dBm readings).
+    // Matches the filter(v=>v!=null) convention renderKPIs/renderExecBanner/renderOSMatrix
+    // already use for the same fields.
+    const avg=col=>{
+      const vals=d.map(r=>parseFloat(r[col])).filter(Number.isFinite)
+      return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null
+    }
     opStats[op]={count:d.length,dl:avg('download_mbps'),ul:avg('upload_mbps'),ping:avg('ping_ms'),rsrp:avg('rsrp')}
   })
   const validOps=ops.filter(o=>opStats[o])
+  // A null stat (every reading for that column was missing) must disqualify an operator from
+  // that specific award, not win it by default -- `null > -95` / `null < 20` both coerce null
+  // to 0 in JS, which would hand a data-less operator "Best Signal"/"Best Latency" outright.
   const bestBy=(col,higher=true)=>{
-    if(!validOps.length)return'—'
-    return validOps.reduce((best,op)=>{
-      const v=opStats[op][col]
-      const bv=opStats[best]?.[col]??( higher?-Infinity:Infinity)
-      return higher?v>bv?op:best : v<bv?op:best
-    },validOps[0])
+    const candidates=validOps.filter(op=>opStats[op][col]!=null)
+    if(!candidates.length)return null
+    return candidates.reduce((best,op)=>{
+      const v=opStats[op][col], bv=opStats[best][col]
+      return higher?(v>bv?op:best):(v<bv?op:best)
+    },candidates[0])
   }
   const opColor={'Cellcard':'#00bcd4','Metfone':'#ff9800','Smart':'#a371f7'}
   const bestDl=bestBy('dl'), bestUl=bestBy('ul'), bestPing=bestBy('ping',false), bestRsrp=bestBy('rsrp')
@@ -3420,8 +3463,8 @@ function renderAwards() {
     <div class="award-card">
       <div class="award-icon">${a.icon}</div>
       <div class="award-info">
-        <div class="award-op" style="color:${opColor[a.op]||'var(--tx)'}">${a.op}</div>
-        <div class="award-metric">${a.label} · ${a.metric()}</div>
+        <div class="award-op" style="color:${a.op?(opColor[a.op]||'var(--tx)'):'var(--mu)'}">${a.op||'No data'}</div>
+        <div class="award-metric">${a.op?a.label+' · '+a.metric():a.label+' — no readings yet'}</div>
       </div>
     </div>`).join('')
 }
@@ -3450,9 +3493,13 @@ function renderRankings() {
   const ops=['Cellcard','Metfone','Smart']
   const opNx=ops.map(op=>{
     const d=(_dashAllOpNx[op]||[]); if(!d.length)return null
-    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    // See renderAwards() for why missing readings are excluded rather than defaulted to 0.
+    const avg=col=>{
+      const vals=d.map(r=>parseFloat(r[col])).filter(Number.isFinite)
+      return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null
+    }
     return {op,count:d.length,dl:avg('download_mbps'),ul:avg('upload_mbps'),ping:avg('ping_ms'),rsrp:avg('rsrp'),jitter:avg('jitter_ms')}
-  }).filter(Boolean).sort((a,b)=>b.dl-a.dl)
+  }).filter(Boolean).sort((a,b)=>(b.dl??-Infinity)-(a.dl??-Infinity))
 
   const medals=['🥇','🥈','🥉']
   document.getElementById('tb-rankings').innerHTML=opNx.map((r,i)=>`
@@ -3463,7 +3510,7 @@ function renderRankings() {
       <td style="color:var(--bl);font-weight:600">${n(r.dl)}</td>
       <td style="color:var(--gr)">${n(r.ul)}</td>
       <td style="color:var(--yw)">${n(r.ping,0)}</td>
-      <td>${rsrpPill(Math.round(r.rsrp))}</td>
+      <td>${rsrpPill(r.rsrp==null?null:Math.round(r.rsrp))}</td>
       <td style="color:var(--mu)">${n(r.jitter,0)} ms</td>
       <td><span style="color:${scoreBand(dlToScore(r.dl)).color};font-weight:600">${scoreBand(dlToScore(r.dl)).label}</span></td>
     </tr>`).join('')
@@ -3471,9 +3518,12 @@ function renderRankings() {
   const osOps=ops.map(op=>{
     const d=_dashAllOpOs[op]||[]
     if(!d.length)return null
-    const avg=col=>d.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/d.length
+    const avg=col=>{
+      const vals=d.map(r=>parseFloat(r[col])).filter(Number.isFinite)
+      return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null
+    }
     return {op,count:d.length,vid:avg('video_experience'),gam:avg('games_experience'),vox:avg('voice_app_experience'),cq:avg('consistent_quality'),rel:avg('reliability_experience')}
-  }).filter(Boolean).sort((a,b)=>((b.vid+b.gam+b.vox)/3)-((a.vid+a.gam+a.vox)/3))
+  }).filter(Boolean).sort((a,b)=>(((b.vid??0)+(b.gam??0)+(b.vox??0))/3)-(((a.vid??0)+(a.gam??0)+(a.vox??0))/3))
 
   document.getElementById('tb-os-rank').innerHTML=osOps.map((r,i)=>{
     const oc=opColors[r.op]||'var(--tx)'
@@ -3494,7 +3544,11 @@ function renderCompare() {
   const nx=_dashNx
   const ops=['Cellcard','Metfone','Smart']
   const opColors=ops.map(l=>OP_COLORS[l]||'#58a6ff')
-  const avg=(data,col)=>data.length?data.reduce((s,r)=>s+(parseFloat(r[col])||0),0)/data.length:0
+  // See renderAwards() for why missing readings are excluded rather than defaulted to 0.
+  const avg=(data,col)=>{
+    const vals=data.map(r=>parseFloat(r[col])).filter(Number.isFinite)
+    return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null
+  }
 
   const labels=ops, nxByOp=ops.map(op=>(_dashAllOpNx[op]||[]))
   chCmpDl.data.labels=labels; chCmpDl.data.datasets[0].data=nxByOp.map(d=>avg(d,'download_mbps')); chCmpDl.data.datasets[0].backgroundColor=opColors; chCmpDl.update('none')
@@ -3520,7 +3574,7 @@ function renderCompare() {
       <div class="op-card-row"><span class="op-card-key">Avg Download</span><span class="op-card-val" style="color:var(--bl)">${n(a('download_mbps'))} Mbps</span></div>
       <div class="op-card-row"><span class="op-card-key">Avg Upload</span><span class="op-card-val" style="color:var(--gr)">${n(a('upload_mbps'))} Mbps</span></div>
       <div class="op-card-row"><span class="op-card-key">Avg Ping</span><span class="op-card-val" style="color:var(--yw)">${n(a('ping_ms'),0)} ms</span></div>
-      <div class="op-card-row"><span class="op-card-key">Avg RSRP</span><span class="op-card-val" style="color:${rsrpColor(Math.round(a('rsrp')))}">${n(a('rsrp'),0)} dBm</span></div>
+      <div class="op-card-row"><span class="op-card-key">Avg RSRP</span><span class="op-card-val" style="color:${rsrpColor(a('rsrp')==null?null:Math.round(a('rsrp')))}">${n(a('rsrp'),0)} dBm</span></div>
       ${oa('video_experience')!=null?`<div class="op-card-row"><span class="op-card-key">Video XP</span><span class="op-card-val" style="color:var(--gr)">${n(oa('video_experience'),1)}/100</span></div>`:''}
     </div>`
   }).join('')
@@ -3590,7 +3644,7 @@ function renderNetwork() {
       <td>${n(r.jitter_ms,0)} ms</td>
       <td style="color:${r.packet_loss_pct>2?'var(--re)':'var(--gr)'}">${n(r.packet_loss_pct,1)}%</td>
       <td style="color:var(--bl);font-weight:600">${n(r.opensignal_games_score,1)}/100</td>
-      <td><span style="color:var(--cy)">${r.opensignal_games_band||'—'}</span></td>
+      <td><span style="color:var(--cy)">${h(r.opensignal_games_band)||'—'}</span></td>
     </tr>`)
 
   renderProvRanking(nx)
@@ -3792,9 +3846,9 @@ function renderCxRow(r){
       <td style="font-weight:600">${normOp(r.operator)}</td>
       <td>${h(r.technology)||'—'}</td>
       <td><span class="badge buk">${h(r.coverage_type)||'—'}</span></td>
-      <td style="color:var(--gr)">${r.video_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.video_xp_detail||''}</span></td>
-      <td style="color:var(--bl)">${r.gaming_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.gaming_xp_detail||''}</span></td>
-      <td style="color:var(--pu)">${r.voiceapp_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${r.voiceapp_xp_detail||''}</span></td>
+      <td style="color:var(--gr)">${r.video_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${h(r.video_xp_detail)||''}</span></td>
+      <td style="color:var(--bl)">${r.gaming_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${h(r.gaming_xp_detail)||''}</span></td>
+      <td style="color:var(--pu)">${r.voiceapp_xp_score??'—'} <span style="color:var(--mu);font-size:10px">${h(r.voiceapp_xp_detail)||''}</span></td>
       <td>${r.dl_speed_score??'—'}</td>
       <td>${r.ul_speed_score??'—'}</td>
       <td style="font-weight:700;color:var(--cy)">${r.overall_score??'—'}</td>
@@ -3938,7 +3992,11 @@ window.pickSess = async function(id) {
   // session with >1000 GPS points).
   const {data:_samples}=await fetchPaginated((from,to)=>
     db.from('drive_samples').select('*').eq('session_id',id).order('sampled_at',{ascending:true}).range(from,to))
-  if(activeSess.id!==id) return   // a newer pickSess() call already changed the active session while this fetch was in flight
+  // A newer pickSess() call may have changed the active session while this fetch was in
+  // flight -- or closeDrvAnalysis() (Escape / the panel's × button) may have nulled it
+  // entirely, which activeSess.id would throw on rather than just correctly discarding this
+  // now-stale fetch.
+  if(activeSess?.id!==id) return
   driveSamples=_samples
   paintMap()
   renderSamples()
@@ -4469,9 +4527,14 @@ function computeDriveRules(samples, sess) {
   samples.forEach(s=>{ const g=rsrpGrade(s.rsrp); if(grades[g]!==undefined)grades[g]++ })
   const tot=samples.length||1
   const pct=(arr,p)=>{ if(!arr.length)return null; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor((p/100)*(s.length-1))] }
-  const sWithRsrp=samples.filter(s=>s.rsrp!=null)
-  const sWithSinr=samples.filter(s=>s.sinr!=null)
-  const sWithDl  =samples.filter(s=>s.download_mbps!=null)
+  // Number.isFinite (not `!=null`) so a malformed NaN/Infinity field -- e.g. a bad sensor
+  // read or a 0/0 computation on the mobile app -- is excluded the same as a missing one.
+  // `NaN!=null` and `Infinity!=null` are both true, so the `!=null` check let a single
+  // corrupt sample poison avgRsrp/avgSinr/avgDl into NaN, which then rendered as the literal
+  // text "NaN dBm"/"NaN dB" in the Rule-Based Assessment panel — tagged FAIL, not '—'.
+  const sWithRsrp=samples.filter(s=>Number.isFinite(s.rsrp))
+  const sWithSinr=samples.filter(s=>Number.isFinite(s.sinr))
+  const sWithDl  =samples.filter(s=>Number.isFinite(s.download_mbps))
   const rsrpVals=sWithRsrp.map(s=>s.rsrp), dlVals=sWithDl.map(s=>s.download_mbps)
   const avgRsrp=rsrpVals.length?rsrpVals.reduce((a,b)=>a+b,0)/rsrpVals.length:null
   const avgSinr=sWithSinr.length?sWithSinr.reduce((a,b)=>a+b.sinr,0)/sWithSinr.length:null
@@ -4603,13 +4666,25 @@ function applyTheme(mode){
   // elements — otherwise the Single-view header and Compare-mode operator selects keep the
   // stale light/dark color from whenever they were last built, failing WCAG-AA contrast
   // against the new background until some unrelated re-render happens to touch them.
-  if(typeof updateCovMapHeader==='function' && document.getElementById('cov-map-op')) updateCovMapHeader()
-  if(typeof compareMaps!=='undefined'){
-    compareMaps.forEach(e=>{
-      const sel=document.getElementById('cov-cmp-op-'+e.idx)
-      if(sel) sel.style.color=opTextColor(sel.value)
-    })
-  }
+  // Wrapped in try/catch: applyTheme() can run before CF/compareMaps exist (both declared much
+  // further down this same script) — the "restore saved theme on load" call at the bottom of
+  // this function's own definition site runs synchronously at parse time, well before those
+  // consts initialize. Referencing either while still in its temporal dead zone throws a
+  // ReferenceError that (uncaught, at top level) used to abort every remaining top-level
+  // statement in the script — silently breaking fetchAll()/setupRealtime()/every event listener
+  // registered below this point, for any user who ever had light theme saved from a prior visit.
+  // typeof alone does NOT guard this: unlike a genuinely undeclared identifier, typeof on a
+  // let/const still in its TDZ throws too (confirmed live — this exact typeof guard on
+  // compareMaps two lines below was already failing the same way).
+  try{
+    if(typeof updateCovMapHeader==='function' && document.getElementById('cov-map-op')) updateCovMapHeader()
+    if(typeof compareMaps!=='undefined'){
+      compareMaps.forEach(e=>{
+        const sel=document.getElementById('cov-cmp-op-'+e.idx)
+        if(sel) sel.style.color=opTextColor(sel.value)
+      })
+    }
+  }catch(e){}
 }
 function toggleTheme(){
   const cur=localStorage.getItem('np-theme')||'dark'
@@ -5134,8 +5209,17 @@ function groupDriveSamplesBySession(samples){
   return Object.values(bySession)
 }
 
+// In-flight guard: initFindingsTab() runs on every tab-button click with no de-dupe, so two
+// rapid clicks (very plausible on a slow connection — exactly when the internal 15s timeout is
+// also most likely to matter) used to start two independent fetch+timeout races. Whichever
+// settled LAST won the final cf-status text, including a later call's own timeout firing and
+// overwriting an earlier call's already-successful load with a false "timed out" warning even
+// though cfDriveSamples held real data. A shared in-flight promise means only one race ever
+// runs at a time; a concurrent call just waits on the same outcome instead of starting a new one.
+let _findingsLoadPromise=null
 async function initFindingsTab(){
   if(cfDriveSamples===null){
+    if(_findingsLoadPromise){ await _findingsLoadPromise; renderFindings(); return }
     document.getElementById('cf-status').textContent='Loading…'
     // Same RPC + pagination pattern as the Coverage Map — up to 40 most-recent points
     // per session so every session is represented, not just whichever is densest right now.
@@ -5143,10 +5227,12 @@ async function initFindingsTab(){
     // on "Loading…" forever showing 0 findings, with no error and no way to recover short of
     // a full page reload — the same failure class as the Coverage Map's stalled tile loads.
     const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),15000))
-    const result=await Promise.race([
+    _findingsLoadPromise=Promise.race([
       fetchPaginated((from,to)=>db.rpc('top_n_per_session',{n:40}).range(from,to),20000),
       timeout
     ])
+    const result=await _findingsLoadPromise
+    _findingsLoadPromise=null
     if(result){
       cfDriveSamples=result.data||[]
       if(result.error) console.error('initFindingsTab drive_samples:',result.error)
@@ -5706,6 +5792,7 @@ function setCompareMode(n){
   if(n===compareMode) return
   compareMode = n
   updateCellSiteRowsVisibility()
+  updateCompareOnlySectionsVisibility()
   document.getElementById('cmp-off-btn').classList.toggle('on', n===0)
   document.getElementById('cmp-2-btn').classList.toggle('on', n===2)
   document.getElementById('cmp-3-btn').classList.toggle('on', n===3)
