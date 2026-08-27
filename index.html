@@ -3902,22 +3902,28 @@ function renderSessions() {
   }).join('')
 }
 
+// Shared by pickSess() and the drive_sessions realtime UPDATE handler — the mobile app sets
+// end_time/distance_km/sample_count/avg_rsrp etc. via an UPDATE once a drive finishes (they're
+// null/absent at the initial INSERT), so this needs to be re-runnable without re-fetching
+// every GPS sample again.
+function renderDrvAnalysisSummary(sess){
+  document.getElementById('dmap-lbl').textContent=`${sid(sess.device_id)} · ${ts(sess.start_time)}`
+  document.getElementById('drv-analysis').style.display='block'
+  document.getElementById('drv-analysis-title').textContent=`Drive Analysis — ${ts(sess.start_time)}`
+  document.getElementById('da-samples').textContent=sess.sample_count??'—'
+  document.getElementById('da-dist').textContent=sess.distance_km!=null?n(sess.distance_km,1)+' km':'—'
+  document.getElementById('da-rsrp').textContent=sess.avg_rsrp!=null?n(sess.avg_rsrp,0)+' dBm':'—'
+  document.getElementById('da-rsrp').style.color=rsrpColor(sess.avg_rsrp)
+  document.getElementById('da-ho').textContent=sess.handover_count??'—'
+  document.getElementById('da-dl').textContent=sess.avg_download_mbps!=null?n(sess.avg_download_mbps)+' Mbps':'—'
+  document.getElementById('da-dur').textContent=sess.end_time&&sess.start_time?Math.round((new Date(sess.end_time)-new Date(sess.start_time))/60000)+' min':'Active'
+}
+
 window.pickSess = async function(id) {
   activeSess=sessAll.find(s=>s.id===id)
   if(!activeSess) return
   renderSessions()
-  document.getElementById('dmap-lbl').textContent=`${sid(activeSess.device_id)} · ${ts(activeSess.start_time)}`
-  // Update analysis panel
-  document.getElementById('drv-analysis').style.display='block'
-  document.getElementById('drv-analysis-title').textContent=`Drive Analysis — ${ts(activeSess.start_time)}`
-  document.getElementById('da-samples').textContent=activeSess.sample_count??'—'
-  document.getElementById('da-dist').textContent=activeSess.distance_km!=null?n(activeSess.distance_km,1)+' km':'—'
-  document.getElementById('da-rsrp').textContent=activeSess.avg_rsrp!=null?n(activeSess.avg_rsrp,0)+' dBm':'—'
-  document.getElementById('da-rsrp').style.color=rsrpColor(activeSess.avg_rsrp)
-  document.getElementById('da-ho').textContent=activeSess.handover_count??'—'
-  document.getElementById('da-dl').textContent=activeSess.avg_download_mbps!=null?n(activeSess.avg_download_mbps)+' Mbps':'—'
-  const dur=activeSess.end_time&&activeSess.start_time?Math.round((new Date(activeSess.end_time)-new Date(activeSess.start_time))/60000)+' min':'Active'
-  document.getElementById('da-dur').textContent=dur
+  renderDrvAnalysisSummary(activeSess)
 
   // Fetch the complete sample set for this session — see fetchPaginated() for why this
   // can't be a single query (would silently truncate the Rule-Based Assessment for any
@@ -5020,7 +5026,11 @@ function setupRealtime() {
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'networkxp_data'},p=>{
       p.new._op=normOp(p.new.operator)   // mirrors the same precompute fetchAll() does on load
       ringPush(nxAll, p.new, 500)
-      debouncedRefresh(); debouncedRender('network', renderNetwork); touch()
+      debouncedRefresh(); debouncedRender('network', renderNetwork)
+      // Coverage Map's Experience Hexbins (CF.type) are built from nxAll via filterCovNx() —
+      // without this they never refresh live, only the drive-sample dot layer did.
+      if(mapCovReady) debouncedRender('covmap', renderCovMap)
+      touch()
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'opensignal_scores'},p=>{
       p.new._op=normOp(p.new.operator)
@@ -5040,11 +5050,37 @@ function setupRealtime() {
       debouncedRefresh()         // keeps k-sess KPI in sync
       debouncedRender('sessions', renderSessions); touch()
     })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'drive_sessions'},p=>{
+      // The mobile app sets end_time/distance_km/sample_count/avg_rsrp etc. via UPDATE once a
+      // drive finishes (null at the initial INSERT) — without this a session sits showing
+      // "Active"/no distance in both the sidebar and (if selected) the analysis panel forever,
+      // until a manual reload.
+      const i=sessAll.findIndex(s=>s.id===p.new.id)
+      if(i>=0) sessAll[i]=p.new
+      if(activeSess&&activeSess.id===p.new.id){ activeSess=p.new; renderDrvAnalysisSummary(activeSess) }
+      debouncedRefresh()
+      debouncedRender('sessions', renderSessions); touch()
+    })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'drive_samples'},p=>{
+      // "Synced" status — the sidebar badge AND paintMap()'s own "GPS route not uploaded"
+      // overlay — is driven entirely by sampledSessionIds, which fetchAll()/syncAllSessions()
+      // only ever populate from a point-in-time snapshot. Without this, a session that starts
+      // streaming samples after the dashboard is already open stays stuck "not synced" (and,
+      // if it's the selected session, the overlay never clears and the route never draws)
+      // until a manual Sync/reload — even while real data is actively arriving underneath.
+      if(!sampledSessionIds.has(p.new.session_id)){
+        sampledSessionIds.add(p.new.session_id)
+        debouncedRender('sessions', renderSessions)
+      }
+
       // Drive Test tab: update active session map + table
       if(activeSess&&p.new.session_id===activeSess.id){
         driveSamples.push(p.new)
         debouncedRender('drivemap', ()=>{ paintMap(); renderSamples(); renderDriveRules(driveSamples, activeSess) })
+      } else if(!activeSess && p.new.latitude&&p.new.longitude){
+        // No session selected — the "all sessions" overview map reads the same covDriveSamples
+        // array pushed to below, but (unlike paintMap() above) was never re-invoked on new data.
+        debouncedRender('drivemap', paintAllSessionsOverview)
       }
       // Coverage Map: keep covDriveSamples in sync regardless of active session
       if(p.new.latitude&&p.new.longitude){
