@@ -2101,11 +2101,19 @@ function updateAuthUI(){
   const adminOk = isAdmin()
   const adminTabBtn = document.getElementById('admin-tab-btn')
   if(adminTabBtn) adminTabBtn.style.display = adminOk ? '' : 'none'
+  updateCellSiteRowsVisibility()
+}
+
+// Cell Sites / Reseller Sites are reference overlays that only exist on the single Coverage
+// Map instance (see covCmpLayerIds()'s comment) — hiding the controls in compare mode instead
+// of leaving a toggle that silently does nothing once 2-Way/3-Way is active. Called both from
+// updateAuthUI() (permission changes) and setCompareMode() (view switches).
+function updateCellSiteRowsVisibility(){
   const cellRow = document.getElementById('cell-sites-row')
   const resellerRow = document.getElementById('reseller-sites-row')
-  const cellOk = hasPermission('cell_sites')
-  if(cellRow) cellRow.style.display = cellOk ? '' : 'none'
-  if(resellerRow) resellerRow.style.display = cellOk ? '' : 'none'
+  const show = hasPermission('cell_sites') && compareMode===0
+  if(cellRow) cellRow.style.display = show ? '' : 'none'
+  if(resellerRow) resellerRow.style.display = show ? '' : 'none'
 }
 
 async function refreshAccessState(){
@@ -5697,6 +5705,7 @@ let compareSyncing = false
 function setCompareMode(n){
   if(n===compareMode) return
   compareMode = n
+  updateCellSiteRowsVisibility()
   document.getElementById('cmp-off-btn').classList.toggle('on', n===0)
   document.getElementById('cmp-2-btn').classList.toggle('on', n===2)
   document.getElementById('cmp-3-btn').classList.toggle('on', n===3)
@@ -5802,9 +5811,15 @@ function buildCompareMaps(n){
       map.resize(); map.jumpTo({center:[center.lng,center.lat],zoom})
       watchMapContainerResize(()=>map, document.getElementById(panelId))
       map.addSource('cmp-hex',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
+      map.addSource('cmp-routes',{type:'geojson',data:{type:'FeatureCollection',features:[]}})
       map.addSource('cmp-samples',{type:'geojson',data:{type:'FeatureCollection',features:[]},
         cluster:true,clusterMaxZoom:13,clusterRadius:40})
       map.addLayer({id:`hex-fill-${i}`,type:'fill',source:'cmp-hex',paint:RSRP_HEX_FILL_PAINT})
+      // Same RSRP step palette as the single map's cov-route-line
+      map.addLayer({id:`cmp-route-line-${i}`,type:'line',source:'cmp-routes',
+        layout:{'line-join':'round','line-cap':'round'},
+        paint:{'line-width':4,'line-opacity':.9,
+          'line-color':['step',['get','rsrp'],'#f44336',-110,'#ff9800',-100,'#ffc107',-90,'#00bcd4',-80,'#00e676']}})
       map.addLayer({id:`cmp-clusters-${i}`,type:'circle',source:'cmp-samples',filter:['has','point_count'],
         paint:RSRP_CLUSTER_PAINT})
       map.addLayer({id:`cmp-cluster-ct-${i}`,type:'symbol',source:'cmp-samples',filter:['has','point_count'],
@@ -5867,6 +5882,23 @@ function renderComparePanel(i){
     type:'Feature',geometry:{type:'Point',coordinates:[+s.longitude,+s.latitude]},
     properties:{rsrp:s.rsrp}
   }))}
+  // Route lines — same per-session, RSRP-colored-segment build as renderCovMap()'s single map.
+  const bySess={}
+  driveRows.forEach(s=>{ if(!bySess[s.session_id])bySess[s.session_id]=[]; bySess[s.session_id].push(s) })
+  const routeFeats=[]
+  for(const pts of Object.values(bySess)){
+    const sorted=pts.sort((a,b)=>new Date(a.sampled_at)-new Date(b.sampled_at))
+    for(let j=0;j<sorted.length-1;j++){
+      routeFeats.push({type:'Feature',
+        geometry:{type:'LineString',coordinates:[
+          [+sorted[j].longitude,+sorted[j].latitude],
+          [+sorted[j+1].longitude,+sorted[j+1].latitude]
+        ]},
+        properties:{rsrp:sorted[j].rsrp??-120}
+      })
+    }
+  }
+  const routeGJ={type:'FeatureCollection',features:routeFeats}
   // Test Type filter (All/Drive Only/Experience Only) — same gating renderCovMap() applies to
   // the single map's sources, previously missing here so compare panels always showed both
   // regardless of the sidebar selection.
@@ -5874,6 +5906,7 @@ function renderComparePanel(i){
   if(show==='drive' && entry.hexPopup) entry.hexPopup.remove()
   entry.map.getSource('cmp-hex').setData(show==='drive' ? {type:'FeatureCollection',features:[]} : hexGJ)
   entry.map.getSource('cmp-samples').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : driveGJ)
+  entry.map.getSource('cmp-routes').setData(show==='exp' ? {type:'FeatureCollection',features:[]} : routeGJ)
   const statEl=document.getElementById(`cov-cmp-stat-${i}`)
   if(statEl) statEl.textContent=`${driveRows.length} drive pts · ${hexGJ.features.length} hexbins`
 }
@@ -6172,12 +6205,14 @@ function covLayer(ids,on){
 // Compare-mode panels are separate MapLibre instances with their own, differently-named
 // layer ids per panel — these sidebar toggles previously only ever drove the (hidden) single
 // map, so switching to 2-Way/3-Way silently stopped a toggle from having any visible effect.
-// Drive Samples and Experience Hexbin have real per-panel equivalents (fixed here); Routes,
-// Cell Sites, and Reseller Sites layers don't exist in compare-mode panels at all, so those
-// three toggles remain single-view-only — a feature gap, not broken wiring.
+// Drive Samples, Experience Hexbin, and Drive Routes all have real per-panel equivalents now;
+// Cell Sites and Reseller Sites layers still don't exist in compare-mode panels at all (they're
+// reference overlays, not per-operator data), so those two toggles are hidden in compare mode
+// instead (see setCompareMode()) rather than left showing a control with no visible effect.
 function covCmpLayerIds(kind,i){
   if(kind==='drive') return [`cmp-dots-${i}`,`cmp-clusters-${i}`,`cmp-cluster-ct-${i}`]
   if(kind==='hex') return [`hex-fill-${i}`]
+  if(kind==='route') return [`cmp-route-line-${i}`]
   return []
 }
 function covCmpLayer(kind,on){
@@ -6191,12 +6226,13 @@ function covCmpLayer(kind,on){
 // Applied once right after a panel's own layers are added, so a panel built while a toggle is
 // already off doesn't briefly show the layer before the next covCmpLayer() call hides it.
 function applyCovLayerTogglesToPanel(entry){
-  const driveOn=document.getElementById('lyr-drive').checked, hexOn=document.getElementById('lyr-hex').checked
+  const driveOn=document.getElementById('lyr-drive').checked, hexOn=document.getElementById('lyr-hex').checked, routesOn=document.getElementById('lyr-routes').checked
   covCmpLayerIds('drive',entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',driveOn?'visible':'none')}catch(e){}})
   covCmpLayerIds('hex',entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',hexOn?'visible':'none')}catch(e){}})
+  covCmpLayerIds('route',entry.idx).forEach(id=>{try{entry.map.setLayoutProperty(id,'visibility',routesOn?'visible':'none')}catch(e){}})
 }
 document.getElementById('lyr-drive').addEventListener('change',e=>{covLayer(['cov-dots','cov-clusters','cov-cluster-ct','cov-grade'],e.target.checked); covCmpLayer('drive',e.target.checked)})
-document.getElementById('lyr-routes').addEventListener('change',e=>covLayer(['cov-route-line'],e.target.checked))
+document.getElementById('lyr-routes').addEventListener('change',e=>{covLayer(['cov-route-line'],e.target.checked); covCmpLayer('route',e.target.checked)})
 document.getElementById('lyr-hex').addEventListener('change',e=>{covLayer(['hex-fill'],e.target.checked); covCmpLayer('hex',e.target.checked)})
 document.getElementById('lyr-towers').addEventListener('change',e=>covLayer(['tow-4g','tow-5g','tow-lbl'],e.target.checked))
 document.getElementById('lyr-resellers').addEventListener('change',e=>covLayer(['res-dots','res-lbl'],e.target.checked))
