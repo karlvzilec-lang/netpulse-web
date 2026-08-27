@@ -1124,6 +1124,7 @@ html.np-loading .kcard-val{color:transparent;border-radius:6px;background:linear
         <div class="drv-verdict-name" id="drv-verdict-label">—</div>
         <div class="drv-verdict-detail" id="drv-verdict-sub"></div>
       </div>
+      <span id="drv-verdict-pill"></span>
     </div>
     <!-- KPI stats row -->
     <div class="cb" style="padding:12px 16px;border-bottom:1px solid var(--bd)">
@@ -1673,7 +1674,11 @@ function paginate(tbodyId, allRows, renderRow, wrapId) {
   if(_tbl0) _tbl0.querySelectorAll('thead th[aria-sort]').forEach(th=>th.removeAttribute('aria-sort'))
   const total = allRows.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  if(pages[tbodyId] >= totalPages) pages[tbodyId] = 0
+  // Upper bound was already clamped; a negative index had no corresponding guard (only ever
+  // reachable via a direct/programmatic goPage() call, since the rendered Prev button's own
+  // disabled attribute blocks it through normal clicks) and produced a broken pager showing
+  // "-9–0 of N rows" with 0 rows despite matching data existing.
+  if(pages[tbodyId] >= totalPages || pages[tbodyId] < 0) pages[tbodyId] = 0
   const start = pages[tbodyId] * PAGE_SIZE
   const slice = allRows.slice(start, start + PAGE_SIZE)
 
@@ -2284,7 +2289,15 @@ async function copyCredPassword(){
 }
 
 // ── Add User (single, direct create — no request/approval step) ──
+// Mirrors _batchSubmitting (Batch Add Users) -- without it, closing this modal via Escape or a
+// backdrop click while onAddUserSubmit()'s network call was still in flight didn't cancel
+// anything; on success the call still ran its full tail (loadAdminData(); showApprovedCredentials())
+// several seconds later, popping the one-time-password modal back on screen unprompted and
+// stealing focus from whatever the admin had since moved on to (confirmed live: it resurfaced
+// over an unrelated Set-Password modal already open for a different user).
+let _addUserSubmitting = false
 function openAddUserModal(){
+  if(_addUserSubmitting) return   // shouldn't be reachable (the modal can't close mid-submit), defensive only
   lastFocusedTrigger = document.activeElement
   document.getElementById('add-user-email').value = ''
   document.getElementById('add-user-err').textContent = ''
@@ -2297,6 +2310,7 @@ function openAddUserModal(){
   document.getElementById('add-user-email').focus()
 }
 function closeAddUserModal(){
+  if(_addUserSubmitting){ showToast('Please wait for the account to finish creating.','info'); return }
   document.getElementById('add-user-modal-backdrop').classList.remove('on')
   restoreFocusToTrigger()
 }
@@ -2310,17 +2324,23 @@ async function onAddUserSubmit(){
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if(!emailRe.test(email)){ errEl.textContent = 'Enter a valid email address.'; return }
   if(adminAllProfiles.some(p=>p.email.toLowerCase()===email)){ errEl.textContent = 'This email already has an account.'; return }
-  submitBtn.disabled = true; submitBtn.textContent = 'Creating…'
-  const password = genPassword()
-  const {data,error} = await db.functions.invoke('netpulse-admin', {
-    body:{action:'create_user', email, password, role}
-  })
-  submitBtn.disabled = false; submitBtn.textContent = 'Create User'
-  if(error || data?.error){ errEl.textContent = (data&&data.error) || error.message; return }
-  if(data?.userId) await applyCustomRoleIfNeeded(data.userId, role)
-  closeAddUserModal()
-  loadAdminData()
-  showApprovedCredentials(email, password)
+  _addUserSubmitting = true
+  try{
+    submitBtn.disabled = true; submitBtn.textContent = 'Creating…'
+    const password = genPassword()
+    const {data,error} = await db.functions.invoke('netpulse-admin', {
+      body:{action:'create_user', email, password, role}
+    })
+    submitBtn.disabled = false; submitBtn.textContent = 'Create User'
+    if(error || data?.error){ errEl.textContent = (data&&data.error) || error.message; return }
+    if(data?.userId) await applyCustomRoleIfNeeded(data.userId, role)
+    _addUserSubmitting = false   // clear before closeAddUserModal(), whose own guard would otherwise block this exact call
+    closeAddUserModal()
+    loadAdminData()
+    showApprovedCredentials(email, password)
+  } finally {
+    _addUserSubmitting = false
+  }
 }
 
 // ── Batch Add Users (CSV upload) ──────────────────
@@ -2608,21 +2628,39 @@ function renderRoleMatrix(){
       ${MATRIX_PERMISSIONS.map(([perm])=>`
         <td style="text-align:center">
           <label class="ltog" style="transform:scale(.85)">
-            <input type="checkbox" ${permMatrix[role]?.[perm]?'checked':''} onchange="toggleMatrixCell('${role}','${perm}',this.checked)">
+            <input type="checkbox" ${permMatrix[role]?.[perm]?'checked':''} onchange="toggleMatrixCell('${role}','${perm}',this.checked,this)">
             <span class="lslid"></span>
           </label>
         </td>`).join('')}
     </tr>`).join('')
 }
-async function toggleMatrixCell(role, perm, allowed){
+// Same adminInFlight pattern changeUserRole() already uses, keyed per role|perm cell instead of
+// per user id -- without it, rapidly toggling the same checkbox twice (on, then quickly off)
+// let the two upsert requests resolve out of dispatch order, and whichever one resolved LAST
+// won in permMatrix regardless of which click the admin actually made last (confirmed live: a
+// quick on-then-off ended with permMatrix holding 'true', the opposite of the final click).
+async function toggleMatrixCell(role, perm, allowed, cbEl){
+  const key = role+'|'+perm
+  if(adminInFlight.has(key)){
+    showToast('Still saving the previous change, please wait','info')
+    if(cbEl) cbEl.checked = !allowed   // this click was never sent -- revert its visual state
+    return
+  }
+  adminInFlight.add(key)
+  if(cbEl) cbEl.disabled = true
   const statusEl = document.getElementById('admin-matrix-status')
   statusEl.textContent='Saving…'
-  const {error} = await db.from('netpulse_role_permissions').upsert({role, permission:perm, allowed})
-  if(error){ statusEl.textContent='❌ '+error.message; return }
-  permMatrix[role]=permMatrix[role]||{}; permMatrix[role][perm]=allowed
-  statusEl.textContent='✓ Saved'
-  setTimeout(()=>{ if(statusEl.textContent==='✓ Saved') statusEl.textContent='' }, 2000)
-  updateAuthUI()   // if the current user's own role permissions changed, reflect it immediately
+  try{
+    const {error} = await db.from('netpulse_role_permissions').upsert({role, permission:perm, allowed})
+    if(error){ statusEl.textContent='❌ '+error.message; if(cbEl) cbEl.checked = !allowed; return }
+    permMatrix[role]=permMatrix[role]||{}; permMatrix[role][perm]=allowed
+    statusEl.textContent='✓ Saved'
+    setTimeout(()=>{ if(statusEl.textContent==='✓ Saved') statusEl.textContent='' }, 2000)
+    updateAuthUI()   // if the current user's own role permissions changed, reflect it immediately
+  } finally {
+    adminInFlight.delete(key)
+    if(cbEl) cbEl.disabled = false
+  }
 }
 document.getElementById('admin-add-role-btn').addEventListener('click', async (e)=>{
   const btn = e.currentTarget
@@ -3167,7 +3205,7 @@ function renderActionsRequired() {
   const urgent=actions.filter(a=>a.sev<=2).length
   const total=actions.filter(a=>a.sev<5).length
   if(cnt) cnt.textContent = urgent ? `${urgent} urgent item${urgent>1?'s':''}`
-    : total ? `${total} item${total>1?'s':''} need attention`
+    : total ? `${total} item${total>1?'s':''} ${total>1?'need':'needs'} attention`
     : 'All clear'
   list.innerHTML=actions.map(a=>`
     <div class="act-row ${sevClass[a.sev]||''}">
@@ -3232,7 +3270,7 @@ function renderOSMatrix() {
       const winners = defined.filter(x => m.higher ? x.v>=best-tol : x.v<=best+tol).map(x=>x.op.key)
       // Scale: max display value for bar width
       const allVals = defined.map(x=>x.v)
-      const scaleMax = Math.max(...allVals)
+      const scaleMax = Math.max(...allVals) || 1   // guard the higher-is-better branch below the same way scaleRange already guards the lower-is-better one -- an all-zero metric (e.g. every operator's download_mbps is 0) otherwise divides v/0 into NaN, which Math.max(4,NaN) propagates into an invalid `width:NaN%`
       const scaleMin = Math.min(...allVals)
       const scaleRange = scaleMax - scaleMin || 1
       const rows = vals.map(({op, v, count}) => {
@@ -3502,10 +3540,12 @@ function renderRankings() {
   }).filter(Boolean).sort((a,b)=>(b.dl??-Infinity)-(a.dl??-Infinity))
 
   const medals=['🥇','🥈','🥉']
-  document.getElementById('tb-rankings').innerHTML=opNx.map((r,i)=>`
+  if(!opNx.length){
+    document.getElementById('tb-rankings').innerHTML='<tr><td colspan="9" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>'
+  } else document.getElementById('tb-rankings').innerHTML=opNx.map((r,i)=>`
     <tr>
       <td><span class="rank-medal">${medals[i]||i+1}</span></td>
-      <td style="font-weight:700;color:${opColors[r.op]||'var(--tx)'}">${r.op}</td>
+      <td style="font-weight:700;color:${opTextColor(r.op)||'var(--tx)'}">${r.op}</td>
       <td>${r.count.toLocaleString()}</td>
       <td style="color:var(--bl);font-weight:600">${n(r.dl)}</td>
       <td style="color:var(--gr)">${n(r.ul)}</td>
@@ -3525,8 +3565,12 @@ function renderRankings() {
     return {op,count:d.length,vid:avg('video_experience'),gam:avg('games_experience'),vox:avg('voice_app_experience'),cq:avg('consistent_quality'),rel:avg('reliability_experience')}
   }).filter(Boolean).sort((a,b)=>(((b.vid??0)+(b.gam??0)+(b.vox??0))/3)-(((a.vid??0)+(a.gam??0)+(a.vox??0))/3))
 
+  if(!osOps.length){
+    document.getElementById('tb-os-rank').innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>'
+    return
+  }
   document.getElementById('tb-os-rank').innerHTML=osOps.map((r,i)=>{
-    const oc=opColors[r.op]||'var(--tx)'
+    const oc=opTextColor(r.op)||'var(--tx)'   // matches the same WCAG-AA contrast fix applied to tb-rankings just above -- OP_COLORS' raw Cellcard orange fails AA as light-theme foreground text (see the app's own documented rule near OP_TEXT_COLORS_LIGHT)
     return `<tr>
       <td><span class="rank-medal">${medals[i]||i+1}</span></td>
       <td style="font-weight:700;color:${oc}">${r.op}</td>
@@ -3677,6 +3721,7 @@ function renderProvRanking(nx) {
   const rows = computeProvinceStats(nx)
   const tb = document.getElementById('tb-prov-rank')
   if (!tb) return
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px 16px;color:var(--mu);font-size:12px">No data matches the current filters</td></tr>'; return }
   tb.innerHTML = rows.map(r => {
     const grade = rsrpGrade(r.rsrp)
     const isUnknown = r.prov==='Unknown'
@@ -4014,7 +4059,12 @@ function closeDrvAnalysis(){
   renderSessions()   // clears the sidebar's selected-row highlight
   paintAllSessionsOverview()
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrvAnalysis()})
+// Scoped to "the panel is actually open" — previously fired unconditionally from anywhere in
+// the app, so pressing Escape for any unrelated reason (dismissing a browser autofill dropdown,
+// habit) while on a completely different tab silently cleared the Drive Test session selection.
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && document.getElementById('drv-analysis').style.display!=='none') closeDrvAnalysis()
+})
 
 // ── Render: Drive map ─────────────────────────────
 // Default state before any session is picked — every session's sampled points shown at
@@ -4145,9 +4195,16 @@ function paintMap() {
 
   if(valid.length<2){
     overlay.style.display='flex'
-    overlay.innerHTML=`<div style="font-size:32px">📍</div>
+    // Reachable with 0 valid points too (every sample's lat/lng null — GPS never got a fix
+    // during the whole recording, while other fields like RSRP/download were still captured),
+    // not just the 1-point case this message used to hardcode regardless of the real count.
+    overlay.innerHTML = valid.length===1
+      ? `<div style="font-size:32px">📍</div>
       <div style="font-size:13px;font-weight:700;color:#e6edf3">Only 1 GPS point — no route</div>
       <div style="font-size:11px;color:#8b949e;text-align:center;max-width:240px">This session has only 1 GPS sample uploaded. At least 2 points are needed to draw a route line.</div>`
+      : `<div style="font-size:32px">📍</div>
+      <div style="font-size:13px;font-weight:700;color:#e6edf3">No GPS points with coordinates</div>
+      <div style="font-size:11px;color:#8b949e;text-align:center;max-width:240px">This session's samples don't include any GPS coordinates. At least 2 points are needed to draw a route line.</div>`
     if(valid.length===1) map.flyTo({center:[+valid[0].longitude,+valid[0].latitude],zoom:16,duration:600})
     return
   }
@@ -4264,6 +4321,13 @@ function renderMetadataAnalysis(sess) {
     : avg>=55 ? ['⚠️','FAIR',   'var(--yw)','Some issues detected']
     :           ['❌','POOR',   'var(--re)','Coverage problems on route']
 
+  // Verdict banner — same border/background treatment renderDriveRules() applies for a synced
+  // session, previously only set there: switching from a synced session to a metadata-only one
+  // left the banner strip showing the PREVIOUS session's color, mismatching this session's own
+  // verdict label/icon right next to it.
+  const banner=document.getElementById('drv-verdict-banner')
+  banner.style.borderLeft=`4px solid ${color}`
+  banner.style.background=`color-mix(in srgb,${color} 7%,transparent)`
   document.getElementById('drv-verdict-icon').textContent=icon
   document.getElementById('drv-verdict-label').textContent=label
   document.getElementById('drv-verdict-label').style.color=color
@@ -4405,6 +4469,10 @@ function renderDriveRules(samples, sess) {
   document.getElementById('drv-verdict-sub').textContent=lowSampleCount
     ? `⚠ Only ${samples.length} sample${samples.length!==1?'s':''} — too few for a reliable verdict`
     : `${samples.length} samples · ${fails} issue${fails!==1?'s':''} · ${warns} warning${warns!==1?'s':''}`
+  // A full GPS-based analysis is running now — clear any "📊 Metadata Only" badge left behind
+  // by a previously-viewed pending session, since this session's verdict is the real thing.
+  const _vpill=document.getElementById('drv-verdict-pill')
+  if(_vpill) _vpill.innerHTML=''
 }
 
 // ── Shared drive rule computation (used by renderDriveRules + exportPDF) ──
@@ -4987,7 +5055,7 @@ function refreshDash() {
     })
   })
 }
-function refreshAll() {refreshDash();pages['tb-net']=0;pages['tb-gaming']=0;renderNetwork();renderCX();renderSessions();touch()}
+function refreshAll() {refreshDash();pages['tb-net']=0;pages['tb-gaming']=0;pages['tb-os']=0;pages['tb-cx']=0;renderNetwork();renderCX();renderSessions();touch()}
 
 // ── Initial fetch ─────────────────────────────────
 // Supabase/PostgREST caps every single request at 1000 rows regardless of .limit(N>1000) —
@@ -5284,16 +5352,16 @@ function renderFindingRow(f){
     <td><span style="color:${sevColor};font-weight:700;text-transform:uppercase;font-size:10px">${h(f.severity)}</span></td>
     <td>${h(f.province||'—')}</td>
     <td>${ratBadge(f.rat)}</td>
-    <td>${f.pci??'—'}</td>
-    <td>${f.cellId??'—'}</td>
-    <td>${f.tac??'—'}</td>
-    <td style="color:${rsrpColor(f.rsrp)}">${f.rsrp??'—'}</td>
-    <td>${f.sinr??'—'}</td>
+    <td>${f.pci==null||isNaN(f.pci)?'—':f.pci}</td>
+    <td>${f.cellId==null||isNaN(f.cellId)?'—':f.cellId}</td>
+    <td>${f.tac==null||isNaN(f.tac)?'—':f.tac}</td>
+    <td style="color:${rsrpColor(f.rsrp==null||isNaN(f.rsrp)?null:f.rsrp)}">${f.rsrp==null||isNaN(f.rsrp)?'—':f.rsrp}</td>
+    <td>${f.sinr==null||isNaN(f.sinr)?'—':f.sinr}</td>
     <td>${f.dl!=null?n(f.dl):'—'}</td>
     <td>${f.ul!=null?n(f.ul):'—'}</td>
     <td>${f.ping!=null?n(f.ping,0):'—'}</td>
-    <td class="mono">${f.lat!=null?f.lat.toFixed(5):'—'}</td>
-    <td class="mono">${f.lng!=null?f.lng.toFixed(5):'—'}</td>
+    <td class="mono">${n(f.lat,5)}</td>
+    <td class="mono">${n(f.lng,5)}</td>
     <td style="font-size:11px;color:var(--mu);max-width:280px">${h(f.detail)}</td>
   </tr>`
 }
@@ -5324,9 +5392,23 @@ function cfVal(f,k){
   if(k==='severity') return (f.severity||'').toUpperCase()
   if(k==='dl'||k==='ul') return f[k]!=null?n(f[k]):'—'
   if(k==='ping') return f.ping!=null?n(f.ping,0):'—'
-  if(k==='lat'||k==='lng') return f[k]!=null?f[k].toFixed(5):'—'
-  if(k==='province'||k==='rat') return f[k]||'—'
-  return f[k]??'—'
+  if(k==='lat'||k==='lng') return n(f[k],5)
+  // province/rat come straight from networkxp_data.province / r.rat|s.rat with no
+  // app-side reformatting (unlike every other field here), so a value starting with
+  // =/+/-/@ would flow unmodified into the CSV/XLS export and be evaluated as a live
+  // formula by Excel on open (CWE-1236) -- neutralize with a leading quote, standard
+  // CSV/formula-injection mitigation, same technique Account Management's own
+  // credentials-CSV export already uses for the same class of admin-uploaded risk.
+  if(k==='province'||k==='rat'){
+    const v=f[k]||'—'
+    return /^[=+\-@\t\r]/.test(v) ? "'"+v : v
+  }
+  // ?? alone doesn't catch a NaN reading (a legitimate IEEE-754 float8 value a corrupted
+  // GPS/modem sample can produce) -- it passed straight through as the literal text "NaN"
+  // into the on-screen table and every export format except JSON, where JSON.stringify
+  // silently converts NaN to null (making JSON the one format that was already correct).
+  const v=f[k]
+  return (typeof v==='number'&&isNaN(v)) ? '—' : (v??'—')
 }
 function exportFindingsCSV(){
   if(!cfFindings.length){ showToast('No findings to export','error'); return }
@@ -5335,9 +5417,22 @@ function exportFindingsCSV(){
     .concat(cfFindings.map(f=>CF_COLUMNS.map(([k])=>esc(cfVal(f,k))).join(',')))
   downloadBlob(cfFilename('csv'), rows.join('\r\n'), 'text/csv;charset=utf-8')
 }
+// Reverses h() -- needed because normOp() bakes HTML-entity escaping into its return value for
+// any operator name it doesn't recognize (intentional: unrecognized operator strings are
+// rendered as-is at dozens of call sites across the app, so normOp() escapes once at the
+// source rather than relying on every one of those call sites to remember to). That's the
+// right call for HTML rendering, but exportFindingsJSON()'s raw JSON.stringify() is a
+// machine-readable data dump, not a rendering sink -- reversing it only here (not touching
+// normOp() itself, which many other call sites depend on staying pre-escaped) keeps the JSON
+// export round-trippable without reopening any XSS surface elsewhere.
+function unescapeHtml(s){
+  if(s==null) return s
+  return String(s).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+}
 function exportFindingsJSON(){
   if(!cfFindings.length){ showToast('No findings to export','error'); return }
-  downloadBlob(cfFilename('json'), JSON.stringify(cfFindings,null,2), 'application/json')
+  const rows=cfFindings.map(f=>({...f, operator:unescapeHtml(f.operator)}))
+  downloadBlob(cfFilename('json'), JSON.stringify(rows,null,2), 'application/json')
 }
 function exportFindingsXLS(){
   // Lightweight XLS export via an HTML table with the Excel MIME type/extension — Excel
@@ -5410,11 +5505,14 @@ function exportFindingsPDF(){
   doc.setTextColor(...INK)
 
   // ── Table ──
+  // Same NaN guard as renderFindingRow()/cfVal() -- ?? alone doesn't catch a NaN reading, which
+  // otherwise leaked into the PDF table as the literal text "NaN".
+  const safeNum=v=>(v==null||isNaN(v))?'—':v
   const body=cfFindings.map(f=>[
     fmtTime(f.timestamp), f.category, f.severity.toUpperCase(), f.province||'—', f.rat||'—',
-    f.pci??'—', f.cellId??'—', f.tac??'—', f.rsrp??'—', f.sinr??'—',
+    safeNum(f.pci), safeNum(f.cellId), safeNum(f.tac), safeNum(f.rsrp), safeNum(f.sinr),
     f.dl!=null?n(f.dl):'—', f.ul!=null?n(f.ul):'—', f.ping!=null?n(f.ping,0):'—',
-    f.lat!=null?f.lat.toFixed(5):'—', f.lng!=null?f.lng.toFixed(5):'—', pdfSafe(f.detail),
+    n(f.lat,5), n(f.lng,5), pdfSafe(f.detail),
   ])
 
   doc.autoTable({
@@ -5534,7 +5632,7 @@ document.querySelectorAll('.os-drill-grp-tab').forEach(el=>{
 
 // ── Filter wiring ─────────────────────────────────
 // Global filter bar — one bar drives Executive, Network and Customer Experience
-function applyGlobal(){ refreshDash(); pages['tb-net']=0; pages['tb-gaming']=0; renderNetwork(); renderCX() }
+function applyGlobal(){ refreshDash(); pages['tb-net']=0; pages['tb-gaming']=0; pages['tb-os']=0; pages['tb-cx']=0; renderNetwork(); renderCX() }
 document.querySelectorAll('[data-df]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-df]').forEach(x=>x.classList.remove('on'))
   b.classList.add('on'); F.dDate=b.dataset.df; applyGlobal()
@@ -5578,7 +5676,7 @@ document.getElementById('drv-date-to').addEventListener('change',e=>{
 // CX-specific "Type" filter — operator, technology and province come from the global bar
 document.querySelectorAll('[data-cov2]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-cov2]').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on'); F.cCov=b.dataset.cov2; renderCX()
+  b.classList.add('on'); F.cCov=b.dataset.cov2; pages['tb-os']=0; pages['tb-cx']=0; renderCX()
 }))
 
 // ══════════════════════════════════════════════════
@@ -5647,17 +5745,32 @@ function buildHexbins(rows, res=9) {
     const cell=h3.latLngToCell(lat,lng,res)
     if(!bins.has(cell)) bins.set(cell,{rsrp:[],dl:[],ops:new Set(),n:0})
     const b=bins.get(cell)
-    if(r.rsrp!=null) b.rsrp.push(+r.rsrp)
-    if(r.download_mbps!=null) b.dl.push(+r.download_mbps)
+    // Number.isFinite (not !=null) so a malformed rsrp/download_mbps value can't silently
+    // poison the bin's average into NaN the same way computeDriveRules() was fixed elsewhere.
+    // r.rsrp!=null first: +null coerces to 0 (not NaN), so Number.isFinite(+null) is true --
+    // checking isFinite alone would treat a genuinely-missing reading as a real "0 dBm" value,
+    // reintroducing the exact null-becomes-0 bug this fix is meant to close (caught live: a
+    // hex built entirely from null-rsrp rows came out with avg_rsrp:0, not the intended null).
+    if(r.rsrp!=null && Number.isFinite(+r.rsrp)) b.rsrp.push(+r.rsrp)
+    if(r.download_mbps!=null && Number.isFinite(+r.download_mbps)) b.dl.push(+r.download_mbps)
     if(r.operator) b.ops.add(normOp(r.operator))
     b.n++
   }
   const feats=[]
   for(const [cell,d] of bins){
+    const avg_rsrp=d.rsrp.length ? d.rsrp.reduce((a,b)=>a+b,0)/d.rsrp.length : null
+    // Every row in this hex had a real GPS fix but none had a usable RSRP reading (e.g. a
+    // WiFi-only speed test, or a modem that failed to expose signal on that sample) -- skip
+    // the hex entirely rather than emit a feature with avg_rsrp:null. RSRP_HEX_FILL_PAINT's
+    // fill-color interpolate expression expects a number (confirmed live: feeding it a null
+    // avg_rsrp produces repeated MapLibre GL "Expected value to be of type number, but found
+    // null instead" warnings), and the single-view click popup used to separately mis-render
+    // this exact case as a confident bright-green "Excellent" via Math.round(null)===0 -> the
+    // >=-80 band, contradicting its own "Avg RSRP: —" row two lines below.
+    if(avg_rsrp==null) continue
     const boundary=h3.cellToBoundary(cell)          // [[lat,lng],…]
     const coords=boundary.map(([lat,lng])=>[lng,lat]) // flip → GeoJSON [lng,lat]
     coords.push(coords[0])                            // close ring
-    const avg_rsrp=d.rsrp.length ? d.rsrp.reduce((a,b)=>a+b,0)/d.rsrp.length : null
     const avg_dl  =d.dl.length   ? d.dl.reduce((a,b)=>a+b,0)/d.dl.length     : null
     feats.push({type:'Feature',
       geometry:{type:'Polygon',coordinates:[coords]},
@@ -6181,7 +6294,7 @@ function initCovMap(){
     })
     mapCov.on('click','hex-fill',e=>{
       const p=e.features[0].properties
-      const gc=rsrpColor(Math.round(p.avg_rsrp))
+      const gc=rsrpColor(p.avg_rsrp==null?null:Math.round(p.avg_rsrp))
       covPopup.setLngLat(e.lngLat).setHTML(`
         <div style="font-family:system-ui;font-size:12px">
           <div style="font-weight:600;color:var(--tx);margin-bottom:6px">Experience Hexbin</div>
@@ -6352,6 +6465,12 @@ function haversineKm([lng1,lat1],[lng2,lat2]) {
 let simH3Res = 9   // current resolution choice
 let lastSimRes = simH3Res   // resolution the most recently RUN simulation actually used — gap analysis must compare against this, not the live toggle, or changing the toggle after running silently corrupts every gap-analysis result
 
+function clampSimInput(id, dflt, min, max){
+  const el = document.getElementById(id)
+  const v = +el.value
+  if(el.value===''||!Number.isFinite(v)||v<min||v>max){ el.value=dflt; return dflt }
+  return v
+}
 async function runSimulation() {
   if(simPopup) simPopup.remove()
   const towers = covTowersGJ.features
@@ -6360,8 +6479,13 @@ async function runSimulation() {
     return
   }
   const freqMHz  = +document.getElementById('sim-freq').value
-  const txPow    = +document.getElementById('sim-power').value
-  const antGain  = +document.getElementById('sim-gain').value
+  // Their min/max attributes are decorative only for a manually-typed number input -- clearing
+  // the field (a normal thing to do while editing) reads as '', and +'' coerces to 0, which
+  // silently ran the simulation ~40dB below its intended power and produced a normal-looking
+  // "✓ 0 hexes · 0 good signal · 0 edge" success message instead of any indication the input
+  // itself was invalid. Reset the field to its documented default instead of computing with 0.
+  const txPow    = clampSimInput('sim-power', 43, 20, 50)
+  const antGain  = clampSimInput('sim-gain', 15, 0, 25)
   const envMap   = {urban:3.5, suburban:3.0, rural:2.5, indoor:4.0}
   const envN     = envMap[document.getElementById('sim-env').value] || 3.0
   const res      = simH3Res
@@ -6740,9 +6864,16 @@ document.addEventListener('click', e=>{
   // position," the same way it did before the click.
   const firstHeaderTxt = table.querySelector('thead th')?.textContent.trim().toLowerCase()
   const isRankFirst = firstHeaderTxt === 'rank'
+  const sortMedals=['🥇','🥈','🥉']
   sorted.forEach((r,i)=>{
     tbody.appendChild(r)
-    if(isRankFirst && r.children[0]) r.children[0].textContent = i+1
+    if(!isRankFirst || !r.children[0]) return
+    // tb-rankings/tb-os-rank render a medal emoji (not plain text) for the top 3 rows —
+    // clobbering that cell with a bare number here used to permanently destroy the medal
+    // markup the first time any column was sorted. Detect and re-render the same way
+    // renderRankings() itself does instead of assuming every "Rank" column is plain text.
+    if(r.children[0].querySelector('.rank-medal')) r.children[0].innerHTML = `<span class="rank-medal">${sortMedals[i]||i+1}</span>`
+    else r.children[0].textContent = i+1
   })
 })
 // Keyboard: Enter/Space on a focused sortable header triggers the sort
