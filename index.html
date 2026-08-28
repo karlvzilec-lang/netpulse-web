@@ -5115,7 +5115,15 @@ async function fetchSessionOperators(){
 // every province always has representation regardless of where testing is active
 // right now. Falls back to the old flat "most recent" fetch if the RPC errors.
 async function fetchTopNPerProvince(rpcName, table, orderCol, n, fallbackLimit){
-  const {data,error}=await db.rpc(rpcName,{n})
+  // Paginated (not a single .rpc() call): top_n_per_province_networkxp's own row count crossed
+  // Supabase/PostgREST's hard 1000-row-per-request cap the moment its partitioning was fixed
+  // to stop starving drive/background/automated rows against each other (2026-08-28 RCA) --
+  // confirmed live at 1207 rows for networkxp today, silently truncated to 1000 by PostgREST
+  // with no error, the exact same recurring gotcha already hit and fixed for drive_samples/
+  // exportPDF/Coverage Map elsewhere in this file. opensignal/cx are under 1000 right now but
+  // will cross it too as more data accumulates, so all three go through fetchPaginated() here
+  // rather than waiting to rediscover this per table.
+  const {data,error}=await fetchPaginated((from,to)=>db.rpc(rpcName,{n}).range(from,to))
   if(!error && Array.isArray(data)) return {data,error:null}
   console.error(rpcName+' RPC failed, falling back to flat "most recent" fetch:',error)
   return await db.from(table).select('*').order(orderCol,{ascending:false}).limit(fallbackLimit)
